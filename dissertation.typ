@@ -1,0 +1,185 @@
+#import "@preview/wordometer:0.1.5": word-count, total-words
+
+#show: word-count
+
+#import "template.typ": template, todo
+#show: template.with(
+  title: [AC52010 / AC53016 - MSc Project],
+  assignment: [A Comparative Analysis of Memory Safety, Concurrency, and
+    Performance in Edge-AI],
+  abstractTitle: [A Comparative Analysis of Memory Safety, Concurrency, and
+    Performance in Edge-AI],
+)
+
+#show "C++": box[C++]
+
+#columns(2, gutter: 16pt)[
+= Introduction
+
+== Background and Context
+
+In recent years, Edge-AI (Edge Artificial Intelligence) has begun to move the
+deployment of many AI models from centralised cloud-based servers to local
+devices such as sensors, mobile phones, and embedded systems. This allows for
+real-time processing and reduces internet bandwidth usage, making it suitable
+for applications where reduced latency is critical (e.g. fitness trackers,
+autonomous vehicles, etc.), or where connectivity is unreliable or unavailable
+(e.g. remote weather stations, satellite image analysis, etc.).
+
+Edge-AI deployment brings challenges in terms of resource constraints, such as
+limited computational power, memory, and power requirements. Remote software
+updates to maintain Edge-AI applications also come at a cost, as they can be
+expensive and time-consuming, especially when dealing with a large number of
+devices. These challenges make language selection an important design decision
+for Edge-AI pipelines.
+
+== Problem Statement
+
+When deploying on Edge hardware, the above listed challenges amplify the impact
+of programming language choice. A language's runtime model dictates memory,
+concurrency, and scheduling behaviour under load, which directly impacts
+latency, throughput, and resource usage. For example, manual memory management
+offers fine-grained control and increased performance, but simultaneously
+increases the risk of memory leaks and undefined behaviour. Conversely, memory
+management may be automated through garbage collection (GC) at the cost of
+increased latency and unpredictable latency jitter.
+
+Selecting a language for Edge-AI pipelines is often guided by familiarity or
+generalised benchmarks, rather than the evaluation of runtime models under
+stress with the constraints of embedded hardware. There is a lack of empirical
+evidence of how specific memory management and concurrency models interact with
+backpressure policies under heavy, fluctuating loads. Additionally, resource
+contention and thermal throttling confounders can introduce noise that limits
+the validity of naive comparisons.
+
+This dissertation addresses this gap by providing empirical evidence and an
+evaluation of pipelines deployed on resource-constrained hardware, with a focus
+on the trade-offs among Rust, C++, and Python implementations of a dual-stream
+Human Activity Recognition (HAR) pipeline on industry-standard Edge-AI hardware.
+It focuses on three confounders: (1) language runtime models, (2) backpressure
+policies under various loads, and (3) thermal/power throttling.
+
+== Research Questions and Objectives
+
+The primary research questions are:
+
+#text[
+  #set enum(indent: 0em, numbering: n => [*RQ#n*])
+
++ *Runtime Performance:* How do the runtime models /*(memory and concurrency)*/
+  of Rust/*(borrow checker/async runtimes)*/, C++/*(manual memory
+  management/native threads)*/, and Python /*(GC/GIL)*/ influence
+  latency/*(p50/p95/p99)*/, throughput, and memory consumption in a dual-stream
+  HAR pipeline on Edge-AI hardware?
+  // #todo[runtime models and latency percentiles might belong in the
+  // methodology section]
+
++ *Backpressure Interaction:* How do the language-specific runtime models
+  interact with different backpressure policies /*(bounded queue, drop-oldest,
+  rate-limiting)*/ under varying load, and what are the trade-offs in observed
+  deadline adherence, system stability, and allocator/GC pressure and
+  concurrency overhead? /*#todo[backpressure policies might belong in the
+  methodology section]*/
+
++ *Dynamic Profiling vs. Runtime Behaviour:* To what extent do dynamic
+  memory/concurrency profiling metrics /*(allocation churn, GC pause duration,
+  asynchronous task-switch overhead)*/ explain the observed performance
+  bottlenecks and trade-offs under load? /*#todo[exact metrics might belong in
+  the methodology section]*/
+]
+
+The primary research objectives are:
+
+#text[
+  #set enum(indent: 0em, numbering: n => [*RO#n*])
+
++ Implement a functionally identical dual-stream HAR pipeline in Rust, C++, and
+  Python, ensuring optimised idiomatic implementations for each language.
+
++ Evaluate the performance of each implementation under controlled conditions,
+  using a shared deterministic load generator, to quantify how backpressure
+  policies and runtime models impact latency/*(p50/p95/p99)*/, throughput,
+  memory consumption/* (RSS/PSS/USS)*/, and thermal/power dynamics under load.
+  //#todo[exact metrics might belong in the methodology section]
+
++ Analyse runtime model overhead to explain performance differences, and derive
+  empirically grounded guidance for language selection in constrained Edge-AI
+  deployments. /*#todo[allocation churn, GC pause duration, async task-switch
+  overhead belong in the methodology section]*/
+]
+
+== Research Contributions
+
+This dissertation offers the following contributions to software engineering for
+Edge-AI systems:
+
+#text[
+  #set enum(indent: 0em, numbering: n => [*C#n*])
+
++ *Cross-Language Runtime Evaluation:* Addressing RQ1, this work delivers an
+  empirical comparison of how Rust, C++, and Python runtime models (memory
+  management and concurrency) influence latency, throughput, and memory
+  consumption on resource-constrained embedded hardware.
+
++ *Interaction Analysis:* Addressing RQ2, this work provides a controlled
+  assessment of how backpressure policies interact with runtime models under
+  various loads, and identifies trade-offs between throughput and long-term
+  system stability.
+
++ *Root-Cause Identification:* Addressing RQ3, this work presents empirical
+  evidence linking dynamic memory allocation churn, GC pause duration, and
+  scheduling overhead to system latency and throughput.
+
++ *Evidence-Based Guidelines:* Addressing findings across all research
+  questions, this dissertation offers empirically grounded recommendations for
+  language selection in real-time, multi-stream edge deployments.
+]
+
+== Scope and Limitations
+
+The focus of this dissertation is on the interaction of three language runtime
+models (Rust, C++, and Python) with system latency and throughput, using
+standardised, idiomatic implementations of a dual-stream HAR pipeline on
+industry-standard Edge-AI hardware. The scope is limited to a standardised
+implementation representative of real-world multi-modal processing, with
+confounders limited to thermal/power throttling and queue-based backpressure
+policies.
+
+The pipeline architecture, deterministic load generator, and backpressure
+mechanisms are designed for cross-platform compatibility. However, AI
+acceleration, thermal behaviour, and power management are fundamentally
+SoC-dependent. Consequently, the profiling and acceleration tools used during
+evaluation (e.g., NVIDIA tegrastats, TensorRT) are specific to the Jetson Orin
+Nano platform and cannot be directly applied across other edge devices.
+
+
+== Dissertation Outline
+
+The remainder of this dissertation is structured as follows: #box[*Chapter 2*]
+reviews related work, the runtime models of the target languages, and
+backpressure policies. #box[*Chapter 3*] details the methodology, including the
+hardware and software setup, backpressure interfaces, and profiling toolchains
+to collect metrics. #box[*Chapter 4*] describes the implementation of the HAR
+pipeline in each language, highlighting language-specific optimisations and
+challenges. #box[*Chapter 5*] presents the results, including performance
+metrics, memory allocation and GC pressure, and backpressure outcomes under
+varying loads. #box[*Chapter 6*] discusses the findings, and limitations of the
+study. Finally, #box[*Chapter 7*] concludes by addressing the research
+questions, providing practical recommendations for language selection in Edge-AI
+contexts, and suggesting directions for future work.
+
+= Literature Review
+
+= Methodology
+
+= Implementation
+
+= Results
+
+= Discussion
+
+= Conclusion
+]
+
+Total words: #total-words
+
