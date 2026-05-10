@@ -13,11 +13,19 @@
 
 #show "C++": box[C++]
 
+#let wc(body) = word-count(total => [
+  #body
+  #set text(size: 0.8em, style: "italic")
+  #align(right)[#{total.words - 1}]
+])
+
 #columns(2, gutter: 16pt)[
+#wc[
 = Introduction
 
 == Background and Context
 
+#wc[
 In recent years, Edge-AI (Edge Artificial Intelligence) has begun to move the
 deployment of many AI models from centralised cloud-based servers to local
 devices such as sensors, mobile phones, and embedded systems. This allows for
@@ -32,9 +40,11 @@ updates to maintain Edge-AI applications also come at a cost, as they can be
 expensive and time-consuming, especially when dealing with a large number of
 devices. These challenges make language selection an important design decision
 for Edge-AI pipelines.
+]
 
 == Problem Statement
 
+#wc[
 When deploying on Edge hardware, the above listed challenges amplify the impact
 of programming language choice. A language's runtime model dictates memory,
 concurrency, and scheduling behaviour under load, which directly impacts
@@ -58,9 +68,11 @@ on the trade-offs among Rust, C++, and Python implementations of a dual-stream
 Human Activity Recognition (HAR) pipeline on industry-standard Edge-AI hardware.
 It focuses on three confounders: (1) language runtime models, (2) backpressure
 policies under various loads, and (3) thermal/power throttling.
+]
 
 == Research Questions and Objectives
 
+#wc[
 The primary research questions are:
 
 #text[
@@ -107,9 +119,11 @@ The primary research objectives are:
   deployments. /*#todo[allocation churn, GC pause duration, async task-switch
   overhead belong in the methodology section]*/
 ]
+]
 
 == Research Contributions
 
+#wc[
 This dissertation offers the following contributions to software engineering for
 Edge-AI systems:
 
@@ -134,9 +148,11 @@ Edge-AI systems:
   questions, this dissertation offers empirically grounded recommendations for
   language selection in real-time, multi-stream edge deployments.
 ]
+]
 
 == Scope and Limitations
 
+#wc[
 The focus of this dissertation is on the interaction of three language runtime
 models (Rust, C++, and Python) with system latency and throughput, using
 standardised, idiomatic implementations of a dual-stream HAR pipeline on
@@ -151,10 +167,12 @@ acceleration, thermal behaviour, and power management are fundamentally
 SoC-dependent. Consequently, the profiling and acceleration tools used during
 evaluation (e.g., NVIDIA tegrastats, TensorRT) are specific to the Jetson Orin
 Nano platform and cannot be directly applied across other edge devices.
+]
 
 
 == Dissertation Outline
 
+#wc[
 The remainder of this dissertation is structured as follows: #box[*Chapter 2*]
 reviews related work, the runtime models of the target languages, and
 backpressure policies. #box[*Chapter 3*] details the methodology, including the
@@ -167,10 +185,62 @@ varying loads. #box[*Chapter 6*] discusses the findings, and limitations of the
 study. Finally, #box[*Chapter 7*] concludes by addressing the research
 questions, providing practical recommendations for language selection in Edge-AI
 contexts, and suggesting directions for future work.
+]
+]
 
+#wc[
 = Literature Review
+]
 
+#wc[
 = Methodology
+
+== Hardware and Software Environment
+
+#wc[
+=== Hardware Stack
+
+The NVIDIA Jetson Orin Nano Super was utilised as the target Edge-AI platform.
+It is a high-performance system-on-module (SoM) designed for Edge-AI development
+and allows complex AI workloads and multi-stream pipelines to run efficiently.
+The developer kit includes a carrier board with I/O interfaces (e.g., USB,
+Ethernet, DisplayPort), a MicroSD card slot for booting, and the Jetson Orin
+Nano module itself which includes the following features:
+- 6-core Arm Cortex-A78AE 64-bit CPU for general-purpose concurrent processing
+- up to 67 TOPS (Tera Operations Per Second) of AI performance
+- 8 GB of 128-bit LPDDR5 memory with a bandwidth of 102 GB/s
+- 1024 CUDA cores for general-purpose GPU computing
+- 32 Tensor cores for AI acceleration
+
+A Waveshare IMX219-160 Camera Module was used to deliver the RGB video stream,
+configured to capture at #highlight[1920×1080 RGB frames at 30 FPS], and
+connected via MIPI CSI-2 (Mobile Industry Processor Interface Camera Serial
+Interface 2). The camera captures images with a field of view (FOV) of 160
+degrees, making it suitable for capturing a wide area for human activity
+recognition.
+
+A Bosch Sensortec BMI088 IMU Shuttle Board 3.0 was used to provide inertial
+measurement data, configured to capture 6-axis data, and connected via I2C. The
+BMI088 combines a 3-axis accelerometer and a 3-axis gyroscope, providing two
+complementary data streams at up to 2.0 hHz (accelerometer) and 3.2 kHz
+(gyroscope).
+
+To ensure that disk I/O did not cause bottlenecks or confound performance
+comparisons, all implementations were executed from a 1TB Samsung 990 PRO PCIe
+4.0 NVMe M.2 SSD, capable of up to 7,450 MB/s read and 6,900 MB/s write speeds.
+A SanDisk "High-Endurance" microSD Card (64GB, Class 10/U3) was used solely for
+initial device installation and bootloading, and was unmounted after boot to
+prevent any background I/O (such as writing logs) from interfering with
+performance measurements.
+]
+
+#wc[
+=== Software Stack
+
+The SoM was flashed with NVIDIA's JetPack 7.1 SDK, which includes Jetson Linux
+38.4,and CUDA 13.0.0, cuDNN 9.12.0, and TensorRT 10.13.3.9 for AI acceleration.
+]
+]
 
 = Implementation
 
@@ -179,7 +249,7 @@ contexts, and suggesting directions for future work.
 = Discussion
 
 = Conclusion
-]
 
 Total words: #total-words
+]
 
