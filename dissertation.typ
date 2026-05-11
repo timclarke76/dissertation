@@ -206,73 +206,93 @@ It is a high-performance system-on-module (SoM) designed for Edge-AI development
 and allows complex AI workloads and multi-stream pipelines to run efficiently.
 The developer kit includes a carrier board with I/O interfaces (e.g., USB,
 Ethernet, DisplayPort), a MicroSD card slot for booting, and the Jetson Orin
-Nano module itself which includes the following features:
+Nano module itself which includes the following features @jetson-orin-nano:
 - 6-core Arm Cortex-A78AE 64-bit CPU for general-purpose concurrent processing
 - up to 67 TOPS (Tera Operations Per Second) of AI performance
 - 8 GB of 128-bit LPDDR5 memory with a bandwidth of 102 GB/s
 - 1024 CUDA cores for general-purpose GPU computing
 - 32 Tensor cores for AI acceleration
 
-A Waveshare IMX219-160 Camera Module was used to deliver the RGB video stream,
-configured to capture at #highlight[1920×1080 RGB frames at 30 FPS], and
-connected via MIPI CSI-2 (Mobile Industry Processor Interface Camera Serial
-Interface 2). The images captured by the camera's 160#sym.degree FOV required
-undistortion
+A Waveshare IMX219-160 Camera Module @imx219-160 was used to deliver the RGB
+video stream, configured to capture at #highlight[1920×1080 RGB frames at 30
+FPS], and connected via MIPI CSI-2 (Mobile Industry Processor Interface Camera
+Serial Interface 2). The images captured by the camera's 160#sym.degree FOV
+required undistortion
 
 The camera captures images with a field of view (FOV) of 160
 degrees, making it suitable for capturing a wide area for human activity
 recognition.
 
-A Bosch Sensortec BMI088 IMU Shuttle Board 3.0 was used to provide inertial
-measurement data, configured to capture 6-axis data, and connected via SPI for
-maximum throughput. The BMI088 combines a 3-axis accelerometer and a 3-axis
-gyroscope, providing two complementary data streams at up to 1.6 kHz
+A Bosch Sensortec BMI088 IMU Shuttle Board 3.0 @bmi088 was used to provide
+inertial measurement data, configured to capture 6-axis data, and connected via
+SPI for maximum throughput. The BMI088 combines a 3-axis accelerometer and a
+3-axis gyroscope, providing two complementary data streams at up to 1.6 kHz
 (accelerometer) and 2.0 kHz (gyroscope).
 
 To ensure that disk I/O did not cause bottlenecks or confound performance
 comparisons, all implementations were executed from a 1TB Samsung 990 PRO PCIe
-4.0 NVMe M.2 SSD. A SanDisk "High-Endurance" microSD Card (64GB, Class 10/U3)
-was only used for initial device installation and bootloading, and was unmounted
-after boot to prevent any background I/O (such as writing logs) from interfering
-with performance measurements.
+4.0 NVMe M.2 SSD @samsung-990-pro. A SanDisk "High-Endurance" microSD Card
+(64GB, Class 10/U3) @sandisk-micro-sd was only used for initial device
+installation and bootloading, and was unmounted after boot to prevent any
+background I/O (such as writing logs) from interfering with performance
+measurements.
 ]
 
 #wc[
 === Software Stack
 
-The Jetson was flashed with NVIDIA's JetPack 7.1 SDK, which includes Jetson
-Linux 38.4,and CUDA 13.0.0, cuDNN 9.12.0, and TensorRT 10.13.3.9 for AI
-acceleration. #todo[Mention L4T Ubuntu 24.04? What version of ONNX?]
+The Jetson was flashed with NVIDIA's JetPack 7.1 SDK @jetpack-7-1, which
+includes Jetson Linux 38.4 @jetson-linux (which uses the Ubuntu 24.04-based root
+file system), and CUDA 13.0.0, cuDNN 9.12.0, and TensorRT 10.13.3.9 for AI
+inference and acceleration. The software stack versions were selected as the
+most recent stable releases at the time of development, and were used for all
+implementations to ensure a consistent baseline for comparison. #todo[Add ONNX
+version]
 
 *CUDA* provides a parallel execution environment and programming model for
-NVIDIA GPUs, using Single Instruction Multiple Thread (SIMT) architecture. It
-allows developers to write a _kernel_ function that is executed in parallel
-across many threads (using different data) on the GPU, enabling high-performance
-computing for AI workloads.
+NVIDIA GPUs, using Single Instruction Multiple Threads (SIMT) architecture
+@cuda-coding-guide. It allows developers to write a _kernel_ function that is
+executed in parallel across many threads (using different data) on the GPU,
+enabling high-performance computing for AI workloads.
 
 The kernel _threads_ are grouped into _blocks_ (up to 1024 threads per block),
 which in turn are grouped into a _grid_. Each block is split into _warps_ of 32
 threads that are executed simultaneously on a single GPU _Streaming
-Multiprocessor_ (SM). Developers must explicitly manage the transfer of data
+Multiprocessor_ (SM). CUDA clients must explicitly manage the transfer of data
 between the host (CPU) and device (GPU).
 
 *cuDNN* (CUDA Deep Neural Network) is a GPU-accelerated library that sits on top
 of CUDA and runs on the GPU to provide higher-level abstractions and optimised
 implementations of common deep learning operations (e.g., normalisation,
-transformation, softmax, etc.). #todo[How to ensure all pipeline implementations
-route through an identical cuDNN-backed execution path, if cuDNN uses a
-heuristic search to select the fastest implementation?]
+transformation, softmax, etc.).
 
-*TensorRT* is responsible for optimising and running the AI models on the GPU
-from a _.engine_ file generated from an *ONNX* (Open Neural Network Exchange)
-model.
+*TensorRT* is responsible for compiling an *ONNX* (Open Neural Network Exchange)
+model into a _.engine_ file, optimised to run on the Jetson GPU. The same
+optimised _.engine_ files was used across all three implementations to ensure
+baseline consistency.
+
+All implementations interact with the *ONNX Runtime* to load and execute the
+AI model, which is responsible for the data transfer and inference orchestration
+on the host, and hands off responsibility to TensorRT for inference execution on
+the device.
 
 Performance and overhead of the language runtime models was measured at the
-boundary of the host/device (CPU/GPU) memory separation, where the CPU manages
-the runtime model and the SIMT architecture runs the AI workloads on the GPU.
-This prevents confounding the results with hardware latency, and provides a
-clearer comparison of how each language's runtime model performs under load and
-backpressure.
+boundary of the host/device memory separation, where the CPU manages the runtime
+model and the SIMT architecture runs the AI workloads on the GPU. This prevents
+confounding the results with hardware latency, and provides a clearer comparison
+of how each language's runtime model performs under load and backpressure.
+
+A Docker container, based on NVIDIA's official _l4t-base_ image (#todo[add
+version]), was used to ensure that the software environment remained
+consistent for all implementations. #todo[expand?]
+]
+
+#wc[
+=== Deterministic Load Generator
+
+To reliably compare the performance of the three implementations, a synthetic
+load generator was developed to produce 
+
 ]
 ]
 
@@ -285,5 +305,8 @@ backpressure.
 = Conclusion
 
 Total words: #total-words
-]
 
+#colbreak()
+#set par(justify: false)
+#bibliography("refs.bib", title: "References", style: "ieee")
+]
