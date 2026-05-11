@@ -25,14 +25,15 @@
 
 == Background and Context
 
-#wc[
-In recent years, Edge-AI (Edge Artificial Intelligence) has begun to move the
-deployment of many AI models from centralised cloud-based servers to local
+#wc[ In recent years, Edge-AI (Edge Artificial Intelligence) has begun to move
+the deployment of AI models from centralised cloud-based servers to local
 devices such as sensors, mobile phones, and embedded systems. This allows for
 real-time processing and reduces internet bandwidth usage, making it suitable
 for applications where reduced latency is critical (e.g. fitness trackers,
 autonomous vehicles, etc.), or where connectivity is unreliable or unavailable
 (e.g. remote weather stations, satellite image analysis, etc.).
+
+#todo[discuss advances in hardware acceleration]
 
 Edge-AI deployment brings challenges in terms of resource constraints, such as
 limited computational power, memory, and power requirements. Remote software
@@ -228,7 +229,7 @@ complementary data streams at up to 2.0 hHz (accelerometer) and 3.2 kHz
 To ensure that disk I/O did not cause bottlenecks or confound performance
 comparisons, all implementations were executed from a 1TB Samsung 990 PRO PCIe
 4.0 NVMe M.2 SSD, capable of up to 7,450 MB/s read and 6,900 MB/s write speeds.
-A SanDisk "High-Endurance" microSD Card (64GB, Class 10/U3) was used solely for
+A SanDisk "High-Endurance" microSD Card (64GB, Class 10/U3) was only used for
 initial device installation and bootloading, and was unmounted after boot to
 prevent any background I/O (such as writing logs) from interfering with
 performance measurements.
@@ -237,8 +238,28 @@ performance measurements.
 #wc[
 === Software Stack
 
-The SoM was flashed with NVIDIA's JetPack 7.1 SDK, which includes Jetson Linux
-38.4,and CUDA 13.0.0, cuDNN 9.12.0, and TensorRT 10.13.3.9 for AI acceleration.
+The Jetson was flashed with NVIDIA's JetPack 7.1 SDK, which includes Jetson
+Linux 38.4,and CUDA 13.0.0, cuDNN 9.12.0, and TensorRT 10.13.3.9 for AI
+acceleration.
+
+*CUDA* provides a parallel execution environment and programming model for
+NVIDIA GPUs, using Single Instruction Multiple Thread (SIMT) architecture. It
+allows developers to write a _kernel_ function that is executed in parallel
+across many threads (using different data) on the GPU, enabling high-performance
+computing for AI workloads.
+
+The kernel _threads_ are grouped into _blocks_ (up to 1024 threads per block),
+which in turn are grouped into a _grid_. Each block is split into _warps_ of 32
+threads that are executed simultaneously on a single GPU _Streaming
+Multiprocessor_ (SM). Developers must explicitly manage the transfer of data
+between the host (CPU) and device (GPU).
+
+Performance and overhead of the language runtime models was measured at the
+boundary of the host/device (CPU/GPU) memory separation, where the CPU manages
+the runtime model and the SIMT architecture runs the AI workloads on the GPU.
+This prevents confounding the results with hardware latency, and provides a
+clearer comparison of how each language's runtime model performs under load and
+backpressure.
 ]
 ]
 
