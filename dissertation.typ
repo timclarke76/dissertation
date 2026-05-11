@@ -216,23 +216,25 @@ Nano module itself which includes the following features:
 A Waveshare IMX219-160 Camera Module was used to deliver the RGB video stream,
 configured to capture at #highlight[1920×1080 RGB frames at 30 FPS], and
 connected via MIPI CSI-2 (Mobile Industry Processor Interface Camera Serial
-Interface 2). The camera captures images with a field of view (FOV) of 160
+Interface 2). The images captured by the camera's 160#sym.degree FOV required
+undistortion
+
+The camera captures images with a field of view (FOV) of 160
 degrees, making it suitable for capturing a wide area for human activity
 recognition.
 
 A Bosch Sensortec BMI088 IMU Shuttle Board 3.0 was used to provide inertial
-measurement data, configured to capture 6-axis data, and connected via I2C. The
-BMI088 combines a 3-axis accelerometer and a 3-axis gyroscope, providing two
-complementary data streams at up to 2.0 hHz (accelerometer) and 3.2 kHz
-(gyroscope).
+measurement data, configured to capture 6-axis data, and connected via SPI for
+maximum throughput. The BMI088 combines a 3-axis accelerometer and a 3-axis
+gyroscope, providing two complementary data streams at up to 1.6 kHz
+(accelerometer) and 2.0 kHz (gyroscope).
 
 To ensure that disk I/O did not cause bottlenecks or confound performance
 comparisons, all implementations were executed from a 1TB Samsung 990 PRO PCIe
-4.0 NVMe M.2 SSD, capable of up to 7,450 MB/s read and 6,900 MB/s write speeds.
-A SanDisk "High-Endurance" microSD Card (64GB, Class 10/U3) was only used for
-initial device installation and bootloading, and was unmounted after boot to
-prevent any background I/O (such as writing logs) from interfering with
-performance measurements.
+4.0 NVMe M.2 SSD. A SanDisk "High-Endurance" microSD Card (64GB, Class 10/U3)
+was only used for initial device installation and bootloading, and was unmounted
+after boot to prevent any background I/O (such as writing logs) from interfering
+with performance measurements.
 ]
 
 #wc[
