@@ -242,7 +242,7 @@ with performance measurements.
 
 The Jetson was flashed with NVIDIA's JetPack 7.1 SDK, which includes Jetson
 Linux 38.4,and CUDA 13.0.0, cuDNN 9.12.0, and TensorRT 10.13.3.9 for AI
-acceleration.
+acceleration. #todo[Mention L4T Ubuntu 24.04? What version of ONNX?]
 
 *CUDA* provides a parallel execution environment and programming model for
 NVIDIA GPUs, using Single Instruction Multiple Thread (SIMT) architecture. It
@@ -255,6 +255,17 @@ which in turn are grouped into a _grid_. Each block is split into _warps_ of 32
 threads that are executed simultaneously on a single GPU _Streaming
 Multiprocessor_ (SM). Developers must explicitly manage the transfer of data
 between the host (CPU) and device (GPU).
+
+*cuDNN* (CUDA Deep Neural Network) is a GPU-accelerated library that sits on top
+of CUDA and runs on the GPU to provide higher-level abstractions and optimised
+implementations of common deep learning operations (e.g., normalisation,
+transformation, softmax, etc.). #todo[How to ensure all pipeline implementations
+route through an identical cuDNN-backed execution path, if cuDNN uses a
+heuristic search to select the fastest implementation?]
+
+*TensorRT* is responsible for optimising and running the AI models on the GPU
+from a _.engine_ file generated from an *ONNX* (Open Neural Network Exchange)
+model.
 
 Performance and overhead of the language runtime models was measured at the
 boundary of the host/device (CPU/GPU) memory separation, where the CPU manages
