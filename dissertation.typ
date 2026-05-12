@@ -2,7 +2,7 @@
 
 #show: word-count
 
-#import "template.typ": template, todo
+#import "template.typ": template, ct, todo
 #show: template.with(
   title: [AC52010 / AC53016 - MSc Project],
   assignment: [A Comparative Analysis of Memory Safety, Concurrency, and
@@ -250,34 +250,35 @@ most recent stable releases at the time of development, and were used for all
 implementations to ensure a consistent baseline for comparison. #todo[Add ONNX
 version]
 
-*CUDA* (Compute Unified Device Architecture) @cuda-coding-guide provides a
-parallel execution environment and programming model for heterogeneous computing
-systems with NVIDIA GPUs, using Single Instruction Multiple Threads (SIMT)
-architecture. In CUDA, the CPU is referred to as the _host_, and the GPU is
-referred to as the _device_. CUDA clients are responsible for managing the
-transfer of data between _host memory_ and _device memory_.
+*CUDA* (Compute Unified Device Architecture) @cuda provides a parallel execution
+environment and programming model for heterogeneous computing systems with
+NVIDIA GPUs, using Single Instruction Multiple Threads (SIMT) architecture. In
+CUDA, the CPU is referred to as the _host_, and the GPU is referred to as the
+_device_. CUDA clients are responsible for managing the transfer of data between
+_host memory_ and _device memory_.
 
-CUDA allows developers to write a _kernel_ function that is launched from the
-host code and executed in parallel across many threads (using different data) on
-the device, enabling high-performance computing for AI workloads. The kernel
-_threads_ are grouped into _thread blocks_, which in turn are grouped into a
-_grid_. Each thread block is split into _warps_ of 32 threads that are executed
-in lock step on a single device _Streaming Multiprocessor_ (SM).
+CUDA allows developers to write a _kernel_ function that is launched
+asynchronously from the host code and executed in parallel across many threads
+(using different data) on the device, enabling high-performance computing for AI
+workloads. The kernel _threads_ are grouped into _thread blocks_, which in turn
+are grouped into a _grid_. Each thread block is split into _warps_ of 32 threads
+that are executed in lock step on a single device _Streaming Multiprocessor_
+(SM).
 
-*cuDNN* (CUDA Deep Neural Network) is a GPU-accelerated library that sits on top
-of CUDA and runs on the GPU to provide higher-level abstractions and optimised
-implementations of common deep learning operations (e.g., normalisation,
-transformation, softmax, etc.).
+*cuDNN* (CUDA Deep Neural Network) @cudnn is a GPU-accelerated library of
+primitives for deep neural networks, that sits on top of CUDA and runs on the
+device to provide higher-level abstractions and optimised implementations of
+common deep learning operations (e.g., normalisation, matrix multiplication,
+softmax, etc.).
 
-*TensorRT* is responsible for compiling an *ONNX* (Open Neural Network Exchange)
-model into a _.engine_ file, optimised to run on the Jetson GPU. The same
-optimised _.engine_ files was used across all three implementations to ensure
-baseline consistency.
+*TensorRT* @tensorRT is responsible for compiling an *ONNX* (Open Neural Network
+Exchange) @onnx model into a _.engine_ file, optimised to run on the Jetson GPU.
 
-All implementations interact with the *ONNX Runtime* to load and execute the
-AI model, which is responsible for the data transfer and inference orchestration
-on the host, and hands off responsibility to TensorRT for inference execution on
-the device.
+All implementations interact with the *ONNX Runtime* to load and execute the AI
+model, which is responsible for the data transfer and inference orchestration on
+the host, and hands off responsibility to TensorRT for inference execution on
+the device. To ensure a consistent baseline, the same optimised _.engine_ file
+was used across all three implementations.
 
 Performance and overhead of the language runtime models was measured at the
 boundary of the host/device memory separation, where the CPU manages the runtime
@@ -285,9 +286,18 @@ model and the SIMT architecture runs the AI workloads on the GPU. This prevents
 confounding the results with hardware latency, and provides a clearer comparison
 of how each language's runtime model performs under load and backpressure.
 
-A Docker container, based on NVIDIA's official _l4t-base_ image (#todo[add
-version]), was used to ensure that the software environment remained
-consistent for all implementations. #todo[expand?]
+A Docker container, based on NVIDIA's official _l4t-base_ image (#ct[version]),
+was used to prevent host updates to ensure that the software toolchains and
+environment variables remained consistent for all implementations. #todo[Add
+details about container configuration, e.g., volumes, GPU and device access,
+privileged mode (if used), etc.] While Docker introduces some performance
+overhead, it was considered acceptable to ensure a consistent and reproducible
+environment for all implementations.
+
+The latest stable releases of the language toolchains were used for all
+implementations: Rust #ct[version], C++20 with GCC #ct[version], and Python
+#ct[version].
+
 ]
 
 #wc[
