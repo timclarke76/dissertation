@@ -112,8 +112,10 @@
   #body
 ]
 
-#let todo(body) = {
-  set text(fill: rgb("#D80000"))
-  [TODO: #body]
+#let ct(body, color: rgb("#D80000")) = {
+  set text(fill: color)
+  [#body]
 }
+
+#let todo(body) = {ct([TODO: #body])}
 
