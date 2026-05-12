@@ -19,6 +19,7 @@
   #align(right)[#{total.words - 1}]
 ])
 
+// #set text(size: 12pt)
 #columns(2, gutter: 16pt)[
 #wc[
 = Introduction
@@ -249,17 +250,19 @@ most recent stable releases at the time of development, and were used for all
 implementations to ensure a consistent baseline for comparison. #todo[Add ONNX
 version]
 
-*CUDA* provides a parallel execution environment and programming model for
-NVIDIA GPUs, using Single Instruction Multiple Threads (SIMT) architecture
-@cuda-coding-guide. It allows developers to write a _kernel_ function that is
-executed in parallel across many threads (using different data) on the GPU,
-enabling high-performance computing for AI workloads.
+*CUDA* (Compute Unified Device Architecture) @cuda-coding-guide provides a
+parallel execution environment and programming model for heterogeneous computing
+systems with NVIDIA GPUs, using Single Instruction Multiple Threads (SIMT)
+architecture. In CUDA, the CPU is referred to as the _host_, and the GPU is
+referred to as the _device_. CUDA clients are responsible for managing the
+transfer of data between _host memory_ and _device memory_.
 
-The kernel _threads_ are grouped into _blocks_ (up to 1024 threads per block),
-which in turn are grouped into a _grid_. Each block is split into _warps_ of 32
-threads that are executed simultaneously on a single GPU _Streaming
-Multiprocessor_ (SM). CUDA clients must explicitly manage the transfer of data
-between the host (CPU) and device (GPU).
+CUDA allows developers to write a _kernel_ function that is launched from the
+host code and executed in parallel across many threads (using different data) on
+the device, enabling high-performance computing for AI workloads. The kernel
+_threads_ are grouped into _thread blocks_, which in turn are grouped into a
+_grid_. Each thread block is split into _warps_ of 32 threads that are executed
+in lock step on a single device _Streaming Multiprocessor_ (SM).
 
 *cuDNN* (CUDA Deep Neural Network) is a GPU-accelerated library that sits on top
 of CUDA and runs on the GPU to provide higher-level abstractions and optimised
