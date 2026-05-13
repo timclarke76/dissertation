@@ -301,11 +301,77 @@ implementations: Rust #ct[version], C++20 with GCC #ct[version], and Python
 ]
 
 #wc[
+=== Model Fusion
+
+- Two AI models.
+- Late fusion.
+- Zero On Hold (ZOH) for IMU data.
+- Sensor data interpolation not used to simulate data between sensor updates,
+  removing number precision as a confounder.
+]
+
+#wc[
 === Deterministic Load Generator
 
 To reliably compare the performance of the three implementations, a synthetic
-load generator was developed to produce 
+load generator was developed to create reproducible and deterministic simulated
+sensor data. This ensures that the behaviour of each implementation can be
+compared using the same baseline data, and that differences in performance can
+be attributed to the runtime models and backpressure policies, and not input
+variability.
 
+The load generator produces three streams of data to shared memory buffers for
+consumption by the HAR pipelines: #todo[check how sensors provide data --- may
+need harness to connect with API and also copy to shared memory] (1) an RGB
+video stream to simulate the camera, (2) a 6-axis inertial measurement stream to
+simulate the accelerometer,  and (3) a second 6-axis inertial measurement stream
+to simulate the gyroscope. Using shared memory allows for low-latency
+communication, and will not block the generator if the pipelines are
+backpressured.
+
+The generated image data was random noise. Each image was created as an array of
+RGB pixel values with dimensions of 1920x1080 #todo[confirm resolution] to match
+the sensor data, and each pixel's red, green, and blue values were assigned
+random whole numbers in the range [0,255].
+
+To generate the IMU data, mathematical functions were used to create data
+similar to that produced by real-world movements (e.g., sine waves to simulate
+smooth motion, etc.), while still being deterministic and reproducible.
+
+#todo[Check previous work for synthetic HAR data generation.]
+
+To allow backpressure policies to be evaluated under varying load, the generator
+accepts a _load_ parameter that dictates the speed at which data is produced.
+For example, a value of 1.0 produces data at the same rate as the sensors, while
+a value of 2.0 produces data twice as fast. 100% saturation of the pipelines was
+determined by adjusting the load argument until the pipelines were consistently
+backpressured. #todo[Expand saturation process.]
+
+A fixed seed was used to ensure the same generated data was fed into each
+implementation. Because the AI inference is only a repeatable workload to
+determine the performance of the runtime models, and we are not concerned about
+prediction accuracy, the generated data was not designed to be realistic. This
+kept the load generator implementation simple and deterministic, and reduced
+latency and overhead that could confound the results.
+
+The load generator was written in Rust, which is a performance-oriented
+language, and is memory-safe without a GC that may introduce latency spikes. For
+maximum timing accuracy, spin-loops were used in place of timers or sleep
+functions, which require extra overhead and can be imprecise for sub-millisecond
+timing.
+
+]
+
+#wc[
+=== Backpressure Policies
+]
+
+#wc[
+=== Profiling and Metrics
+]
+
+#wc[
+=== Statistical Analysis
 ]
 ]
 
@@ -319,7 +385,7 @@ load generator was developed to produce
 
 Total words: #total-words
 
-#colbreak()
+// #colbreak()
 #set par(justify: false)
 #bibliography("refs.bib", title: "References", style: "ieee")
 ]
