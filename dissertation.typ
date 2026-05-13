@@ -384,11 +384,38 @@ prevent jitter, and the process was given a real-time scheduling policy.
 
 Before using the load generator, the HAR pipelines were tested with real sensor
 data to ensure that they were functionally correct and optimised.
-
 ]
 
 #wc[
 === Backpressure Policies <sec-backpressure>
+
+Bounded backpressure policies are implemented in each language-specific runtime
+model. When a pipeline (the _consumer_) is saturated (i.e., the buffer is full),
+the active backpressure policy is triggered to slow the flow of data from the
+generator (the _producer_) to prevent unbounded memory demand and system
+instability. This forces each language runtime model to handle concurrency,
+memory allocation, and scheduling within realistic constraints.
+
+To serve RQ2, the backpressure policies were implemented in the pipelines using
+two shared memory buffers per data stream: (1) an unbounded _producer buffer_
+for the load generator to write data into, allowing it to produce data at a
+consistent rate, and (2) a _consumer buffer_ for the pipelines to read data from
+for processing, with a fixed #ct[capacity] to trigger the backpressure policy
+when full.
+
+Each pipeline uses language-specific idiomatic implementations of the
+backpressure policies: Rust uses `tokio::sync`, C++ `std::queue`, and Python
+`queue.Queue`. #todo[Add detail. Confirm idiomatic solutions.]
+
+Four backpressure policies where implemented: (1) _bounded queue_, which blocks
+the producer when the buffer is full until space is available, (2)
+_drop-oldest_, which drops the oldest data in the buffer to make room for new
+data when the buffer is full, (3) _drop-newest_, which drops the newest data
+when the buffer is full, and (4) _exponential-back-off_, which waits a short
+time before retrying to produce data when the buffer is full, with the wait time
+doubling with each retry.
+
+#todo[Add detail of how saturation was determined.]
 ]
 
 #wc[
