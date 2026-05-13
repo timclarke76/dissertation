@@ -53,6 +53,7 @@
     },
   )
 
+  /*
   #show raw.where(block: false): r => {
     let words = r.text.split(" ")
     for (idx, word) in words.enumerate() {
@@ -75,6 +76,7 @@
       )
     }
   }
+  */
 
   #show raw.where(block: true): set block(fill: luma(230),
     outset: (left: -1em, right: -1em),
