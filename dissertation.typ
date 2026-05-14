@@ -4,7 +4,7 @@
 
 #import "template.typ": template, ct, todo
 #show: template.with(
-  title: [AC52010 / AC53016 - MSc Project],
+  title: [AC52010 - MSc Project],
   assignment: [A Comparative Analysis of Memory Safety, Concurrency, and
     Performance in Edge-AI],
   abstractTitle: [A Comparative Analysis of Memory Safety, Concurrency, and
@@ -313,18 +313,6 @@ implementations: Rust #ct[version], C++20 with GCC #ct[version], and Python
 ]
 
 #wc[
-=== Model Fusion
-
-#todo[
-- Two AI models.
-- Late fusion.
-- Zero On Hold (ZOH) for IMU data.
-- Sensor data interpolation not used to simulate data between sensor updates,
-  removing number precision as a confounder.
-]
-]
-
-#wc[
 === Deterministic Load Generator
 
 To reliably compare the performance of the three implementations, a synthetic
@@ -390,22 +378,25 @@ data to ensure that they were functionally correct and optimised.
 === Backpressure Policies <sec-backpressure>
 
 Bounded backpressure policies are implemented in each language-specific runtime
-model. When a pipeline (the _consumer_) is saturated (i.e., the buffer is full),
-the active backpressure policy is triggered to slow the flow of data from the
-generator (the _producer_) to prevent unbounded memory demand and system
-instability. This forces each language runtime model to handle concurrency,
-memory allocation, and scheduling within realistic constraints.
+model. In a typical backpressure implementation, when a _consumer_ is saturated
+(i.e., the buffer is full), the active backpressure policy is triggered to slow
+the flow of data from the _producer_ to prevent unbounded memory demand and
+system instability.
 
-To serve RQ2, the backpressure policies were implemented in the pipelines using
-two shared memory buffers per data stream: (1) an unbounded _producer buffer_
-for the load generator to write data into, allowing it to produce data at a
-consistent rate, and (2) a _consumer buffer_ for the pipelines to read data from
-for processing, with a fixed #ct[capacity] to trigger the backpressure policy
-when full.
+The backpressure policies were implemented in the pipelines using two shared
+memory buffers per data stream: (1) an unbounded _producer buffer_ in shared
+memory for the load generator to write data into, allowing it to produce data at
+a consistent rate, and (2) a _consumer buffer_ implemented idiomatically for the
+pipelines to read data from for processing, with a fixed #ct[capacity] to
+trigger the backpressure policy when full. Backpressure is implemented only in
+the pipeline on the consumer buffer, forcing each language runtime model to
+handle concurrency, memory allocation, and scheduling within realistic
+constraints and allowing us to evaluate RQ2. A _bridge_ in the pipeline is
+responsible for copying data from the producer buffer to the consumer buffer,
+and for triggering the backpressure policy when the consumer buffer is full.
 
 Each pipeline uses language-specific idiomatic implementations of the
-backpressure policies: Rust uses `tokio::sync`, C++ `std::queue`, and Python
-`queue.Queue`. #todo[Add detail. Confirm idiomatic solutions.]
+backpressure policies: Rust uses #ct[TODO], C++ #ct[TODO], and Python #ct[TODO].
 
 Four backpressure policies where implemented: (1) _bounded queue_, which blocks
 the producer when the buffer is full until space is available, (2)
@@ -413,7 +404,8 @@ _drop-oldest_, which drops the oldest data in the buffer to make room for new
 data when the buffer is full, (3) _drop-newest_, which drops the newest data
 when the buffer is full, and (4) _exponential-back-off_, which waits a short
 time before retrying to produce data when the buffer is full, with the wait time
-doubling with each retry.
+doubling with each retry. #todo[Review literature for common backpressure
+policies and confirm these are the most relevant for Edge-AI pipelines.]
 
 #todo[Add detail of how saturation was determined.]
 ]
@@ -428,6 +420,18 @@ doubling with each retry.
 ]
 
 = Implementation
+
+#wc[
+=== Model Fusion
+
+#todo[
+- Two AI models.
+- Late fusion.
+- Zero On Hold (ZOH) for IMU data.
+- Sensor data interpolation not used to simulate data between sensor updates,
+  removing number precision as a confounder.
+]
+]
 
 = Results
 
