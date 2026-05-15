@@ -66,7 +66,7 @@ the validity of naive comparisons.
 
 This dissertation addresses this gap by providing empirical evidence and an
 evaluation of pipelines deployed on resource-constrained hardware, with a focus
-on the trade-offs among Rust, C++, and Python implementations of a dual-stream
+on the trade-offs among Rust, C++, and Python implementations of a tri-stream
 Human Activity Recognition (HAR) pipeline on industry-standard Edge-AI hardware.
 It focuses on three confounders: (1) language runtime models, (2) backpressure
 policies under various loads, and (3) thermal/power throttling.
@@ -83,7 +83,7 @@ The primary research questions are:
 + *Runtime Performance:* How do the runtime models /*(memory and concurrency)*/
   of Rust/*(borrow checker/async runtimes)*/, C++/*(manual memory
   management/native threads)*/, and Python /*(GC/GIL)*/ influence
-  latency/*(p50/p95/p99)*/, throughput, and memory consumption in a dual-stream
+  latency/*(p50/p95/p99)*/, throughput, and memory consumption in a tri-stream
   HAR pipeline on Edge-AI hardware?
   // #todo[runtime models and latency percentiles might belong in the
   // methodology section]
@@ -107,7 +107,7 @@ The primary research objectives are:
 #text[
   #set enum(indent: 0em, numbering: n => [*RO#n*])
 
-+ Implement a functionally identical dual-stream HAR pipeline in Rust, C++, and
++ Implement a functionally identical tri-stream HAR pipeline in Rust, C++, and
   Python, ensuring optimised idiomatic implementations for each language.
 
 + Evaluate the performance of each implementation under controlled conditions,
@@ -157,7 +157,7 @@ Edge-AI systems:
 #wc[
 The focus of this dissertation is on the interaction of three language runtime
 models (Rust, C++, and Python) with system latency and throughput, using
-standardised, idiomatic implementations of a dual-stream HAR pipeline on
+standardised, idiomatic implementations of a tri-stream HAR pipeline on
 industry-standard Edge-AI hardware. The scope is limited to a standardised
 implementation representative of real-world multi-modal processing, with
 confounders limited to thermal/power throttling and queue-based backpressure
@@ -215,11 +215,12 @@ contexts, and suggesting directions for future work.
 === Hardware Stack
 
 The NVIDIA Jetson Orin Nano Super was utilised as the target Edge-AI platform.
-It is a high-performance system-on-module (SoM) designed for Edge-AI development
-and allows complex AI workloads and multi-stream pipelines to run efficiently.
-The developer kit includes a carrier board with I/O interfaces (e.g., USB,
-Ethernet, DisplayPort), a MicroSD card slot for booting, and the Jetson Orin
-Nano module itself which includes the following features @jetson-orin-nano:
+It is a high-performance heterogeneous computing platform that is designed for
+Edge-AI development in embedded systems, allowing complex AI workloads and
+multi-stream pipelines to be run efficiently. The developer kit includes a
+carrier board with I/O interfaces (e.g., USB, Ethernet, DisplayPort), a MicroSD
+card slot for booting, and the Jetson Orin Nano module itself which includes the
+following features @jetson-orin-nano:
 - 6-core Arm Cortex-A78AE 64-bit CPU for general-purpose concurrent processing
 - up to 67 TOPS (Tera Operations Per Second) of AI performance
 - 8 GB of 128-bit LPDDR5 memory with a bandwidth of 102 GB/s
@@ -229,12 +230,9 @@ Nano module itself which includes the following features @jetson-orin-nano:
 A Waveshare IMX219-160 Camera Module @imx219-160 was used to deliver the RGB
 video stream, configured to capture at #highlight[1920×1080 RGB frames at 30
 FPS], and connected via MIPI CSI-2 (Mobile Industry Processor Interface Camera
-Serial Interface 2). The images captured by the camera's 160#sym.degree FOV
-required undistortion
-
-The camera captures images with a field of view (FOV) of 160
-degrees, making it suitable for capturing a wide area for human activity
-recognition.
+Serial Interface 2). The camera captures images with a field of view (FOV) of
+160#sym.degree, making it suitable for capturing a wide area for human activity
+recognition after undistortion.
 
 A Bosch Sensortec BMI088 IMU Shuttle Board 3.0 @bmi088 was used to provide
 inertial measurement data, configured to capture 6-axis data, and connected via
@@ -325,15 +323,13 @@ variability.
 The load generator produces three streams of data to shared memory buffers for
 consumption by the HAR pipelines: #todo[check how sensors provide data --- may
 need harness to connect with API and also copy to shared memory] (1) an RGB
-video stream to simulate the camera, (2) a 6-axis inertial measurement stream to
-simulate the accelerometer,  and (3) a second 6-axis inertial measurement stream
+video stream to simulate the camera, (2) a 3-axis inertial measurement stream to
+simulate the accelerometer,  and (3) a second 3-axis inertial measurement stream
 to simulate the gyroscope.
 
-Using shared memory allows for low-latency communication, and will not block the
-generator if the pipelines are backpressured. The buffers were allocated a fixed
-capacity to allow for backpressure, and the pipelines were considered saturated
-when the buffers were full which would trigger the configured backpressure
-policy.
+The unbounded buffer allowed the generator to write data at a consistent rate
+without being blocked by the pipeline. Using shared memory allowed for
+low-latency communication.
 
 The generated image data was random noise. Each image was created as an array of
 RGB pixel values with dimensions of 1920x1080 to match the sensor data, and each
@@ -368,7 +364,8 @@ The load generator was written in Rust, which is a performance-oriented
 language, and is memory-safe without a GC that may introduce latency spikes. For
 maximum timing accuracy, `nix::time::clock_nanosleep` was used to implement the
 timing of the data generation, the generator was pinned to one CPU core to
-prevent jitter, and the process was given a real-time scheduling policy.
+prevent jitter caused by the overhead of saving and restoring the generator
+thread state, and the process was given a real-time scheduling policy.
 
 Before using the load generator, the HAR pipelines were tested with real sensor
 data to ensure that they were functionally correct and optimised.
