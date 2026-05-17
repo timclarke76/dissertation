@@ -344,13 +344,16 @@ smooth motion, etc.), while still being deterministic and reproducible.
 
 To allow backpressure policies to be evaluated under varying load, the generator
 accepts a _load_ parameter that dictates the speed at which data is produced by
-acting as a divisor of the baseline sensor intervals. For example, a value of
+acting as a divisor of the baseline sensor intervals. #todo[Should this apply to
+all sensors, or just the camera? The IMU data is already at a much higher rate
+than the camera, so it may not need to be adjusted.] For example, a value of
 1.0 produces data at the same rate as the sensors: 30 FPS for the camera (1
 frame every 33.3 ms), and 1.6 kHz and 2.0 kHz for the accelerometer and
 gyroscope respectively (0.625 ms and 0.5 ms intervals respectively). A value of
-2.0 produces data twice as fast, 0.5 produces data at half the speed, and so on.
-100% saturation of the pipelines was determined by adjusting the load argument
-until the pipelines were consistently backpressured (see @sec-backpressure).
+2.0 produces data twice as fast, 0.5 produces data at half the speed, and so
+on. 100% saturation of the pipelines was determined by adjusting the load
+argument until the pipelines were consistently backpressured (see
+@sec-backpressure).
 
 A hard-coded seed for each sensor ($"rgb" = 42, "accel" = 43, "gyro" = 44$) was
 used to create three deterministic data-streams to ensure the same generated
@@ -380,8 +383,8 @@ model. In a typical backpressure implementation, when a _consumer_ is saturated
 the flow of data from the _producer_ to prevent unbounded memory demand and
 system instability.
 
-The backpressure policies were implemented in the pipelines using two shared
-memory buffers per data stream: (1) an unbounded _producer buffer_ in shared
+The backpressure policies were implemented in the pipelines using two
+buffers per data stream: (1) an unbounded _producer buffer_ in shared
 memory for the load generator to write data into, allowing it to produce data at
 a consistent rate, and (2) a _consumer buffer_ implemented idiomatically for the
 pipelines to read data from for processing, with a fixed #ct[capacity] to
@@ -392,23 +395,55 @@ constraints and allowing us to evaluate RQ2. A _bridge_ in the pipeline is
 responsible for copying data from the producer buffer to the consumer buffer,
 and for triggering the backpressure policy when the consumer buffer is full.
 
-Each pipeline uses language-specific idiomatic implementations of the
-backpressure policies: Rust uses #ct[TODO], C++ #ct[TODO], and Python #ct[TODO].
+Each bridge uses language-specific idiomatic implementations of the backpressure
+policies: Rust uses #ct[TODO], C++ #ct[TODO], and Python #ct[TODO].
 
-Four backpressure policies where implemented: (1) _bounded queue_, which blocks
-the producer when the buffer is full until space is available, (2)
-_drop-oldest_, which drops the oldest data in the buffer to make room for new
-data when the buffer is full, (3) _drop-newest_, which drops the newest data
-when the buffer is full, and (4) _exponential-back-off_, which waits a short
+Four backpressure policies were implemented: (1) _bounded queue_, which blocks
+the producer when the consumer buffer is full until space is available, (2)
+_drop-oldest_, which drops the oldest data in the consumer buffer to make room
+for new data when full, (3) _drop-newest_, which drops incoming data when the
+consumer buffer is full, and (4) _exponential-backoff_, which waits a short
 time before retrying to produce data when the buffer is full, with the wait time
 doubling with each retry. #todo[Review literature for common backpressure
 policies and confirm these are the most relevant for Edge-AI pipelines.]
 
-#todo[Add detail of how saturation was determined.]
+The saturation threshold was determined by increasing the _load_ multiplier
+incrementally until at least one consumer buffer fills capacity for at least 90%
+of the test duration. #todo[Check literature for common methods of determining
+saturation threshold.]
+
 ]
 
 #wc[
 === Profiling and Metrics
+
+==== Latency Measurement
+
+To measure latency of the pipelines, the `CLOCK_MONOTONIC_RAW` clock was used to
+capture timestamps at key points as the data events flowed through the pipeline.
+This provides high-resolution timing information that is not affected by system
+time changes or adjustments. The following six timestamps were captured for each
+event:
+
++ `t_generated` when the generator pushes to the unbounded buffer
++ `t_bridged` when the bridge pushes to the idiomatic buffer
++ `t_pipeline_in` when the pipeline pulls the event from the idiomatic buffer
++ `t_pipeline_out` when the pipeline pushes data to the ONNX Runtime for
+  inference
++ `t_fusion_in` when inference completes and the pipeline begins late fusion
++ `t_fusion_out` when late fusion completes and the pipeline produces the final
+  output
+
+These timestamps provide five key latency measurements: _Unbounded Queue Wait_
+($"t_bridged" - "t_generated"$), _Idiomatic Queue Wait_ ($"t_pipeline_in" -
+"t_bridged"$), _Data Preparation_ ($"t_pipeline_out" - "t_pipeline_in"$),
+_Inference_ ($"t_fusion_in" - "t_pipeline_out"$), and _Fusion_ ($"t_fusion_out"
+- "t_fusion_in"$).
+
+These measurements provide us with the necessary granularity to measure each
+runtime model's latency, and to identify bottlenecks and trade-offs under load
+and backpressure.
+
 ]
 
 #wc[
