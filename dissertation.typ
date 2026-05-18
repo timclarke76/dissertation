@@ -475,17 +475,22 @@ The telemetry thread concurrently captured the memory allocation metrics during
 the same intervals as the latency measurements, allowing for correlation between
 memory churn under load and backpressure events.
 
-The Jetson Orin Nano's ARMv8.4 architecture supports 128-bit atomic operations
-@arm8_4, which were used to prevent read-tearing --- `std::atomic` in C++ and
-`AtomicUsize` in Rust. Read-tears occur when the telemetry thread reads the
-allocation metrics out of sync with the pipeline's updates, which would
-significantly skew in the results when handling large amounts of memory
-allocation and deallocation, such as handling the RGB data stream. Atomic
-operations are guaranteed to be executed as a single, indivisible operation,
-which is lock-free on the ARMv8.4 architecture with its `FEAT_LSE` (Large System
-Extensions) feature. To ensure this feature was enabled, the `-march=armv8.4-a`
-flag was added to the compilation of the C++ implementation, and
-`-C target-feature=+lse2` was added to the Rust implementation.
+Read-tears occur when the telemetry thread reads the allocation metrics out of
+sync with the pipeline's updates, which would significantly skew results when
+handling large memory allocations, such as the RGB data stream. 
+
+To prevent this, 128-bit atomic operations (`std::atomic` in C++, and
+`AtomicU128` in Rust) were utilised. These operations are guaranteed to be
+executed as a single, indivisible hardware instruction, which is lock-free on
+the Jetson Orin Nano's Cortex-A78AE processor via the ARMv8.2-A architecture's
+`FEAT_LSE` (Large System Extensions) feature which was introduced in ARMv8.1
+@arm8_1. The allocation count and total bytes allocated were packed into a
+single 16-byte aligned structure to be read atomically by the telemetry thread.
+
+To ensure this hardware-level atomicity was enabled, the
+#box[`-march=armv8.2-a+lse`] flag was added to the compilation of the C++
+implementation, and #box[`-C target-cpu=cortex-a78`] was utilised for the Rust
+implementation.
 
 ==== GC Pressure (Python)
 
