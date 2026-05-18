@@ -431,34 +431,35 @@ event:
 + `t_pipeline_out` when the pipeline pushes data to the ONNX Runtime for
   inference
 + `t_fusion_in` when inference completes and the pipeline begins late fusion
-+ `t_fusion_out` when late fusion completes and the pipeline produces the final
-  output
++ `t_fusion_out` when late fusion completes and the pipeline produces the
+  final output
 
 These timestamps provide five key latency measurements: _Unbounded Queue Wait_
 ($"t_bridged" - "t_generated"$), _Idiomatic Queue Wait_ ($"t_pipeline_in" -
 "t_bridged"$), _Data Preparation_ ($"t_pipeline_out" - "t_pipeline_in"$),
 _Inference_ ($"t_fusion_in" - "t_pipeline_out"$), and _Fusion_ ($"t_fusion_out"
-- "t_fusion_in"$).
+- "t_fusion_in"$). Additionally, _Total System Latency_ ($"t_fusion_out" -
+"t_generated"$) was calculated to capture the end-to-end processing time.
 
-These measurements provide us with the necessary granularity to measure each
-runtime model's latency, and to identify bottlenecks and trade-offs under load
-and backpressure.
+These measurements provide the necessary granularity to measure each runtime
+model's latency, and to identify bottlenecks and trade-offs under load and
+backpressure.
 
-High Dynamic Range (HDR) Histograms @hdrhistogram were used to store the data
-analysis, preventing memory allocation from polluting the latency measurements
-that would occur if the measurements were stored in standard data structures
-(e.g., vectors or lists).
+High Dynamic Range (HDR) Histograms @hdrhistogram were used to aggregate the
+latency distributions, preventing memory allocation from polluting the latency
+measurements that would occur if the measurements were stored in standard data
+structures (e.g., vectors or lists).
 
 To retain temporal information about how latency changes over time and
 correlates with runtime model behaviour and backpressure events, a
 double-buffering approach was used. Using HdrHistogram's `WriterReaderPhaser`
 class ensured the pipeline (the _writer_) thread could write measurements to an
 active histogram without blocking (i.e., is wait-free @herlihy1991wait).
-Concurrently, a lightweight background telemetry thread (the _reader_) periodically
-rotated the buffers, extracting the throughput and `p50`, `p95`, `p99`, and
-maximum latency values from the newly inactive histogram into a pre-allocated
-fixed-size array at #ct[fixed intervals], without any blocking of the pipeline
-thread.
+Concurrently, a lightweight background telemetry thread (the _reader_)
+periodically rotated the buffers, extracting the throughput and $"p50"$,
+$"p95"$, $"p99"$, and maximum latency values from the newly inactive histogram
+into a pre-allocated fixed-size array at #ct[fixed intervals], without any
+blocking of the pipeline thread.
 
 ==== Memory Churn (C++ and Rust)
 
