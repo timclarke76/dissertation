@@ -485,6 +485,30 @@ which is lock-free on the ARMv8.4 architecture with its `FEAT_LSE` (Large System
 Extensions) feature. To ensure this feature was enabled, the `-march=armv8.4-a`
 flag was added to the compilation of the C++ implementation, and
 `-C target-feature=+lse2` was added to the Rust implementation.
+
+==== GC Pressure (Python)
+
+Python uses a Garbage Collector (GC) to manage memory, which can introduce
+non-deterministic tail-latency GC pauses (also known as "stop-the-world" events)
+when run. Using `tracermalloc` from the standard library would introduce
+additional overhead and confound the results, as it introduces tracing for every
+memory allocation event. Instead, the GC's built-in `callbacks` hook was
+utilised to capture the start and end time of each GC event (using
+`CLOCK_MONOTONIC_RAW`) to calculate the duration of each pause.
+
+To prevent memory allocation within the callback function, a dual-buffering HDR
+Histogram approach was used, similar to the latency measurements, where the
+callback function writes the GC pause durations to an active histogram without
+blocking, and the background telemetry thread records the GC pause duration at
+the same time as the latency measurements, allowing correlation between GC pause
+durations and runtime model events. The telemetry thread also employs
+`gc.get_stats()` to capture the cumulative number of objects collected since the
+Python interpreter was started, from which the rate of object collection across
+Generations 0, 1, and 2 can be calculated using a delta between intervals. This
+function does not include objects that are dereferenced immediately using
+Python's main reference counting mechanism, but it does provide the data to
+correlate deep Generation 2 collection events with tail-latency pauses.
+
 ]
 
 #wc[
