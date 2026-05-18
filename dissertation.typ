@@ -417,7 +417,7 @@ saturation threshold.]
 #wc[
 === Profiling and Metrics
 
-==== Latency Measurement
+==== Latency
 
 To measure latency of the pipelines, the `CLOCK_MONOTONIC_RAW` clock was used to
 capture timestamps at key points as the data events flowed through the pipeline.
@@ -444,6 +444,21 @@ These measurements provide us with the necessary granularity to measure each
 runtime model's latency, and to identify bottlenecks and trade-offs under load
 and backpressure.
 
+High Dynamic Range (HDR) Histograms @hdrhistogram were used to store the data
+analysis, preventing memory allocation from polluting the latency measurements
+that would occur if the measurements were stored in standard data structures
+(e.g., vectors or lists).
+
+To retain temporal information about how latency changes over time and
+correlates with runtime model behaviour and backpressure events, a
+double-buffering approach was used. Using HdrHistogram's `WriterReaderPhaser`
+class ensured the pipeline (the _writer_) thread could write measurements to an
+active histogram without blocking (i.e., is wait-free @herlihy1991wait).
+Concurrently, a lightweight background thread (the _reader_) periodically
+rotated the buffers, extracting the throughput and `p50`, `p95`, `p99`, and
+maximum latency values from the newly inactive histogram into a pre-allocated
+fixed-size array at #ct[fixed intervals], without any blocking of the pipeline
+thread.
 ]
 
 #wc[
