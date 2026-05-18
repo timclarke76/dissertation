@@ -29,7 +29,8 @@
   #set heading(numbering: "1.")
   #show heading.where(level: 1): set text(size: 11pt)
   #show heading.where(level: 2): set text(size: 10pt)
-  #show heading.where(level: 3): set text(size: 8pt)
+  #show heading.where(level: 3): set text(size: 9pt)
+  #show heading.where(level: 4): set text(size: 9pt)
 
   #set par(
     justify: true,
