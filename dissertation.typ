@@ -509,6 +509,28 @@ function does not include objects that are dereferenced immediately using
 Python's main reference counting mechanism, but it does provide the data to
 correlate deep Generation 2 collection events with tail-latency pauses.
 
+==== Memory Fragmentation
+
+Repeated allocation and deallocation of memory can lead to fragmentation, where
+free memory is only available in small, non-contiguous blocks. This can cause
+memory to be exhausted, even when the total free memory is sufficient, as
+contiguous blocks larger than the fragmented sizes are not available, leading to
+Out Of Memory (OOM) errors.
+
+To ensure a fair comparison, all three implementations use the Linux interface
+'/proc/self/statm' to capture the Resident Set Size (RSS) from the background
+telemetry thread. The RSS provides the total amount of memory currently
+allocated to the process, including fragmented memory and that allocated by
+third-party libraries (e.g., ONNX Runtime). A warm-up period of #ct[TODO]
+synthetic events was used at the start of each test to allow the memory usage to
+stabilise before the metrics were captured, preventing the initial allocation
+and fragmentation from skewing the results.
+
+In addition, the C++ and Rust implementations used `mallinfo2()` to capture the
+`fordblk` field, which provides the total size of memory allocated by the
+process that is currently free, providing insight into the amount of fragmented
+memory that is allocated but not currently in use.
+
 ]
 
 #wc[
