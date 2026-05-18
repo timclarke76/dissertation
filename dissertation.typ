@@ -454,11 +454,37 @@ correlates with runtime model behaviour and backpressure events, a
 double-buffering approach was used. Using HdrHistogram's `WriterReaderPhaser`
 class ensured the pipeline (the _writer_) thread could write measurements to an
 active histogram without blocking (i.e., is wait-free @herlihy1991wait).
-Concurrently, a lightweight background thread (the _reader_) periodically
+Concurrently, a lightweight background telemetry thread (the _reader_) periodically
 rotated the buffers, extracting the throughput and `p50`, `p95`, `p99`, and
 maximum latency values from the newly inactive histogram into a pre-allocated
 fixed-size array at #ct[fixed intervals], without any blocking of the pipeline
 thread.
+
+==== Memory Churn (C++ and Rust)
+
+To measure the rate of memory churn in C++ and Rust (RQ3), the global memory
+allocation and deallocation functions were overridden to capture memory
+allocation metrics, without relying on third-party profiling tools that may
+introduce additional overhead and confound the results. In C++, the
+`operator new` and `operator delete` functions were overridden, and in Rust a
+custom memory allocator was implemented as the standard library's default by
+using the `#[global_allocator]` attribute.
+
+The telemetry thread concurrently captured the memory allocation metrics during
+the same intervals as the latency measurements, allowing for correlation between
+memory churn under load and backpressure events.
+
+The Jetson Orin Nano's ARMv8.4 architecture supports 128-bit atomic operations
+@arm8_4, which were used to prevent read-tearing --- `std::atomic` in C++ and
+`AtomicUsize` in Rust. Read-tears occur when the telemetry thread reads the
+allocation metrics out of sync with the pipeline's updates, which would
+significantly skew in the results when handling large amounts of memory
+allocation and deallocation, such as handling the RGB data stream. Atomic
+operations are guaranteed to be executed as a single, indivisible operation,
+which is lock-free on the ARMv8.4 architecture with its `FEAT_LSE` (Large System
+Extensions) feature. To ensure this feature was enabled, the `-march=armv8.4-a`
+flag was added to the compilation of the C++ implementation, and
+`-C target-feature=+lse2` was added to the Rust implementation.
 ]
 
 #wc[
