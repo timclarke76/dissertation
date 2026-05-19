@@ -167,7 +167,7 @@ The pipeline architecture, deterministic load generator, and backpressure
 mechanisms are designed for cross-platform compatibility. However, AI
 acceleration, thermal behaviour, and power management are fundamentally
 SoC-dependent. Consequently, the profiling and acceleration tools used during
-evaluation (e.g., NVIDIA tegrastats, TensorRT) are specific to the Jetson Orin
+evaluation (e.g. NVIDIA tegrastats, TensorRT) are specific to the Jetson Orin
 Nano platform and cannot be directly applied across other edge devices.
 ]
 
@@ -218,7 +218,7 @@ The NVIDIA Jetson Orin Nano Super was utilised as the target Edge-AI platform.
 It is a high-performance heterogeneous computing platform that is designed for
 Edge-AI development in embedded systems, allowing complex AI workloads and
 multi-stream pipelines to be run efficiently. The developer kit includes a
-carrier board with I/O interfaces (e.g., USB, Ethernet, DisplayPort), a MicroSD
+carrier board with I/O interfaces (e.g. USB, Ethernet, DisplayPort), a MicroSD
 card slot for booting, and the Jetson Orin Nano module itself which includes the
 following features @jetson-orin-nano:
 - 6-core Arm Cortex-A78AE 64-bit CPU for general-purpose concurrent processing
@@ -278,7 +278,7 @@ that are executed in lock step on a single device _Streaming Multiprocessor_
 *cuDNN* (CUDA Deep Neural Network) @cudnn is a GPU-accelerated library of
 primitives for deep neural networks, that sits on top of CUDA and runs on the
 device to provide higher-level abstractions and optimised implementations of
-common deep learning operations (e.g., normalisation, matrix multiplication,
+common deep learning operations (e.g. normalisation, matrix multiplication,
 softmax, etc.).
 
 *TensorRT* @tensorRT is responsible for compiling an *ONNX* (Open Neural Network
@@ -299,7 +299,7 @@ of how each language's runtime model performs under load and backpressure.
 A Docker container, based on NVIDIA's official _l4t-base_ image (#ct[version]),
 was used to prevent host updates to ensure that the software toolchains and
 environment variables remained consistent for all implementations. #todo[Add
-details about container configuration, e.g., volumes, GPU and device access,
+details about container configuration, e.g. volumes, GPU and device access,
 privileged mode (if used), etc.] While Docker introduces some performance
 overhead, it was considered acceptable to ensure a consistent and reproducible
 environment for all implementations.
@@ -337,7 +337,7 @@ pixel's red, green, and blue values were assigned random whole numbers in the
 range $[0,255]$.
 
 To generate the IMU data, mathematical functions were used to create data
-similar to that produced by real-world movements (e.g., sine waves to simulate
+similar to that produced by real-world movements (e.g. sine waves to simulate
 smooth motion, etc.), while still being deterministic and reproducible.
 
 #todo[Check previous work for synthetic HAR data generation.]
@@ -379,7 +379,7 @@ data to ensure that they were functionally correct and optimised.
 
 Bounded backpressure policies are implemented in each language-specific runtime
 model. In a typical backpressure implementation, when a _consumer_ is saturated
-(i.e., the buffer is full), the active backpressure policy is triggered to slow
+(i.e. the buffer is full), the active backpressure policy is triggered to slow
 the flow of data from the _producer_ to prevent unbounded memory demand and
 system instability.
 
@@ -448,13 +448,13 @@ backpressure.
 High Dynamic Range (HDR) Histograms @hdrhistogram were used to aggregate the
 latency distributions, preventing memory allocation from polluting the latency
 measurements that would occur if the measurements were stored in standard data
-structures (e.g., vectors or lists).
+structures (e.g. vectors or lists).
 
 To retain temporal information about how latency changes over time and
 correlates with runtime model behaviour and backpressure events, a
 double-buffering approach was used. Using HdrHistogram's `WriterReaderPhaser`
 class ensured the pipeline (the _writer_) thread could write measurements to an
-active histogram without blocking (i.e., is wait-free @herlihy1991wait).
+active histogram without blocking (i.e. is wait-free @herlihy1991wait).
 Concurrently, a lightweight background telemetry thread (the _reader_)
 periodically rotated the buffers, extracting the throughput and $"p50"$,
 $"p95"$, $"p99"$, and maximum latency values from the newly inactive histogram
@@ -529,7 +529,7 @@ To ensure a fair comparison, all three implementations use the Linux interface
 `/proc/self/statm` to capture the Resident Set Size (RSS) from the background
 telemetry thread. The RSS provides the total amount of memory currently
 allocated to the process, including fragmented memory and that allocated by
-third-party libraries (e.g., ONNX Runtime). A warm-up period of #ct[TODO]
+third-party libraries (e.g. ONNX Runtime). A warm-up period of #ct[TODO]
 synthetic events was used at the start of each test to allow the memory usage to
 stabilise before the metrics were captured, preventing the initial allocation
 and lazy initialisation from skewing the results.
@@ -538,6 +538,27 @@ In addition, the C++ and Rust implementations used `mallinfo2()` to capture the
 `fordblks` field, which provides the total size of memory allocated by the
 process that is currently free, providing insight into the amount of fragmented
 memory that is allocated but not currently in use.
+
+==== Methodological Limitations
+
+An asymmetry exists in the measurement of memory churn across the three
+implementations. When overriding `operator new` and `operator delete` in C++,
+memory allocations made by third-party headers (e.g. #ct[TODO]) are captured,
+but allocations made internally by pre-compiled shared libraries (e.g.
+#ct[TODO]) are not. Similarly, in Rust, allocations made by idiomatic wrapper
+crates (e.g. #ct[TODO]) are captured, but those in the underlying pre-compiled
+libraries are not.
+
+Because both the C++ headers and the Rust wrapper crates use the same underlying
+C API, they are symmetric in capturing the memory overhead required to serialise
+data across the Foreign Function Interface (FFI). However, an asymmetry exists
+in the capture of memory allocation within Python's third-party C-extension
+bindings (e.g. #ct[TODO]), which do not use Python's memory manager and thus are
+not visible to the telemetry thread when using `gc.get_stats()`. Though
+asymmetry is an inherent limitation when comparing memory churn across
+interpreted and compiled languages, the methodology mitigates this by using the
+RSS as a cross-language baseline that captures all memory demand regardless of
+its origin.
 
 ]
 
