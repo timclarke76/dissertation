@@ -396,14 +396,17 @@ the backpressure policy when the consumer buffer is full.
 Each bridge uses language-specific idiomatic implementations of the backpressure
 policies: Rust uses #ct[TODO], C++ #ct[TODO], and Python #ct[TODO].
 
-Four backpressure policies were implemented: (1) _bounded queue_, which blocks
+Five backpressure policies were implemented: (1) _bounded queue_, which blocks
 the producer when the consumer buffer is full until space is available, (2)
 _drop-oldest_, which drops the oldest data in the consumer buffer to make room
 for new data when full, (3) _drop-newest_, which drops incoming data when the
-consumer buffer is full, and (4) _exponential-backoff_, which waits a short time
+consumer buffer is full, (4) _exponential-backoff_, which waits a short time
 before retrying to produce data when the buffer is full, with the wait time
-doubling with each retry. #todo[Review literature for common backpressure
-policies and confirm these are the most relevant for Edge-AI pipelines.]
+doubling with each retry, and (5) _adaptive decimation_, which dynamically
+downsamples the data stream (i.e. queueing only every _nth_ event) when the size
+of the buffer reaches certain thresholds to reduce pressure while retaining
+temporal continuity. #todo[Review literature for common backpressure policies
+and confirm these are the most relevant for Edge-AI pipelines.]
 
 The saturation threshold was determined by increasing the _load_ multiplier
 incrementally until at least one consumer buffer fills capacity for at least 90%
