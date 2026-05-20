@@ -539,6 +539,30 @@ In addition, the C++ and Rust implementations used `mallinfo2()` to capture the
 process that is currently free, providing insight into the amount of fragmented
 memory that is allocated but not currently in use.
 
+==== Thermal and Power Throttling
+
+The Jetson Orin Nano utilises software thermal management (Dynamic Voltage and
+Frequency Scaling, or DVFS #todo[reference]) that constantly polls the
+temperature and throttles the performance of the high-power components (e.g. CPU
+and GPU) when the device exceeds operating temperature threshold @thermalGuide.
+While this prevents thermal shutdowns during normal operation, it introduces a
+confounder when comparing the performance of different runtime model
+implementations.
+
+To mitigate this the device was allowed to cool down between tests to ensure
+that initial thermal conditions were consistent across all implementations.
+Temperatures during testing were measured using the `tegrastats` utility, which
+provides monitoring of the CPU, GPU, and overall temperatures, CPU and GPU
+frequencies, and power consumption. This allows us to analyse the impact of the
+different runtime models on thermal behaviour, and to correlate throttling
+events with performance metrics.
+
+Because `tegrastats` was executed as a separate process from the pipelines, UNIX
+timestamps (`CLOCK_REALTIME`) were recorded by both systems. Nearest-neighbour
+interpolation was used during data aggregation to align the `tegrastats`
+telemetry with the pipeline's latency and memory metrics, allowing for the
+correlation of thermal events with performance degradation.
+
 ==== Methodological Limitations
 
 An asymmetry exists in the measurement of memory churn across the three
