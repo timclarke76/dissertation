@@ -542,7 +542,7 @@ memory that is allocated but not currently in use.
 ==== Thermal and Power Throttling
 
 The Jetson Orin Nano utilises software thermal management (Dynamic Voltage and
-Frequency Scaling, or DVFS #todo[reference]) that constantly polls the
+Frequency Scaling, or DVFS @jetsonLinuxDeveloperGuide) that constantly polls the
 temperature and throttles the performance of the high-power components (e.g. CPU
 and GPU) when the device exceeds operating temperature threshold @thermalGuide.
 While this prevents thermal shutdowns during normal operation, it introduces a
