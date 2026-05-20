@@ -80,26 +80,26 @@ The primary research questions are:
 #text[
   #set enum(indent: 0em, numbering: n => [*RQ#n*])
 
-+ *Runtime Performance:* How do the runtime models /*(memory and concurrency)*/
-  of Rust/*(borrow checker/async runtimes)*/, C++/*(manual memory
-  management/native threads)*/, and Python /*(GC/GIL)*/ influence
-  latency/*(p50/p95/p99)*/, throughput, and memory consumption in a tri-stream
-  HAR pipeline on Edge-AI hardware?
-  // #todo[runtime models and latency percentiles might belong in the
-  // methodology section]
+  + *Runtime Performance:* How do the runtime models /*(memory and
+    concurrency)*/ of Rust/*(borrow checker/async runtimes)*/, C++/*(manual
+    memory management/native threads)*/, and Python /*(GC/GIL)*/ influence
+    latency/*(p50/p95/p99)*/, throughput, and memory consumption in a tri-stream
+    HAR pipeline on Edge-AI hardware?
+    /* #todo[runtime models and latency percentiles might belong in the
+    methodology section] */
 
-+ *Backpressure Interaction:* How do the language-specific runtime models
-  interact with different backpressure policies /*(bounded queue, drop-oldest,
-  rate-limiting)*/ under varying load, and what are the trade-offs in observed
-  deadline adherence, system stability, and allocator/GC pressure and
-  concurrency overhead? /*#todo[backpressure policies might belong in the
-  methodology section]*/
+  + *Backpressure Interaction:* How do the language-specific runtime models
+    interact with different backpressure policies /*(bounded queue, drop-oldest,
+    rate-limiting)*/ under varying load, and what are the trade-offs in observed
+    deadline adherence, system stability, and allocator/GC pressure and
+    concurrency overhead? /*#todo[backpressure policies might belong in the
+    methodology section]*/
 
-+ *Dynamic Profiling vs. Runtime Behaviour:* To what extent do dynamic
-  memory/concurrency profiling metrics /*(allocation churn, GC pause duration,
-  asynchronous task-switch overhead)*/ explain the observed performance
-  bottlenecks and trade-offs under load? /*#todo[exact metrics might belong in
-  the methodology section]*/
+  + *Dynamic Profiling vs. Runtime Behaviour:* To what extent do dynamic
+    memory/concurrency profiling metrics /*(allocation churn, GC pause duration,
+    asynchronous task-switch overhead)*/ explain the observed performance
+    bottlenecks and trade-offs under load? /*#todo[exact metrics might belong in
+    the methodology section]*/
 ]
 
 The primary research objectives are:
@@ -107,19 +107,19 @@ The primary research objectives are:
 #text[
   #set enum(indent: 0em, numbering: n => [*RO#n*])
 
-+ Implement a functionally identical tri-stream HAR pipeline in Rust, C++, and
-  Python, ensuring optimised idiomatic implementations for each language.
+  + Implement a functionally identical tri-stream HAR pipeline in Rust, C++, and
+    Python, ensuring optimised idiomatic implementations for each language.
 
-+ Evaluate the performance of each implementation under controlled conditions,
-  using a shared deterministic load generator, to quantify how backpressure
-  policies and runtime models impact latency/*(p50/p95/p99)*/, throughput,
-  memory consumption/* (RSS/PSS/USS)*/, and thermal/power dynamics under load.
-  //#todo[exact metrics might belong in the methodology section]
+    + Evaluate the performance of each implementation under controlled
+    conditions, using a shared deterministic load generator, to quantify how
+    backpressure policies and runtime models impact latency/*(p50/p95/p99)*/,
+    throughput, memory consumption/* (RSS/PSS/USS)*/, and thermal/power dynamics
+    under load. //#todo[exact metrics might belong in the methodology section]
 
-+ Analyse runtime model overhead to explain performance differences, and derive
-  empirically grounded guidance for language selection in constrained Edge-AI
-  deployments. /*#todo[allocation churn, GC pause duration, async task-switch
-  overhead belong in the methodology section]*/
+    + Analyse runtime model overhead to explain performance differences, and
+    derive empirically grounded guidance for language selection in constrained
+    Edge-AI deployments. /*#todo[allocation churn, GC pause duration, async
+    task-switch overhead belong in the methodology section]*/
 ]
 ]
 
@@ -132,23 +132,23 @@ Edge-AI systems:
 #text[
   #set enum(indent: 0em, numbering: n => [*C#n*])
 
-+ *Cross-Language Runtime Evaluation:* Addressing RQ1, this work delivers an
-  empirical comparison of how Rust, C++, and Python runtime models (memory
-  management and concurrency) influence latency, throughput, and memory
-  consumption on resource-constrained embedded hardware.
+  + *Cross-Language Runtime Evaluation:* Addressing RQ1, this work delivers an
+    empirical comparison of how Rust, C++, and Python runtime models (memory
+    management and concurrency) influence latency, throughput, and memory
+    consumption on resource-constrained embedded hardware.
 
-+ *Interaction Analysis:* Addressing RQ2, this work provides a controlled
-  assessment of how backpressure policies interact with runtime models under
-  various loads, and identifies trade-offs between throughput and long-term
-  system stability.
+    + *Interaction Analysis:* Addressing RQ2, this work provides a controlled
+    assessment of how backpressure policies interact with runtime models under
+    various loads, and identifies trade-offs between throughput and long-term
+    system stability.
 
-+ *Root-Cause Identification:* Addressing RQ3, this work presents empirical
-  evidence linking dynamic memory allocation churn, GC pause duration, and
-  scheduling overhead to system latency and throughput.
+    + *Root-Cause Identification:* Addressing RQ3, this work presents empirical
+    evidence linking dynamic memory allocation churn, GC pause duration, and
+    scheduling overhead to system latency and throughput.
 
-+ *Evidence-Based Guidelines:* Addressing findings across all research
-  questions, this dissertation offers empirically grounded recommendations for
-  language selection in real-time, multi-stream edge deployments.
+    + *Evidence-Based Guidelines:* Addressing findings across all research
+    questions, this dissertation offers empirically grounded recommendations for
+    language selection in real-time, multi-stream edge deployments.
 ]
 ]
 
@@ -307,7 +307,6 @@ environment for all implementations.
 The latest stable releases of the language toolchains were used for all
 implementations: Rust #ct[version], C++20 with GCC #ct[version], and Python
 #ct[version].
-
 ]
 
 #wc[
@@ -350,10 +349,9 @@ than the camera, so it may not need to be adjusted.] For example, a value of
 1.0 produces data at the same rate as the sensors: 30 FPS for the camera (1
 frame every 33.3 ms), and 1.6 kHz and 2.0 kHz for the accelerometer and
 gyroscope respectively (0.625 ms and 0.5 ms intervals respectively). A value of
-2.0 produces data twice as fast, 0.5 produces data at half the speed, and so
-on. 100% saturation of the pipelines was determined by adjusting the load
-argument until the pipelines were consistently backpressured (see
-@sec-backpressure).
+2.0 produces data twice as fast, 0.5 produces data at half the speed, and so on.
+100% saturation of the pipelines was determined by adjusting the load argument
+until the pipelines were consistently backpressured (see @sec-backpressure).
 
 A hard-coded seed for each sensor ($"rgb" = 42, "accel" = 43, "gyro" = 44$) was
 used to create three deterministic data-streams to ensure the same generated
@@ -383,17 +381,17 @@ model. In a typical backpressure implementation, when a _consumer_ is saturated
 the flow of data from the _producer_ to prevent unbounded memory demand and
 system instability.
 
-The backpressure policies were implemented in the pipelines using two
-buffers per data stream: (1) an unbounded _producer buffer_ in shared
-memory for the load generator to write data into, allowing it to produce data at
-a consistent rate, and (2) a _consumer buffer_ implemented idiomatically for the
-pipelines to read data from for processing, with a fixed #ct[capacity] to
-trigger the backpressure policy when full. Backpressure is implemented only in
-the pipeline on the consumer buffer, forcing each language runtime model to
-handle concurrency, memory allocation, and scheduling within realistic
-constraints and allowing us to evaluate RQ2. A _bridge_ in the pipeline is
-responsible for copying data from the producer buffer to the consumer buffer,
-and for triggering the backpressure policy when the consumer buffer is full.
+The backpressure policies were implemented in the pipelines using two buffers
+per data stream: (1) an unbounded _producer buffer_ in shared memory for the
+load generator to write data into, allowing it to produce data at a consistent
+rate, and (2) a _consumer buffer_ implemented idiomatically for the pipelines to
+read data from for processing, with a fixed #ct[capacity] to trigger the
+backpressure policy when full. Backpressure is implemented only in the pipeline
+on the consumer buffer, forcing each language runtime model to handle
+concurrency, memory allocation, and scheduling within realistic constraints and
+allowing us to evaluate RQ2. A _bridge_ in the pipeline is responsible for
+copying data from the producer buffer to the consumer buffer, and for triggering
+the backpressure policy when the consumer buffer is full.
 
 Each bridge uses language-specific idiomatic implementations of the backpressure
 policies: Rust uses #ct[TODO], C++ #ct[TODO], and Python #ct[TODO].
@@ -402,8 +400,8 @@ Four backpressure policies were implemented: (1) _bounded queue_, which blocks
 the producer when the consumer buffer is full until space is available, (2)
 _drop-oldest_, which drops the oldest data in the consumer buffer to make room
 for new data when full, (3) _drop-newest_, which drops incoming data when the
-consumer buffer is full, and (4) _exponential-backoff_, which waits a short
-time before retrying to produce data when the buffer is full, with the wait time
+consumer buffer is full, and (4) _exponential-backoff_, which waits a short time
+before retrying to produce data when the buffer is full, with the wait time
 doubling with each retry. #todo[Review literature for common backpressure
 policies and confirm these are the most relevant for Edge-AI pipelines.]
 
@@ -411,7 +409,6 @@ The saturation threshold was determined by increasing the _load_ multiplier
 incrementally until at least one consumer buffer fills capacity for at least 90%
 of the test duration. #todo[Check literature for common methods of determining
 saturation threshold.]
-
 ]
 
 #wc[
@@ -466,10 +463,10 @@ blocking of the pipeline thread.
 To measure the rate of memory churn in C++ and Rust (RQ3), the global memory
 allocation and deallocation functions were overridden to capture memory
 allocation metrics, without relying on third-party profiling tools that may
-introduce additional overhead and confound the results. In C++, the
-`operator new` and `operator delete` functions were overridden, and in Rust a
-custom memory allocator was implemented as the standard library's default by
-using the `#[global_allocator]` attribute.
+introduce additional overhead and confound the results. In C++, the `operator
+new` and `operator delete` functions were overridden, and in Rust a custom
+memory allocator was implemented as the standard library's default by using the
+`#[global_allocator]` attribute.
 
 The telemetry thread concurrently captured the memory allocation metrics during
 the same intervals as the latency measurements, allowing for correlation between
@@ -583,7 +580,6 @@ asymmetry is an inherent limitation when comparing memory churn across
 interpreted and compiled languages, the methodology mitigates this by using the
 RSS as a cross-language baseline that captures all memory demand regardless of
 its origin.
-
 ]
 
 #wc[
