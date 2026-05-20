@@ -252,10 +252,10 @@ measurements.
 #wc[
 === Software Stack
 
-The Jetson was flashed with NVIDIA's JetPack 7.1 SDK @jetpack-7-1, which
-includes Jetson Linux 38.4 @jetson-linux (which uses the Ubuntu 24.04-based root
-file system), and CUDA 13.0.0, cuDNN 9.12.0, and TensorRT 10.13.3.9 for AI
-inference and acceleration. The software stack versions were selected as the
+The Jetson was flashed with NVIDIA's JetPack 6.2.2 SDK @jetpack-6-2-2, which
+includes Jetson Linux 36.5 (featuring the Linux Kernel 5.15 and an Ubuntu
+22.04-based root file system), and CUDA 12.6, cuDNN 9.3, and TensorRT 10.3 for
+AI inference and acceleration. The software stack versions were selected as the
 most recent stable releases at the time of development, and were used for all
 implementations to ensure a consistent baseline for comparison. #todo[Add ONNX
 version]
