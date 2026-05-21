@@ -456,10 +456,10 @@ double-buffering approach was used. Using HdrHistogram's `WriterReaderPhaser`
 class ensured the pipeline (the _writer_) thread could write measurements to an
 active histogram without blocking (i.e. is wait-free @herlihy1991wait).
 Concurrently, a lightweight background telemetry thread (the _reader_)
-periodically rotated the buffers, extracting the throughput and $"p50"$,
-$"p95"$, $"p99"$, and maximum latency values from the newly inactive histogram
-into a pre-allocated fixed-size array at #ct[fixed intervals], without any
-blocking of the pipeline thread.
+periodically rotated the buffers, extracting the throughput alongside the
+$"p50"$, $"p95"$, $"p99"$, $"p99.9"$, $"p99.99"$, and maximum latency values
+from the newly inactive histogram into a pre-allocated fixed-size array at
+#ct[fixed intervals], without any blocking of the pipeline thread.
 
 ==== Memory Churn (C++ and Rust)
 
