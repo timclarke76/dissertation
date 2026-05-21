@@ -434,6 +434,13 @@ event:
 + `t_fusion_out` when late fusion completes and the pipeline produces the
   final output
 
+Coordinated Omission occurs when a stalled system fails to record the true
+extent of tail-latency delays by omitting the time that the event truly occurred
+@howNotToMeasureLatency. By decoupling the load generator from the pipelines and
+ensuring that it pushes to an unbounded buffer, it is never blocked when the
+System Under Test (SUT) is stalled, thus ensuring that `t_generated` allows
+latency delays to be accurately captured.
+
 These timestamps provide five key latency measurements: _Unbounded Queue Wait_
 ($"t_bridged" - "t_generated"$), _Idiomatic Queue Wait_ ($"t_pipeline_in" -
 "t_bridged"$), _Data Preparation_ ($"t_pipeline_out" - "t_pipeline_in"$),
