@@ -163,13 +163,13 @@ implementation representative of real-world multi-modal processing, with
 confounders limited to thermal/power throttling and queue-based backpressure
 policies.
 
-The pipeline architecture, deterministic load generator, and backpressure
-mechanisms are designed for cross-platform compatibility. However, AI
-acceleration, thermal behaviour, and power management are fundamentally
-SoC-dependent. Consequently, the profiling and acceleration tools used during
-evaluation (e.g. NVIDIA tegrastats, TensorRT) are specific to the Jetson Orin
-Nano platform and cannot be directly applied across other edge devices.
-]
+The pipeline architecture, deterministic load generator, backpressure, and
+telemetry mechanisms are designed for portability across Linux environments.
+However, AI acceleration, thermal behaviour, and power management are
+fundamentally SoC-dependent. Consequently, the profiling and acceleration tools
+used during evaluation (e.g. NVIDIA tegrastats, TensorRT) are specific to the
+Jetson Orin Nano platform and cannot be directly applied across other edge
+devices. ]
 
 
 == Dissertation Outline
@@ -292,7 +292,7 @@ was used across all three implementations.
 
 Performance and overhead of the language runtime models was measured at the
 boundary of the host/device memory separation, where the CPU manages the runtime
-model and the SIMT architecture runs the AI workloads on the GPU. This prevents
+model, and the SIMT architecture runs the AI workloads on the GPU. This prevents
 confounding the results with hardware latency, and provides a clearer comparison
 of how each language's runtime model performs under load and backpressure.
 
@@ -323,8 +323,8 @@ The load generator produces three streams of data to shared memory buffers for
 consumption by the HAR pipelines: #todo[check how sensors provide data --- may
 need harness to connect with API and also copy to shared memory] (1) an RGB
 video stream to simulate the camera, (2) a 3-axis inertial measurement stream to
-simulate the accelerometer,  and (3) a second 3-axis inertial measurement stream
-to simulate the gyroscope.
+simulate the accelerometer,  and (3) a 3-axis inertial measurement stream to
+simulate the gyroscope.
 
 The unbounded buffer allowed the generator to write data at a consistent rate
 without being blocked by the pipeline. Using shared memory allowed for
@@ -343,10 +343,10 @@ smooth motion, etc.), while still being deterministic and reproducible.
 
 To allow backpressure policies to be evaluated under varying load, the generator
 accepts a _load_ parameter that dictates the speed at which data is produced by
-acting as a divisor of the baseline sensor intervals. #todo[Should this apply to
-all sensors, or just the camera? The IMU data is already at a much higher rate
-than the camera, so it may not need to be adjusted.] For example, a value of
-1.0 produces data at the same rate as the sensors: 30 FPS for the camera (1
+acting as a multiplier of the baseline sensor intervals. #todo[Should this apply
+to all sensors, or just the camera? The IMU data is already at a much higher
+rate than the camera, so it may not need to be adjusted.] For example, a value
+of 1.0 produces data at the same rate as the sensors: 30 FPS for the camera (1
 frame every 33.3 ms), and 1.6 kHz and 2.0 kHz for the accelerometer and
 gyroscope respectively (0.625 ms and 0.5 ms intervals respectively). A value of
 2.0 produces data twice as fast, 0.5 produces data at half the speed, and so on.
@@ -473,10 +473,10 @@ from the newly inactive histogram into a pre-allocated fixed-size array at
 To measure the rate of memory churn in C++ and Rust (RQ3), the global memory
 allocation and deallocation functions were overridden to capture memory
 allocation metrics, without relying on third-party profiling tools that may
-introduce additional overhead and confound the results. In C++, the `operator
-new` and `operator delete` functions were overridden, and in Rust a custom
-memory allocator was implemented as the standard library's default by using the
-`#[global_allocator]` attribute.
+introduce additional overhead and confound the results. In C++, the
+`operator new` and `operator delete` functions were overridden, and in Rust a
+custom memory allocator was implemented as the standard library's default by
+using the `#[global_allocator]` attribute.
 
 The telemetry thread concurrently captured the memory allocation metrics during
 the same intervals as the latency measurements, allowing for correlation between
