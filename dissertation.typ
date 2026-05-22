@@ -464,9 +464,9 @@ class ensured the pipeline (the _writer_) thread could write measurements to an
 active histogram without blocking (i.e. is wait-free @herlihy1991wait).
 Concurrently, a lightweight background telemetry thread (the _reader_)
 periodically rotated the buffers, extracting the throughput alongside the
-$"p50"$, $"p95"$, $"p99"$, $"p99.9"$, $"p99.99"$, and maximum latency values
-from the newly inactive histogram into a pre-allocated fixed-size array at
-#ct[fixed intervals], without any blocking of the pipeline thread.
+$p_50$, $p_95$, $p_99$, $p_"99.9"$, $p_"99.99"$, and maximum latency values from
+the newly inactive histogram into a pre-allocated fixed-size array at #ct[fixed
+intervals], without any blocking of the pipeline thread.
 
 ==== Memory Churn (C++ and Rust)
 
@@ -496,7 +496,7 @@ single 16-byte aligned structure to be read atomically by the telemetry thread.
 
 To ensure this hardware-level atomicity was enabled, the
 #box[`-march=armv8.2-a+lse`] flag was added to the compilation of the C++
-implementation, and #box[`-C target-cpu=cortex-a78`] was utilised for the Rust
+implementation, and #box[`-C target-cpu=cortex-a78`] for the Rust
 implementation.
 
 ==== GC Pressure (Python)
@@ -594,6 +594,40 @@ its origin.
 
 #wc[
 === Statistical Analysis
+
+Latency and throughput distributions are inherently bounded by zero and can be
+heavily right-skewed, typically resulting in non-normal distributions with long
+tails and outliers @howNotToMeasureLatency, requiring non-parametric statistical
+analysis methods. The outliers are not errors, but are evidence of backpressure
+events and runtime model pauses (e.g. Garbage Collection in Python), and thus
+are important in benchmarking and comparing the performance of the
+implementations. Therefore no outliers were removed, and data cleaning was
+limited to only removing the first #ct[TODO] events to allow for warm-up and
+system stabilisation.
+
+The mean is sensitive to outliers and skewed distributions, and so would not
+provide an accurate measure of central tendency. Instead, the median ($p_50$)
+and the Interquartile Range (IQR) were used. The $p_95$, $p_99$, $p_"99.9"$,
+$p_"99.99"$, and maximum latency values were used to describe the worst-case
+performance measurements.
+
+The Kruskal-Wallis H-test @kruskalWallis1952, a non-parametric method that is
+robust to non-normal distributions and outliers, was used to compare the latency
+and throughput distributions from the three runtime models. Dunn's test
+@dunn1964 was used for post-hoc analysis to identify which implementations
+differed significantly, with a Bonferroni correction @dunn1961 to control the
+error rate and to prevent false positives.
+
+Spearman's rank correlation coefficient ($rho$) @spearman1904 was used to
+identify statistically significant correlations between the latency and
+throughput with system events (e.g. backpressure, GC pauses, thermal
+throttling). Unlike Pearson's correlation coefficient ($r$) @pearson1895,
+Spearman's $rho$ considers the rank of the data rather than the raw values,
+making it robust to non-normal distributions and extreme outliers. Furthermore,
+Spearman's $rho$ can capture monotonic relationships that are not strictly
+linear (i.e. relationships that consistently increase or decrease, but not
+necessarily at a constant rate) @hauke2011, allowing correlations to be
+identified even when exponential degradation occurs.
 ]
 ]
 
