@@ -464,9 +464,9 @@ class ensured the pipeline (the _writer_) thread could write measurements to an
 active histogram without blocking (i.e. is wait-free @herlihy1991wait).
 Concurrently, a lightweight background telemetry thread (the _reader_)
 periodically rotated the buffers, extracting the throughput alongside the
-$p_50$, $p_95$, $p_99$, $p_"99.9"$, $p_"99.99"$, and maximum latency values from
-the newly inactive histogram into a pre-allocated fixed-size array at #ct[fixed
-intervals], without any blocking of the pipeline thread.
+$"p50"$, $"p95"$, $"p99"$, $"p99.9"$, $"p99.99"$, and maximum latency values
+from the newly inactive histogram into a pre-allocated fixed-size array at
+#ct[fixed intervals], without any blocking of the pipeline thread.
 
 ==== Memory Churn (C++ and Rust)
 
@@ -556,7 +556,8 @@ While this prevents thermal shutdowns during normal operation, it introduces a
 confounder when comparing the performance of different runtime model
 implementations.
 
-To mitigate this the device was allowed to cool down between tests to ensure
+To mitigate this the device was allowed to cool down between tests #todo[needs
+quantified] to ensure
 that initial thermal conditions were consistent across all implementations.
 Temperatures during testing were measured using the `tegrastats` utility, which
 provides monitoring of the CPU, GPU, and overall temperatures, CPU and GPU
@@ -595,23 +596,23 @@ its origin.
 #wc[
 === Statistical Analysis
 
-Latency and throughput distributions are inherently bounded by zero and can be
-heavily right-skewed, typically resulting in non-normal distributions with long
-tails and outliers @howNotToMeasureLatency, requiring non-parametric statistical
-analysis methods. The outliers are not errors, but are evidence of backpressure
-events and runtime model pauses (e.g. Garbage Collection in Python), and thus
-are important in benchmarking and comparing the performance of the
-implementations. Therefore no outliers were removed, and data cleaning was
-limited to only removing the first #ct[TODO] events to allow for warm-up and
-system stabilisation.
+Latency and throughput distributions have no theoretical maximum, but are
+inherently bounded by a minimum value of zero. This typically results in
+non-normal distributions which are heavily skewed to the right, with long tails
+and outliers @howNotToMeasureLatency, requiring non-parametric methods for
+statistical analysis. Data cleaning was restricted to only removing the first
+#ct[TODO] events to allow for warm-up and system stabilisation. The outliers are
+evidence of backpressure events and runtime model pauses (e.g. Garbage
+Collection in Python), necessary for benchmarking and implementation
+comparisons, and consequently were not removed.
 
 The mean is sensitive to outliers and skewed distributions, and so would not
-provide an accurate measure of central tendency. Instead, the median ($p_50$)
-and the Interquartile Range (IQR) were used. The $p_95$, $p_99$, $p_"99.9"$,
-$p_"99.99"$, and maximum latency values were used to describe the worst-case
+provide an accurate measure of central tendency. Instead, the median ($"p50"$)
+and the Interquartile Range (IQR) were used. The $"p95"$, $"p99"$, $"p99.9"$,
+$"p99.99"$, and maximum latency values were used to describe the worst-case
 performance measurements.
 
-The Kruskal-Wallis H-test @kruskalWallis1952, a non-parametric method that is
+The Kruskal-Wallis H test @kruskalWallis1952, a non-parametric method that is
 robust to non-normal distributions and outliers, was used to compare the latency
 and throughput distributions from the three runtime models. Dunn's test
 @dunn1964 was used for post-hoc analysis to identify which implementations
