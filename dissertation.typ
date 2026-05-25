@@ -596,15 +596,15 @@ its origin.
 #wc[
 === Statistical Analysis
 
-Latency and throughput distributions have no theoretical maximum, but are
-inherently bounded by a minimum value of zero. This typically results in
-non-normal distributions which are heavily skewed to the right, with long tails
-and outliers @howNotToMeasureLatency, requiring non-parametric methods for
-statistical analysis. Data cleaning was restricted to only removing the first
-#ct[TODO] events to allow for warm-up and system stabilisation. The outliers are
-evidence of backpressure events and runtime model pauses (e.g. Garbage
-Collection in Python), necessary for benchmarking and implementation
-comparisons, and consequently were not removed.
+Latency measurements have no theoretical maximum, but are inherently bounded by
+a minimum value of zero. This typically results in non-normal distributions
+which are heavily skewed to the right, with long tails and outliers
+@howNotToMeasureLatency, requiring non-parametric methods for statistical
+analysis. Data cleaning was restricted to only removing the first #ct[TODO]
+events to allow for warm-up and system stabilisation. The outliers are evidence
+of backpressure events and runtime model pauses (e.g. Garbage Collection in
+Python), necessary for benchmarking and implementation comparisons, and
+consequently were not removed.
 
 The mean is sensitive to outliers and skewed distributions, and so would not
 provide an accurate measure of central tendency. Instead, the median ($"p50"$)
@@ -629,6 +629,26 @@ Spearman's $rho$ can capture monotonic relationships that are not strictly
 linear (i.e. relationships that consistently increase or decrease, but not
 necessarily at a constant rate) @hauke2011, allowing correlations to be
 identified even when exponential degradation occurs.
+]
+
+#wc[
+=== Code Verbosity and Complexity
+
+While this report's primary analysis is focused on comparing performance of the
+C++, Rust, and Python runtime models, language selection is often influenced by
+development, maintenance, and testing overhead @ray2017. To evaluate the
+trade-off between runtime efficiency and overhead of the development lifecycle,
+a supplemental static code analysis was performed to compare the pipeline
+implementations.
+
+_Lizard_ @lizard is a code complexity analyser that supports C++, Rust, and
+Python. It was utilised to determine: (1) the number of Lines of Code (LoC),
+quantifying how verbose each implementation is, and (2) the Cyclomatic
+Complexity (CC) @mccabe1976, quantifying the number of linearly independent
+paths that exist in each implementation's source code. By measuring LoC and CC
+of identical backpressure and concurrency implementations in C++, Rust, and
+Python, this analysis provides a quantifiable insight into each runtime model's
+development lifecycle overhead.
 ]
 ]
 
