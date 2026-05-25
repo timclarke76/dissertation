@@ -557,40 +557,12 @@ confounder when comparing the performance of different runtime model
 implementations.
 
 To mitigate this the device was allowed to cool down between tests #todo[needs
-quantified] to ensure
-that initial thermal conditions were consistent across all implementations.
-Temperatures during testing were measured using the `tegrastats` utility, which
-provides monitoring of the CPU, GPU, and overall temperatures, CPU and GPU
-frequencies, and power consumption. This allows us to analyse the impact of the
-different runtime models on thermal behaviour, and to correlate throttling
-events with performance metrics.
-
-Because `tegrastats` was executed as a separate process from the pipelines, UNIX
-timestamps (`CLOCK_REALTIME`) were recorded by both systems. Nearest-neighbour
-interpolation was used during data aggregation to align the `tegrastats`
-telemetry with the pipeline's latency and memory metrics, allowing for the
-correlation of thermal events with performance degradation.
-
-==== Methodological Limitations
-
-An asymmetry exists in the measurement of memory churn across the three
-implementations. When overriding `operator new` and `operator delete` in C++,
-memory allocations made by third-party headers (e.g. #ct[TODO]) are captured,
-but allocations made internally by pre-compiled shared libraries (e.g.
-#ct[TODO]) are not. Similarly, in Rust, allocations made by idiomatic wrapper
-crates (e.g. #ct[TODO]) are captured, but those in the underlying pre-compiled
-libraries are not.
-
-Because both the C++ headers and the Rust wrapper crates use the same underlying
-C API, they are symmetric in capturing the memory overhead required to serialise
-data across the Foreign Function Interface (FFI). However, an asymmetry exists
-in the capture of memory allocation within Python's third-party C-extension
-bindings (e.g. #ct[TODO]), which do not use Python's memory manager and thus are
-not visible to the telemetry thread when using `gc.get_stats()`. Though
-asymmetry is an inherent limitation when comparing memory churn across
-interpreted and compiled languages, the methodology mitigates this by using the
-RSS as a cross-language baseline that captures all memory demand regardless of
-its origin.
+quantified] to ensure that initial thermal conditions were consistent across all
+implementations. Temperatures during testing were measured using the
+`tegrastats` utility, which provides monitoring of the CPU, GPU, and overall
+temperatures, CPU and GPU frequencies, and power consumption. This allows us to
+analyse the impact of the different runtime models on thermal behaviour, and to
+correlate throttling events with performance metrics.
 ]
 
 #wc[
@@ -634,21 +606,69 @@ identified even when exponential degradation occurs.
 #wc[
 === Code Verbosity and Complexity
 
-While this report's primary analysis is focused on comparing performance of the
-C++, Rust, and Python runtime models, language selection is often influenced by
-development, maintenance, and testing overhead @ray2017. To evaluate the
-trade-off between runtime efficiency and overhead of the development lifecycle,
-a supplemental static code analysis was performed to compare the pipeline
+While this report's primary analysis is focused on comparing the performance of
+the C++, Rust, and Python runtime models, language selection is often influenced
+by development, maintenance, and testing overhead @ray2017. To evaluate the
+trade-off between runtime efficiency and implementation verbosity, a
+supplemental static code analysis was performed to compare the pipeline
 implementations.
 
 _Lizard_ @lizard is a code complexity analyser that supports C++, Rust, and
 Python. It was utilised to determine: (1) the number of Lines of Code (LoC),
 quantifying how verbose each implementation is, and (2) the Cyclomatic
 Complexity (CC) @mccabe1976, quantifying the number of linearly independent
-paths that exist in each implementation's source code. By measuring LoC and CC
-of identical backpressure and concurrency implementations in C++, Rust, and
-Python, this analysis provides a quantifiable insight into each runtime model's
+paths that exist in each implementation's source code. By measuring the LoC and
+CC of identical backpressure and concurrency implementations in C++, Rust, and
+Python, this analysis provides a partial insight into each runtime model's
 development lifecycle overhead.
+]
+
+#wc[
+=== Methodological Limitations
+
+==== Memory Churn Asymmetry
+
+An asymmetry exists in the measurement of memory churn across the three
+implementations. When overriding `operator new` and `operator delete` in C++,
+memory allocations made by third-party headers (e.g. #ct[TODO]) are captured,
+but allocations made internally by pre-compiled shared libraries (e.g.
+#ct[TODO]) are not. Similarly, in Rust, allocations made by idiomatic wrapper
+crates (e.g. #ct[TODO]) are captured, but those in the underlying pre-compiled
+libraries are not.
+
+As both the C++ headers and the Rust wrapper crates use the same underlying C
+API, they are symmetric in capturing the memory overhead required to serialise
+data across the Foreign Function Interface (FFI). However, an asymmetry exists
+in the capture of memory allocation within Python's third-party C-extension
+bindings (e.g. #ct[TODO]), which do not use Python's memory manager and thus are
+not visible to the telemetry thread when using `gc.get_stats()`. While this
+asymmetry is a limitation when comparing memory churn across all three runtime
+models, the methodology mitigates this by using the RSS as a baseline that
+captures all memory demand regardless of its origin.
+
+==== Temporal Alignment of Telemetry
+
+Because `tegrastats` was executed as a separate process, it's sampling intervals
+were not fully synchronised with the pipeline implementations. Therefore UNIX
+timestamps (`CLOCK_REALTIME`) were recorded by both systems. Nearest-neighbour
+interpolation was used during data aggregation to align the `tegrastats`
+telemetry with the pipeline's latency and memory metrics, allowing for the
+correlation of thermal events with performance degradation. This introduces a
+maximum temporal misalignment of $plus.minus 500$ ms. Because thermal and
+throttling state changes occur over seconds rather than milliseconds, this
+sub-second uncertainty is accepted as a necessary limitation not expected to
+significantly confound the results.
+
+==== Static Complexity Analysis
+
+Regarding the code verbosity and complexity analysis, metrics such as LoC and CC
+only consider the static source code, and do not consider the learning curve or
+cognitive complexity associated with each language (e.g. Rust's borrow checker
+and ownership model, C++'s manual memory management, or Python's dynamic
+typing). These can all significantly influence the development lifecycle
+overhead, and therefore LoC and CC should be interpreted as partial measurements
+of the engineering cost of language selection.
+
 ]
 ]
 
