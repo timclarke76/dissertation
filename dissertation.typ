@@ -34,7 +34,13 @@ for applications where reduced latency is critical (e.g. fitness trackers,
 autonomous vehicles, etc.), or where connectivity is unreliable or unavailable
 (e.g. remote weather stations, satellite image analysis, etc.).
 
+#todo[discuss the importance of privacy and security as a motivation for
+Edge-Ai]
+
 #todo[discuss advances in hardware acceleration]
+
+#todo[define what is meant by latency and throughput in the context of Edge-AI
+pipelines]
 
 Edge-AI deployment brings challenges in terms of resource constraints, such as
 limited computational power, memory, and power requirements. Remote software
@@ -193,6 +199,22 @@ contexts, and suggesting directions for future work.
 #wc[
 = Literature Review
 
+The conceptual foundation of Edge Computing (EC) can be found in Content
+Delivery Networks (CDNs) @cdn, which were designed in the late 1990s to minimise
+network traffic congestion, particularly during periods of high demand.
+Satyanarayanan et al. 1997 @satyanarayanan2009 took this concept further by
+introducing the idea of decentralised and widely dispersed _cloudlets_ --- one
+or more servers on the network edge and close to end-clients (e.g. in cafe
+premises), that run customised service software using hardware VM technology and
+allow mobile devices to act as thin clients. This allows for shorter latency
+times and simplified the challenge of bandwidth constraints. Shi et al. 2016
+@shi2016 summarised the state of Edge Computing, and recognised that the
+Internet of Things (IoT) was growing and increasingly becoming data producers as
+well as data consumers, and that the data bandwidth in traditional cloud
+computing was becoming a bottleneck.
+
+]
+
 #todo[
 - Synthetic HAR data generation.
 - Backpressure policies.
@@ -203,7 +225,6 @@ contexts, and suggesting directions for future work.
 - Previous comparative analyses of programming languages for Edge-AI.
 - Previous work on language runtime models and backpressure policies.
 - Best practices for Rust real-time accuracy.
-]
 ]
 
 #wc[
