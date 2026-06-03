@@ -46,6 +46,10 @@ pipelines]
 impacted by the backpressure policies, but is outside the scope of this
 dissertation]
 
+#todo[add one or two sentences about the importance of energy efficiency]
+
+#todo[mention street light and smart city examples]
+
 Edge-AI deployment brings challenges in terms of resource constraints, such as
 limited computational power, memory, and power requirements. Remote software
 updates to maintain Edge-AI applications also come at a cost, as they can be
@@ -201,13 +205,18 @@ contexts, and suggesting directions for future work.
 ]
 
 #wc[
+= Background
+
+#todo[Mention using CPython]
+]
+
+#wc[
 = Literature Review
 
 #wc[
 == The Edge-AI Hardware Constraint
 
-The conceptual foundation of Edge Computing (EC) can be found in _Content
-Delivery Networks_ (CDNs) @cdn, which were designed in the late 1990s to
+_Content Delivery Networks_ (CDNs) @cdn were designed in the late 1990s to
 minimise network traffic congestion, particularly during periods of high demand.
 While this concept successfully reduced latency and bandwidth usage for static
 content delivery, it did not address the hardware constraints of mobile devices.
@@ -265,6 +274,53 @@ be efficient by minimising unnecessary CPU and memory overhead.
 
 #wc[
 == Language Runtimes & Memory Models
+
+To mitigate the thermal throttling inherent in Edge-AI hardware, the pipeline
+implementation must be highly efficient. In a study of the runtime, memory
+usage, and energy consumption of 27 programming languages, Pereira et al. (2017)
+@pereira2017energy showed that typically compiled languages needed less memory,
+were more energy efficient, and were the most performant. Conversely,
+interpreted languages required the most memory, consumed the most energy, and
+were the slowest.
+
+However, the reported results also indicated that execution speed and energy
+efficiency do not perfectly correlate with memory efficiency. For example, in
+the normalised results, Rust performed second only to C in terms of energy
+efficiency (1.03) and execution speed (1.04), but seventh (1.54) in terms of
+memory usage. At the time of the study, Rust's default memory allocator on some
+platforms (including the system used by Pereira et al.) was `jemalloc`
+@evans2006jemalloc, which is designed for fast concurrent execution on
+multi-processor systems by maintaining multiple memory arenas. However, the Rust
+team acknowledged several drawbacks of using `jemalloc` @rustRfc1974, including
+adding \~300KB to binary sizes. RFC 1974 allowed users to change the global
+allocator, and Rust 1.32.0 @rust1320 changed from `jemalloc` to the standard
+system allocator.
+
+While C++ and Rust both use manual memory management, they differ in their
+approaches to memory safety. C++ requires the programmer to manually manage
+memory which allows fine-grained control but introduces risks of severe
+memory-safety bugs such as double free and use-after-free. The scale of the risk
+is reflected in the 2025 Common Weakness Enumeration (CWE) Top 25 Most
+Dangerous Software Weaknesses @mitre2025cwe, where memory-safety flaws such as
+out-of-bounds writes accounted for seven (28%) of the top 25 exploits.
+
+To address this, Rust's Ownership Based Resource Management (OBRM, more commonly
+referred to as its ownership and borrowing model) provides compile-time
+guarantees of memory safety without a GC. Xu et al. (2021) @xu2021memory
+analysed 186 real-world bug reports in Rust projects to determine how
+effectively OBRM prevents memory-safety bugs in practice, and found that all
+memory-safety bugs in the dataset, except one that was a compiler bug, were
+caused by developers using the `unsafe` keyword to bypass the compiler's memory
+safety checks. However, while Coblenz et al. (2023) @coblenz2023 found that
+developers generally understood the concept of ownership, they struggled with
+the semantics of references and borrowing. This introduces a trade-off between
+memory safety and developer cognitive load.
+
+Python uses automatic memory management using a GC, which reduces developer
+cognitive load and the risk of memory-safety bugs. However, it introduces
+non-deterministic latency spikes due to "stop-the-world" GC events. Latency is
+further impacted by the Global Interpreter Lock (GIL), which prevents true
+concurrency across multiple CPU cores.
 ]
 
 #wc[
@@ -278,9 +334,6 @@ be efficient by minimising unnecessary CPU and memory overhead.
 #todo[
 - Synthetic HAR data generation.
 - Backpressure policies.
-- Runtime models of Rust, C++, and Python.
-- Performance of Rust, C++, and Python in Edge-AI contexts.
-- Thermal and power management on embedded hardware.
 - Profiling tools for Edge-AI hardware.
 - Previous comparative analyses of programming languages for Edge-AI.
 - Previous work on language runtime models and backpressure policies.

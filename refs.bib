@@ -318,3 +318,81 @@
     urldate = {2026-05-29},
 }
 
+@inproceedings{pereira2017energy,
+    author = {Pereira, Rui and Couto, Marco and Ribeiro, Francisco and Rua, Rui and Cunha, J\'{a}come and Fernandes, Jo\~{a}o Paulo and Saraiva, Jo\~{a}o},
+    title = {Energy efficiency across programming languages: how do energy, time, and memory relate?},
+    year = {2017},
+    isbn = {9781450355254},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    url = {https://doi.org/10.1145/3136014.3136031},
+    urldate = {2026-05-29},
+    doi = {10.1145/3136014.3136031},
+    abstract = {This paper presents a study of the runtime, memory usage and energy consumption of twenty seven well-known software languages. We monitor the performance of such languages using ten different programming problems, expressed in each of the languages. Our results show interesting findings, such as, slower/faster languages consuming less/more energy, and how memory usage influences energy consumption. Finally, we show how to use our results to provide software engineers support to decide which language to use when energy efficiency is a concern.},
+    booktitle = {Proceedings of the 10th ACM SIGPLAN International Conference on Software Language Engineering},
+    pages = {256–267},
+    numpages = {12},
+    keywords = {Energy Efficiency, Green Software, Language Benchmarking, Programming Languages},
+    location = {Vancouver, BC, Canada},
+    series = {SLE 2017}
+}
+
+@inproceedings{evans2006jemalloc,
+  title={A Scalable Concurrent malloc(3) Implementation for FreeBSD},
+  author={Evans, Jason},
+  year={2006},
+  url = {https://people.freebsd.org/~jasone/jemalloc/bsdcan2006/jemalloc.pdf},
+  urldate = {2026-05-30},
+}
+
+@misc{rustRfc1974,
+  title = {Rust Compiler RFC 1974: Global Allocators},
+  year = {2017},
+  url = {https://github.com/rust-lang/rfcs/blob/master/text/1974-global-allocators.md},
+  urldate = {2026-05-30},
+}
+
+@online{rust1320,
+  title = {Announcing Rust 1.32.0},
+  url = {https://blog.rust-lang.org/2019/01/17/Rust-1.32.0/},
+  urldate = {2026-05-30},
+}
+
+@article{xu2021memory,
+  author = {Xu, Hui and Chen, Zhuangbin and Sun, Mingshen and Zhou, Yangfan and Lyu, Michael R.},
+  title = {Memory-Safety Challenge Considered Solved? An In-Depth Study with All Rust CVEs},
+  year = {2021},
+  issue_date = {January 2022},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  volume = {31},
+  number = {1},
+  issn = {1049-331X},
+  url = {https://doi.org/10.1145/3466642},
+  doi = {10.1145/3466642},
+  abstract = {Rust is an emerging programming language that aims at preventing memory-safety bugs without sacrificing much efficiency. The claimed property is very attractive to developers, and many projects start using the language. However, can Rust achieve the memory-safety promise? This article studies the question by surveying 186 real-world bug reports collected from several origins, which contain all existing Rust common vulnerability and exposures (CVEs) of memory-safety issues by 2020-12-31. We manually analyze each bug and extract their culprit patterns. Our analysis result shows that Rust can keep its promise that all memory-safety bugs require unsafe code, and many memory-safety bugs in our dataset are mild soundness issues that only leave a possibility to write memory-safety bugs without unsafe code. Furthermore, we summarize three typical categories of memory-safety bugs, including automatic memory reclaim, unsound function, and unsound generic or trait. While automatic memory claim bugs are related to the side effect of Rust newly-adopted ownership-based resource management scheme, unsound function reveals the essential challenge of Rust development for avoiding unsound code, and unsound generic or trait intensifies the risk of introducing unsoundness. Based on these findings, we propose two promising directions toward improving the security of Rust development, including several best practices of using specific APIs and methods to detect particular bugs involving unsafe code. Our work intends to raise more discussions regarding the memory-safety issues of Rust and facilitate the maturity of the language.},
+  journal = {ACM Trans. Softw. Eng. Methodol.},
+  month = sep,
+  articleno = {3},
+  numpages = {25},
+  keywords = {Rust, memory-safety bugs, common vulnerability and exposures}
+}
+
+@techreport{mitre2025cwe,
+  author = {{MITRE Corporation}},
+  title = {2025 CWE Top 25 Most Dangerous Software Weaknesses},
+  year = {2025},
+  institution = {Common Weakness Enumeration (CWE)},
+  url = {https://cwe.mitre.org/top25/archive/2025/2025_cwe_top25.html},
+  urldate = {2026-05-31},
+}
+
+@inproceedings{coblenz2023,
+  title = {A Multimodal Study of Challenges Using {Rust}},
+  author = {Michael Coblenz and April Porter and Varun Das and Teja Nallagorla and Michael Hicks},
+  booktitle = {Proceedings of the Workshop on the Evaluation and Usability of Programming Languages and Tools (PLATEAU)},
+  year = 2023,
+  month = feb,
+  url = {https://mhicks.me/papers/coblenz23rust.html},
+  urldate = {2026-05-31},
+}
