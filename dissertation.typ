@@ -190,15 +190,20 @@ devices. ]
 
 #wc[
 The remainder of this dissertation is structured as follows: #box[*Chapter 2*]
-reviews related work, the runtime models of the target languages, and
-backpressure policies. #box[*Chapter 3*] details the methodology, including the
+provides background on the evolution of Edge-AI and the heterogeneous devices
+employed. It also introduces the programming languages evaluated in this
+dissertation, and briefly explains the concepts of backpressure and load
+shedding. #box[*Chapter 3*] reviews related literature regarding language
+efficiency benchmarks and the trade-offs between memory safety and cognitive
+load, concluding by identifying the research gap.
+#box[*Chapter 4*] details the methodology, including the
 hardware and software setup, backpressure interfaces, and profiling toolchains
-to collect metrics. #box[*Chapter 4*] describes the implementation of the HAR
+used to collect metrics. #box[*Chapter 5*] describes the implementation of the HAR
 pipeline in each language, highlighting language-specific optimisations and
-challenges. #box[*Chapter 5*] presents the results, including performance
+challenges. #box[*Chapter 6*] presents the results, including performance
 metrics, memory allocation and GC pressure, and backpressure outcomes under
-varying loads. #box[*Chapter 6*] discusses the findings, and limitations of the
-study. Finally, #box[*Chapter 7*] concludes by addressing the research
+varying loads. #box[*Chapter 7*] discusses the findings and limitations of the
+study. Finally, #box[*Chapter 8*] concludes by addressing the research
 questions, providing practical recommendations for language selection in Edge-AI
 contexts, and suggesting directions for future work.
 ]
