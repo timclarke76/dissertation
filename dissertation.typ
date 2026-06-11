@@ -124,13 +124,13 @@ The primary research objectives are:
   + Implement a functionally identical tri-stream HAR pipeline in Rust, C++, and
     Python, ensuring optimised idiomatic implementations for each language.
 
-    + Evaluate the performance of each implementation under controlled
-    conditions, using a shared deterministic load generator, to quantify how
-    backpressure policies and runtime models impact latency/*(p50/p95/p99)*/,
-    throughput, memory consumption/* (RSS/PSS/USS)*/, and thermal/power dynamics
-    under load. //#todo[exact metrics might belong in the methodology section]
+  + Evaluate the performance of each implementation under controlled conditions,
+    using a shared deterministic load generator, to quantify how backpressure
+    policies and runtime models impact latency/*(p50/p95/p99)*/, throughput,
+    memory consumption/* (RSS/PSS/USS)*/, and thermal/power dynamics under load.
+    //#todo[exact metrics might belong in the methodology section]
 
-    + Analyse runtime model overhead to explain performance differences, and
+  + Analyse runtime model overhead to explain performance differences, and
     derive empirically grounded guidance for language selection in constrained
     Edge-AI deployments. /*#todo[allocation churn, GC pause duration, async
     task-switch overhead belong in the methodology section]*/
@@ -151,16 +151,16 @@ Edge-AI systems:
     management and concurrency) influence latency, throughput, and memory
     consumption on resource-constrained embedded hardware.
 
-    + *Interaction Analysis:* Addressing RQ2, this work provides a controlled
+  + *Interaction Analysis:* Addressing RQ2, this work provides a controlled
     assessment of how backpressure policies interact with runtime models under
     various loads, and identifies trade-offs between throughput and long-term
     system stability.
 
-    + *Root-Cause Identification:* Addressing RQ3, this work presents empirical
+  + *Root-Cause Identification:* Addressing RQ3, this work presents empirical
     evidence linking dynamic memory allocation churn, GC pause duration, and
     scheduling overhead to system latency and throughput.
 
-    + *Evidence-Based Guidelines:* Addressing findings across all research
+  + *Evidence-Based Guidelines:* Addressing findings across all research
     questions, this dissertation offers empirically grounded recommendations for
     language selection in real-time, multi-stream edge deployments.
 ]
@@ -207,65 +207,78 @@ contexts, and suggesting directions for future work.
 #wc[
 = Background
 
-#todo[Mention using CPython]
-]
-
 #wc[
-= Literature Review
+== The Evolution of Edge Computing
 
-#wc[
-== The Edge-AI Hardware Constraint
+The late 1990s saw a growth of online multimedia that demanded a solution to
+tackle increased network congestion and latency. Karger et al. (1997)
+@karger1997 proposed a concept of _distributed caching protocols_ that evolved
+into modern-day _Content Delivery Networks_ (CDNs), ensuring that static content
+could be cached on servers located closer to end-users, thus reducing latency
+and bandwidth usage, especially during periods of high demand.
 
-_Content Delivery Networks_ (CDNs) @cdn were designed in the late 1990s to
-minimise network traffic congestion, particularly during periods of high demand.
-While this concept successfully reduced latency and bandwidth usage for static
-content delivery, it did not address the hardware constraints of mobile devices.
+\2007 saw the release of the iPhone, followed by the Android operating system in
+\2008. These marked a rapid increase in the use of mobile devices, and created
+user demand for computationally intensive applications. However, as
+Satyanarayanan et al. (2009) @satyanarayanan2009 established, "considerations
+such as weight, size, battery life, ergonomics, and heat dissipation exact a
+severe penalty in computational resources such as processor speed, memory size,
+and disk capacity." To bypass these physical limitations, they took the concept
+of CDNs further by introducing decentralised and widely dispersed _cloudlets_
+--- servers located on the network edge and close to end-clients (e.g. in cafe
+premises) that run customised service software using hardware VM technology,
+thus allowing mobile devices to act as thin clients, overcoming hardware
+constraints without unacceptable latency and bandwidth usage that would be
+introduced if remote cloud servers were used.
 
-Satyanarayanan et al. (2009) @satyanarayanan2009 established that
-"considerations such as weight, size, battery life, ergonomics, and heat
-dissipation exact a severe penalty in computational resources such as processor
-speed, memory size, and disk capacity." To bypass these physical limitations,
-they took the concept of CDNs further by introducing decentralised and widely
-dispersed _cloudlets_ --- servers located on the network edge and close to
-end-clients (e.g. in cafe premises) that run customised service software using
-hardware VM technology, thus allowing mobile devices to act as thin clients.
-This allows for shorter latency times and simplified the challenge of bandwidth
-constraints.
+The next decade saw an explosive growth of the Internet of Things (IoT), fuelled
+by the adoption in areas such as Fitness Wearables (the first Fitbit Tracker
+launched in \2009), Smart Home devices (Google acquired Nest Labs in \2014, and
+Amazon acquired Ring LLC in \2018), and "dockless" bicycle-sharing schemes (Lime
+launched in \2017). Remote devices were no longer just data consumers, but had
+also become data producers. Shi et al. (2016) @shi2016 defined "edge" not as a
+specific device, but as any computing and networking resource along the path
+between the data source and the data centre. They recognised that the data
+bandwidth and centralised processing in traditional cloud computing were
+bottlenecks, arguing that data should be processed or massaged at the proximity
+of the data source.
 
-As the Internet of Things (IoT) expanded, edge devices increasingly became data
-producers as well as data consumers. Shi et al. (2016) @shi2016 recognised that
-the data bandwidth and centralised processing in traditional cloud computing
-were bottlenecks, arguing that data should be processed or massaged at the
-proximity of the data source. They defined "edge" not as a specific device, but
-as any computing and networking resource along the path between the data source
-and the data centre (e.g. smartphones and smart home gateways).
+At the same time, the integration of AI rapidly accelerated. While some
+applications were designed to run on remote cloud servers (e.g. ChatGPT,
+launched in late \2022), latency-critical applications depended on local-device
+processing to ensure safety and reduce dependence on available network bandwidth
+(e.g. Tesla Autopilot, launched in \2014, and the Waymo One in \2018).
 
-As the usage of AI applications became more commonplace, and the generation of
-data at the network edge grew, the need for transitioning to Edge-AI became
-apparent, requiring the obstacles identified by Satyanarayanan et al. and Shi et
-al. to be overcome. Zhou et al. (2019) @zhou2019 provided a comprehensive survey
-of recent research efforts in _Edge Intelligence_ (Edge-AI). They identified
-that physical proximity to the data source is critical to reduce monetary costs,
-latency, and the risk of privacy leakage. For evaluating the quality of Edge-AI
+This transition to _Edge-AI_ required overcoming the hardware obstacles
+identified by Satyanarayanan et al. and the network bottlenecks identified by
+Shi et al. Zhou et al. (2019) @zhou2019 provided a comprehensive survey of
+recent research efforts in Edge Intelligence, and identified that physical
+proximity to the data source is critical to reducing monetary costs, latency,
+and the risk of privacy leakage. For evaluating the quality of Edge-AI
 inference, they highlighted latency, accuracy, energy consumption, privacy, and
 memory footprint. While communication overhead is eliminated by offline edge
 processing, the remaining metrics remain relevant to this dissertation. For
-example, backpressure policies may drop data to ensure system stability, which
-sacrifices accuracy.
+example, backpressure policies may intentionally drop data to ensure system
+stability, sacrificing model accuracy to satisfy strict latency deadlines.
+]
 
-To optimise the metrics identified by Zhou et al., they also detailed several
-enabling technologies, including model compression techniques (e.g. quantisation
-and pruning), and the deployment of heterogeneous hardware platforms. Modern
-heterogeneous System-on-Chips (SoCs), such as the NVIDIA Jetson Orin Nano,
-integrate dedicated CUDA cores for general-purpose GPU computing, and Tensor
-cores for AI acceleration. These allow optimised engines like TensorRT to
-efficiently execute AI pipelines, such as HAR, locally without depending on
-remote cloud servers.
+#wc[
+== Heterogeneous Devices and DVFS
+
+Heterogeneous devices combine different types of processing units, such as a CPU
+and a GPU, onto a single chip and are an increasingly common solution for
+Edge-AI deployments. Modern heterogeneous System-on-Chips (SoCs), such as the
+NVIDIA Jetson Orin Nano, integrate dedicated CUDA cores for general-purpose GPU
+computing, and Tensor cores for AI acceleration. These allow optimised engines
+like TensorRT to efficiently execute AI pipelines, such as HAR, locally without
+depending on remote cloud servers. Furthermore, they support the enabling
+technologies identified by Zhou et al., such as model compression (e.g.
+quantisation and pruning), to maximise inference speed.
 
 However, embedded devices with a small form factor generate significant heat
 when under sustained heavy load such as that generated by Edge-AI pipelines. To
-prevent hardware failure, the Jetson Orin Nano relies on Dynamic Voltage and
-Frequency Scaling (DVFS) to reactively throttle the CPU and GPU speeds when
+prevent hardware failure, the Jetson Orin Nano relies on _Dynamic Voltage and
+Frequency Scaling_ (DVFS) to reactively throttle the CPU and GPU speeds when
 thermal limits are reached. Peluso et al. (2019) @peluso2019 demonstrated that
 this introduces non-deterministic pipeline performance degradation. To minimise
 premature throttling, the software architecture and language runtime model must
@@ -276,68 +289,123 @@ be efficient by minimising unnecessary CPU and memory overhead.
 == Language Runtimes & Memory Models
 
 To mitigate the thermal throttling inherent in Edge-AI hardware, the pipeline
-implementation must be highly efficient. In a study of the runtime, memory
-usage, and energy consumption of 27 programming languages, Pereira et al. (2017)
-@pereira2017energy showed that typically compiled languages needed less memory,
-were more energy efficient, and were the most performant. Conversely,
-interpreted languages required the most memory, consumed the most energy, and
-were the slowest.
+implementation must be highly efficient. This dissertation compares the impact
+of three language runtime models on Edge-AI performance: C++, Rust, and Python.
 
-However, the reported results also indicated that execution speed and energy
-efficiency do not perfectly correlate with memory efficiency. For example, in
-the normalised results, Rust performed second only to C in terms of energy
-efficiency (1.03) and execution speed (1.04), but seventh (1.54) in terms of
-memory usage. At the time of the study, Rust's default memory allocator on some
-platforms (including the system used by Pereira et al.) was `jemalloc`
-@evans2006jemalloc, which is designed for fast concurrent execution on
-multi-processor systems by maintaining multiple memory arenas. However, the Rust
-team acknowledged several drawbacks of using `jemalloc` @rustRfc1974, including
-adding \~300KB to binary sizes. RFC 1974 allowed users to change the global
-allocator, and Rust 1.32.0 @rust1320 changed from `jemalloc` to the standard
-system allocator.
+C++ is an Ahead-of-Time (AOT) compiled (i.e. compiled to native machine code
+before execution) general-purpose language, designed for high performance and
+efficiency. It provides manual memory management, allowing fine-grained control
+over usage. However, this introduces risks of severe memory-safety bugs such as
+double-free and use-after-free, which can lead to undefined behaviour and
+security vulnerabilities.
 
-While C++ and Rust both use manual memory management, they differ in their
-approaches to memory safety. C++ requires the programmer to manually manage
-memory which allows fine-grained control but introduces risks of severe
-memory-safety bugs such as double free and use-after-free. The scale of the risk
-is reflected in the 2025 Common Weakness Enumeration (CWE) Top 25 Most
-Dangerous Software Weaknesses @mitre2025cwe, where memory-safety flaws such as
-out-of-bounds writes accounted for seven (28%) of the top 25 exploits.
+Rust is similarly an AOT compiled general-purpose language. In addition to high
+performance and efficiency, it also provides memory safety. Rust achieves this
+by employing Ownership Based Resource Management (OBRM, more commonly referred
+to as its ownership and borrowing model) which provides compile-time guarantees
+of memory safety --- every value has a single owner, and the compiler ensures
+that value references do not outlive their owners. This provides a strong
+guarantee of memory correctness, but increases cognitive load as the OBRM is a
+novel concept that introduces a steep learning curve.
 
-To address this, Rust's Ownership Based Resource Management (OBRM, more commonly
-referred to as its ownership and borrowing model) provides compile-time
-guarantees of memory safety without a GC. Xu et al. (2021) @xu2021memory
-analysed 186 real-world bug reports in Rust projects to determine how
-effectively OBRM prevents memory-safety bugs in practice, and found that all
-memory-safety bugs in the dataset, except one that was a compiler bug, were
-caused by developers using the `unsafe` keyword to bypass the compiler's memory
-safety checks. However, while Coblenz et al. (2023) @coblenz2023 found that
-developers generally understood the concept of ownership, they struggled with
-the semantics of references and borrowing. This introduces a trade-off between
-memory safety and developer cognitive load.
-
-Python uses automatic memory management using a GC, which reduces developer
-cognitive load and the risk of memory-safety bugs. However, it introduces
-non-deterministic latency spikes due to "stop-the-world" GC events. Latency is
+Python is a general-purpose language that is compiled to bytecode and
+interpreted at runtime. It emphasises simplicity and ease of both writing and
+reading. CPython (the reference implementation) has a Foreign Function Interface
+(FFI) that allows it to interface with other languages, such as C/C++ libraries.
+Python is often used to automate tasks and for data analysis and machine
+learning. It utilises a GC, abstracting memory management to reduce cognitive
+load and the risk of memory-safety bugs, but at the cost of increased latency
+and unpredictable latency jitter due to "stop-the-world" GC events. Latency is
 further impacted by the Global Interpreter Lock (GIL), which prevents true
 concurrency across multiple CPU cores.
 ]
 
 #wc[
 == Stream Processing & Backpressure
+
+In stream processing systems, such as HAR pipelines, data is generated
+continuously and must be processed in real-time. When the rate of generation
+exceeds the system's processing capacity, backpressure builds up within the
+pipeline as the number of unprocessed data items increases. This can lead to
+memory exhaustion and system instability if not managed effectively.
+
+However, because the pipeline cannot request the sensors to slow down their rate
+of transmission, traditional backpressure mechanisms are impossible. Instead,
+_load shedding_ policies are necessary. Policies such as dropping data (e.g.
+dropping the oldest or newest events) or limiting the rate of data production
+(e.g., adaptive decimation, which queues only every $n$-th event when under
+load) are commonly used to manage backpressure, but introduce an accuracy
+trade-off as data is lost.
+]
 ]
 
 #wc[
-== Benchmarking Methodology
+= Literature Review
+
+#wc[
+== Benchmarking Language Efficiency
+
+Empirical evaluations of programming languages highlight a trade-off between
+execution speed, energy consumption, and memory footprint. In a comprehensive
+study of \27 programming languages, Pereira et al. (2017) @pereira2017energy
+showed that compiled languages typically  were the most performant, needed less
+memory, and were more energy efficient. Conversely, interpreted languages
+required the most memory, consumed the most energy, and were the slowest.
+
+However, the reported results also indicated that execution speed and energy
+efficiency do not perfectly correlate with memory efficiency. For example, in
+the normalised results, Rust performed second only to C in terms of energy
+efficiency (1.03) and execution speed (1.04), but seventh (1.54) in terms of
+memory usage.
 ]
 
-#todo[
-- Synthetic HAR data generation.
-- Backpressure policies.
-- Profiling tools for Edge-AI hardware.
-- Previous comparative analyses of programming languages for Edge-AI.
-- Previous work on language runtime models and backpressure policies.
-- Best practices for Rust real-time accuracy.
+#wc[
+== Memory Safety vs. Cognitive Load Trade-off
+
+While languages like C++ offer high performance, their reliance on manual memory
+management introduces severe security vulnerabilities. The scale of this risk is
+reflected in the 2025 Common Weakness Enumeration (CWE) Top \25 Most Dangerous
+Software Weaknesses @mitre2025cwe, where memory-safety flaws such as
+out-of-bounds writes accounted for seven (28%) of the top \25 exploits.
+
+To address this, Rust's OBRM provides compile-time guarantees of memory safety
+without a GC. Xu et al. (2021) @xu2021memory analysed \186 real-world bug
+reports in Rust projects to determine how effectively OBRM prevents
+memory-safety bugs in practice. They found that all memory-safety bugs in the
+dataset, except one that was a compiler bug, were caused by developers using the
+`unsafe` keyword to bypass the compiler's memory safety checks. However, while
+Coblenz et al. (2023) @coblenz2023 found that developers generally understood
+the concept of ownership, they struggled with the semantics of references and
+borrowing. This introduces a trade-off between memory safety and developer
+cognitive load.
+]
+
+#wc[
+== The Research Gap
+
+While studies such as Pereira et al. (2017) @pereira2017energy have evaluated
+language efficiency, these benchmarks are typically conducted on standard
+desktop-class hardware. In contrast, studies that have evaluated the performance
+of Edge-AI pipelines @zhou2019 @peluso2019 have focused on the AI models
+themselves, ignoring how the host programming language impacts performance
+through its memory churn, GC pauses, and concurrency overhead.
+
+At the time of the study conducted by Pereira et al., Rust's default memory
+allocator on some platforms (including the system used by Pereira et al.) was
+`jemalloc` @evans2006jemalloc, which is designed for fast concurrent execution
+on multi-processor systems by maintaining multiple memory arenas. However, the
+Core Rust team acknowledged several drawbacks of using `jemalloc` @rustRfc1974,
+including adding \~300KB to binary sizes. RFC \1974 allowed users to change the
+global allocator, and in \2019 Rust 1.32.0 @rust1320 changed from `jemalloc` to
+the standard system allocator. This necessitates a re-evaluation of Rust's
+memory footprint, as the change in allocator may have impacted its memory and
+performance efficiency.
+
+Therefore, there is a research gap in empirically evaluating how the Rust, C++,
+and Python runtime models interact with backpressure policies under the thermal
+constraints of Edge-AI devices with continuous streams of sensor data.
+Consequently, an evaluation of their runtime performance under heavy load is
+necessary to determine their suitability for Edge-AI pipelines.
 ]
 ]
 
@@ -393,7 +461,7 @@ includes Jetson Linux 36.5 (featuring the Linux Kernel 5.15 and an Ubuntu
 AI inference and acceleration. The software stack versions were selected as the
 most recent stable releases at the time of development, and were used for all
 implementations to ensure a consistent baseline for comparison. #todo[Add ONNX
-version]
+version and Python variant details.]
 
 *CUDA* (Compute Unified Device Architecture) @cuda provides a parallel execution
 environment and programming model for heterogeneous computing systems with
@@ -455,56 +523,56 @@ be attributed to the runtime models and backpressure policies, and not input
 variability.
 
 The load generator produces three streams of data to shared memory buffers for
-consumption by the HAR pipelines: #todo[check how sensors provide data --- may
-need harness to connect with API and also copy to shared memory] (1) an RGB
-video stream to simulate the camera, (2) a 3-axis inertial measurement stream to
-simulate the accelerometer,  and (3) a 3-axis inertial measurement stream to
-simulate the gyroscope.
-
-The unbounded buffer allowed the generator to write data at a consistent rate
-without being blocked by the pipeline. Using shared memory allowed for
-low-latency communication.
+consumption by the HAR pipelines: (1) an RGB video stream to simulate the
+camera, (2) a 3-axis inertial measurement stream to simulate the accelerometer,
+and (3) a 3-axis inertial measurement stream to simulate the gyroscope. Using
+shared memory allowed for low-latency communication, and allowed the generator
+to write data at a consistent rate without being blocked by the pipeline.
 
 The generated image data was random noise. Each image was created as an array of
 RGB pixel values with dimensions of 1920x1080 to match the sensor data, and each
 pixel's red, green, and blue values were assigned random whole numbers in the
-range $[0,255]$.
+range $[0,255]$. Similarly, the generated IMU data was random floating-point
+numbers within the maximum hardware ranges of the BMI088 sensor
+(#sym.plus.minus\24g for acceleration and #sym.plus.minus\2000#sym.degree/s for
+angular rate).
 
-To generate the IMU data, mathematical functions were used to create data
-similar to that produced by real-world movements (e.g. sine waves to simulate
-smooth motion, etc.), while still being deterministic and reproducible.
-
-#todo[Check previous work for synthetic HAR data generation.]
+A hard-coded seed for each sensor ($"rgb" = 42, "accel" = 43, "gyro" = 44$) was
+used to create the three deterministic data-streams to ensure the same generated
+data was fed into each implementation. Because the AI inference is only a
+repeatable workload to determine the performance of the runtime models, and
+prediction accuracy does not impact the evaluation, the generated data was not
+designed to be realistic. This kept the load generator implementation simple,
+does not introduce disk I/O bottlenecks, and reduced latency and overhead that
+could confound the results by stealing CPU cycles or memory bandwidth from the
+pipelines.
 
 To allow backpressure policies to be evaluated under varying load, the generator
 accepts a _load_ parameter that dictates the speed at which data is produced by
-acting as a multiplier of the baseline sensor intervals. #todo[Should this apply
-to all sensors, or just the camera? The IMU data is already at a much higher
-rate than the camera, so it may not need to be adjusted.] For example, a value
-of 1.0 produces data at the same rate as the sensors: 30 FPS for the camera (1
-frame every 33.3 ms), and 1.6 kHz and 2.0 kHz for the accelerometer and
-gyroscope respectively (0.625 ms and 0.5 ms intervals respectively). A value of
-2.0 produces data twice as fast, 0.5 produces data at half the speed, and so on.
-100% saturation of the pipelines was determined by adjusting the load argument
-until the pipelines were consistently backpressured (see @sec-backpressure).
+acting as a multiplier of the baseline sensor intervals. This multiplier is
+applied equally to all three data streams to ensure the ratio between the camera
+and the IMU data remains consistent. For example, a value of \1.0 produces data
+at the same rate as the sensors: \30 FPS for the camera (\1 frame every \33.3
+ms), and \1.6 kHz and \2.0 kHz for the accelerometer and gyroscope respectively
+(\0.625 ms and \0.5 ms intervals respectively). A value of \2.0 produces data
+twice as fast, \0.5 produces data at half the speed, and so on. 100% saturation
+of the pipelines was determined by adjusting the load argument until the
+pipelines were consistently backpressured (see @sec-backpressure).
 
-A hard-coded seed for each sensor ($"rgb" = 42, "accel" = 43, "gyro" = 44$) was
-used to create three deterministic data-streams to ensure the same generated
-data was fed into each implementation. Because the AI inference is only a
-repeatable workload to determine the performance of the runtime models, and we
-are not concerned about prediction accuracy, the generated data was not designed
-to be realistic. This kept the load generator implementation simple, and reduced
-latency and overhead that could confound the results.
-
-The load generator was written in Rust, which is a performance-oriented
-language, and is memory-safe without a GC that may introduce latency spikes. For
-maximum timing accuracy, `nix::time::clock_nanosleep` was used to implement the
-timing of the data generation, the generator was pinned to one CPU core to
-prevent jitter caused by the overhead of saving and restoring the generator
-thread state, and the process was given a real-time scheduling policy.
+The load generator was written in Rust to take advantage of its performance and
+memory safety guarantees. For maximum timing accuracy,
+`nix::time::clock_nanosleep` was used to implement the timing of the data
+generation, the generator was pinned to one CPU core to prevent jitter caused by
+the overhead of saving and restoring the generator thread state, and the process
+was given a real-time scheduling policy.
 
 Before using the load generator, the HAR pipelines were tested with real sensor
-data to ensure that they were functionally correct and optimised.
+data to ensure that they were functionally correct and optimised. A lightweight
+harness was developed to read data from the sensors, and write to the same
+shared memory buffers. This decoupling ensures the same pipeline code is
+executed during both the functional testing and the performance evaluations,
+without modifying the pipelines or using conditional logic to change the path of
+execution.
 ]
 
 #wc[
@@ -531,23 +599,33 @@ the backpressure policy when the consumer buffer is full.
 Each bridge uses language-specific idiomatic implementations of the backpressure
 policies: Rust uses #ct[TODO], C++ #ct[TODO], and Python #ct[TODO].
 
-Five backpressure policies were implemented: (1) _bounded queue_, which blocks
-the producer when the consumer buffer is full until space is available, (2)
-_drop-oldest_, which drops the oldest data in the consumer buffer to make room
-for new data when full, (3) _drop-newest_, which drops incoming data when the
-consumer buffer is full, (4) _exponential-backoff_, which waits a short time
-before retrying to produce data when the buffer is full, with the wait time
-doubling with each retry, and (5) _adaptive decimation_, which dynamically
-downsamples the data stream (i.e. queueing only every _nth_ event) when the size
-of the buffer reaches certain thresholds to reduce pressure while retaining
-temporal continuity. #todo[Review literature for common backpressure policies
-and confirm these are the most relevant for Edge-AI pipelines.]
+Five backpressure and load shedding policies were implemented to manage queue
+saturation when the consumer buffer is full:
 
-The saturation threshold was determined by increasing the _load_ multiplier
-incrementally until at least one consumer buffer fills capacity for at least 90%
-of the test duration. #todo[Check literature for common methods of determining
-saturation threshold.]
-]
+*Policies that attempt to preserve all data (Flow Control):*
+  - *Bounded queue:* Blocks the producer until space is available in the
+    consumer buffer.
+  - *Exponential-backoff:* Waits a short time before retrying to insert the
+    data, with the wait time doubling with each retry.
+
+*Policies that intentionally drop data (Load Shedding):*
+  - *Drop-oldest:* Drops the oldest data in the consumer buffer to make room for
+    new data.
+  - *Drop-newest:* Drops incoming data when the buffer is full.
+
+*Policies that drop data while preserving temporal continuity:*
+  - *Adaptive decimation:* Dynamically downsamples the data stream (i.e.,
+    queueing only every _nth_ event) to reduce pressure on the consumer buffer
+    while preserving the temporal continuity of the data.
+
+To ensure the runtime models were evaluated under sustained stress, the
+saturation threshold was determined by increasing the _load_ multiplier until at
+least one consumer buffer reached capacity, ensuring the backpressure mechanism
+was continuously engaged across all policies. Because the languages differ in
+performance, a single, separate load multiplier was determined for each
+language. This ensured that all policies were evaluated using identical rates of
+ingestion for each runtime model, isolating the behaviours of the runtime models
+and removing execution speed as a confounding variable. ]
 
 #wc[
 === Profiling and Metrics
