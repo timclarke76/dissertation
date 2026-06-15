@@ -26,49 +26,56 @@
 
 == Background and Context
 
-#wc[ In recent years, Edge-AI (Edge Artificial Intelligence) has begun to move
-the deployment of AI models from centralised cloud-based servers to local
-devices such as sensors, mobile phones, and embedded systems. This allows for
-real-time processing and reduces internet bandwidth usage, making it suitable
-for applications where reduced latency is critical (e.g. fitness trackers,
-autonomous vehicles, etc.), or where connectivity is unreliable or unavailable
-(e.g. remote weather stations, satellite image analysis, etc.).
+#wc[
+In recent years, Edge-AI (Edge Artificial Intelligence) has begun to move the
+deployment of AI models from centralised cloud-based servers to local devices,
+such as sensors, mobile phones, and embedded systems. This decentralisation of
+AI processing offers several advantages over traditional cloud computing: (1) it
+enables _real-time processing_ by removing network latency, which is essential
+for time-sensitive applications such as autonomous vehicles and industrial
+automation; (2) it drastically _reduces internet bandwidth usage_, allowing
+systems to operate in environments where connectivity is unreliable or
+unavailable, such as remote weather stations or satellite image analysis; (3) it
+enhances _privacy and security_ by ensuring that sensitive information, such as
+healthcare monitoring or smart home video feeds, is processed locally and not
+transmitted across the internet; and (4) by removing the need for continuous
+data transmission, Edge-AI can improve overall _energy efficiency_ in
+battery-powered IoT deployments. These advantages are driving the expansion of
+large-scale Edge-AI projects, such as in smart city infrastructure, where
+Edge-AI is increasingly deployed directly into municipal infrastructure to
+improve efficiency and sustainability, such as in the control of "smart" traffic
+lights or street lighting.
 
-#todo[discuss the importance of privacy and security as a motivation for
-Edge-Ai]
-
-#todo[discuss advances in hardware acceleration]
-
-#todo[define what is meant by latency and throughput in the context of Edge-AI
-pipelines]
-
-#todo[perhaps a limitation that accuracy cannot be measured, which would be
-impacted by the backpressure policies, but is outside the scope of this
-dissertation]
-
-#todo[add one or two sentences about the importance of energy efficiency]
-
-#todo[mention street light and smart city examples]
-
-Edge-AI deployment brings challenges in terms of resource constraints, such as
-limited computational power, memory, and power requirements. Remote software
-updates to maintain Edge-AI applications also come at a cost, as they can be
-expensive and time-consuming, especially when dealing with a large number of
-devices. These challenges make language selection an important design decision
-for Edge-AI pipelines.
+While recent advancements in heterogeneous System-on-Chips (SoCs) have made
+Edge-AI deployments practical by integrating dedicated AI accelerators into
+small form factors, these devices do bring challenges in terms of resource
+constraints, such as limited memory, power consumption, and thermal limits.
+Furthermore, remote software updates to maintain Edge-AI applications also come
+at a cost, as they can be expensive and time-consuming, especially when dealing
+with a large number of devices. Because the software must make maximum use of
+the limited hardware resources, while also remaining stable over the long term,
+programming language selection is an important design decision for Edge-AI
+pipelines.
 ]
 
 == Problem Statement
 
 #wc[
-When deploying on Edge hardware, the above listed challenges amplify the impact
-of programming language choice. A language's runtime model dictates memory,
+When deploying on Edge hardware, the aforementioned challenges amplify the impact of
+programming language choice. A language's runtime model dictates memory management,
 concurrency, and scheduling behaviour under load, which directly impacts
 latency, throughput, and resource usage. For example, manual memory management
 offers fine-grained control and increased performance, but simultaneously
 increases the risk of memory leaks and undefined behaviour. Conversely, memory
 management may be automated through garbage collection (GC) at the cost of
 increased latency and unpredictable latency jitter.
+
+This dissertation focuses on the performance metrics at the system level.
+_Latency_ does not refer to network transmission time, but rather the processing
+time from when the sensor data is created to when the final AI prediction is
+completed. This included queueing delays, inference time, and final fusion of
+the prediction. _Throughput_ measures how many sensor events the pipeline can
+process per unit of time (e.g. per second) when under sustained load.
 
 Selecting a language for Edge-AI pipelines is often guided by familiarity or
 generalised benchmarks, rather than the evaluation of runtime models under
@@ -183,7 +190,19 @@ However, AI acceleration, thermal behaviour, and power management are
 fundamentally SoC-dependent. Consequently, the profiling and acceleration tools
 used during evaluation (e.g. NVIDIA tegrastats, TensorRT) are specific to the
 Jetson Orin Nano platform and cannot be directly applied across other edge
-devices. ]
+devices.
+
+A further limitation of this study is that it is not concerned with the accuracy
+of the HAR prediction results. To ensure the data is both deterministic and
+reproducible for each implementation, a synthetic load generator is used.
+Pre-recorded data is not used to avoid confounding the results with disk I/O
+bottlenecks, ensuring the data is available to the pipeline at a consistent
+rate. It is acknowledged that the choice of load shedding policy would impact
+prediction accuracy and usefulness of the results, due to the dropping of data
+and temporal discontinuity. However, this dissertation is strictly concerned
+with performance measurements of latency, throughput, and memory efficiency at
+the system level, and not the accuracy of the HAR model itself.
+]
 
 
 == Dissertation Outline
@@ -288,6 +307,40 @@ thermal limits are reached. Peluso et al. (2019) @peluso2019 demonstrated that
 this introduces non-deterministic pipeline performance degradation. To minimise
 premature throttling, the software architecture and language runtime model must
 be efficient by minimising unnecessary CPU and memory overhead.
+]
+
+#wc[
+== AI Acceleration
+
+*CUDA* (Compute Unified Device Architecture) @cuda provides a parallel execution
+environment and programming model for heterogeneous computing systems with
+NVIDIA GPUs, using a Single Instruction Multiple Threads (SIMT) architecture. In
+CUDA, the CPU is referred to as the _host_, and the GPU is referred to as the
+_device_. CUDA clients are responsible for managing the transfer of data between
+_host memory_ and _device memory_.
+
+CUDA allows developers to write a _kernel_ function that is launched
+asynchronously from the host code and executed in parallel across many threads
+(using different data) on the device, enabling high-performance computing for AI
+workloads. The kernel _threads_ are grouped into _thread blocks_, which in turn
+are grouped into a _grid_. Each thread block is split into _warps_ of 32 threads
+that are executed in lock step on a single device _Streaming Multiprocessor_
+(SM).
+
+*cuDNN* (CUDA Deep Neural Network) @cudnn is a GPU-accelerated library of
+primitives for deep neural networks, that sits on top of CUDA and runs on the
+device to provide higher-level abstractions and optimised implementations of
+common deep learning operations (e.g. normalisation, matrix multiplication,
+softmax, etc.).
+
+*TensorRT* @tensorRT is responsible for compiling an *ONNX* (Open Neural Network
+Exchange) @onnx model into a _.engine_ file, optimised to run on the Jetson GPU.
+
+All implementations interact with the *ONNX Runtime* to load and execute the AI
+model, which is responsible for the data transfer and inference orchestration on
+the host, and hands off responsibility to TensorRT for inference execution on
+the device. To ensure a consistent baseline, the same optimised _.engine_ file
+was used across all three implementations.
 ]
 
 #wc[
@@ -467,36 +520,6 @@ AI inference and acceleration. The software stack versions were selected as the
 most recent stable releases at the time of development, and were used for all
 implementations to ensure a consistent baseline for comparison. #todo[Add ONNX
 version and Python variant details.]
-
-*CUDA* (Compute Unified Device Architecture) @cuda provides a parallel execution
-environment and programming model for heterogeneous computing systems with
-NVIDIA GPUs, using Single Instruction Multiple Threads (SIMT) architecture. In
-CUDA, the CPU is referred to as the _host_, and the GPU is referred to as the
-_device_. CUDA clients are responsible for managing the transfer of data between
-_host memory_ and _device memory_.
-
-CUDA allows developers to write a _kernel_ function that is launched
-asynchronously from the host code and executed in parallel across many threads
-(using different data) on the device, enabling high-performance computing for AI
-workloads. The kernel _threads_ are grouped into _thread blocks_, which in turn
-are grouped into a _grid_. Each thread block is split into _warps_ of 32 threads
-that are executed in lock step on a single device _Streaming Multiprocessor_
-(SM).
-
-*cuDNN* (CUDA Deep Neural Network) @cudnn is a GPU-accelerated library of
-primitives for deep neural networks, that sits on top of CUDA and runs on the
-device to provide higher-level abstractions and optimised implementations of
-common deep learning operations (e.g. normalisation, matrix multiplication,
-softmax, etc.).
-
-*TensorRT* @tensorRT is responsible for compiling an *ONNX* (Open Neural Network
-Exchange) @onnx model into a _.engine_ file, optimised to run on the Jetson GPU.
-
-All implementations interact with the *ONNX Runtime* to load and execute the AI
-model, which is responsible for the data transfer and inference orchestration on
-the host, and hands off responsibility to TensorRT for inference execution on
-the device. To ensure a consistent baseline, the same optimised _.engine_ file
-was used across all three implementations.
 
 Performance and overhead of the language runtime models was measured at the
 boundary of the host/device memory separation, where the CPU manages the runtime
