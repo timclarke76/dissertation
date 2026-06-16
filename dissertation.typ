@@ -1,3 +1,5 @@
+#import "@preview/fletcher:0.5.8" as fletcher: diagram, node, edge
+#import fletcher.shapes: cylinder, rect
 #import "@preview/wordometer:0.1.5": word-count, total-words
 
 #show: word-count
@@ -13,10 +15,20 @@
 
 #show "C++": box[C++]
 
+#let red = rgb("F8D7DA")
+#let blue = rgb("CCE5FF")
+#let pale_blue = rgb("#EBF4FF")
+#let green = rgb("D4EDDA")
+#let pale_green = rgb("#EDF8EF")
+#let cream = rgb("FFFBEB")
+#let pale_cream = rgb("#FFFEF9")
+#let grey = luma(150)
+#let charcoal = rgb("#2D3748")
+
 #let wc(body) = word-count(total => [
   #body
   #set text(size: 0.8em, style: "italic")
-  #align(right)[#{total.words - 1}]
+  // #align(right)[#{total.words - 1}]
 ])
 
 // #set text(size: 12pt)
@@ -543,12 +555,55 @@ implementations: Rust #ct[version], C++20 with GCC #ct[version], and Python
 #wc[
 === Deterministic Load Generator
 
-To reliably compare the performance of the three implementations, a synthetic
-load generator was developed to create reproducible and deterministic simulated
+To reliably compare the performance of the three implementations, a separate synthetic
+load generator, shown in @fig:architecture, was developed to create reproducible and deterministic simulated
 sensor data. This ensures that the behaviour of each implementation can be
 compared using the same baseline data, and that differences in performance can
 be attributed to the runtime models and backpressure policies, and not input
 variability.
+
+#figure(
+  scope: "parent",
+  placement: bottom,
+  
+  pad(top: 1.5em)[
+    #set text(size: 8pt)
+
+    #let n(x, t, f, s) = node((x,1), align(center)[#t], fill: f, shape: s)
+    #let r(x, t) = n(x, t, pale_green, rect)
+    #let c(x, t) = n(x, t, pale_blue, cylinder)
+    #let e(x, y, t) = edge((x,1), (y,1), "-|>", mark-scale: 175%,
+      label: align(center)[#t], label-side: left)
+
+    #diagram(
+      node-stroke: 0.5pt + charcoal,
+      node-corner-radius: 2pt,
+      node-inset: 6pt,
+      spacing: (45pt, 12pt),
+
+      node((3,0), align(center)[*HAR Pipeline*], stroke: none),
+      node(
+        enclose: ((2,1), (4,1)), 
+        stroke: (paint: charcoal, dash: "dashed", thickness: 1pt), 
+        inset: 12pt
+      ),
+
+      r(0, [Load Generator\ (Rust)]),
+      c(1, [Unbounded Buffer\ (Shared Memory)]),
+      r(2, [Language Bridge\ (C++/Rust/Py)]),
+      c(3, [Bounded Buffer\ (Idiomatic)]),
+      r(4, [AI Inference\ (TensorRT)]),
+
+      e(0, 1, [Push]),
+      e(1, 2, [Poll]),
+      e(2, 3, [Push/Drop]),
+      e(3, 4, [Dequeue]),
+    )
+  ],
+
+  caption: [System architecture demonstrating communication between the separate
+    Load Generator and the HAR Pipeline implementations.],
+) <fig:architecture>
 
 The load generator produces three streams of data to shared memory buffers for
 consumption by the HAR pipelines: (1) an RGB video stream to simulate the
@@ -646,6 +701,47 @@ saturation when the consumer buffer is full:
     queueing only every _nth_ event) to reduce pressure on the consumer buffer
     while preserving the temporal continuity of the data.
 
+Bounded queue and exponential backoff are both flow control policies, and
+instead of dropping data they stall the data producer when the consumer buffer
+is full. However, this can lead to unbounded memory growth of the producer
+buffer, causing system instability. Conversely, drop-oldest, drop-newest, and
+adaptive decimation are all load shedding policies that discard data, as
+visualised in @fig:load_shedding, though this does lead to a loss of temporal
+continuity and may impact prediction accuracy.
+
+#figure(
+  align(center)[
+    #let packet(n, c) = box(width: 1.2em, height: 1.2em, stroke: 0.5pt + grey,
+      fill: c, radius: 2pt, align(center+horizon)[#n])
+    #let k(n) = packet(n, green)
+    #let d(n) = packet(n, red)
+
+    #pad(top: 1em, bottom: 0.75em)[
+      #grid(
+        columns: (100pt, auto),
+        align: (right + horizon, left + horizon),
+        row-gutter: 1.5em,
+        column-gutter: 1.5em,
+
+        [*Incoming Stream:* \ _(Events 1 to 6)_],
+        stack(dir: ltr, spacing: 6pt, k(1), k(2), k(3), k(4), k(5), k(6)),
+
+        [*Drop-Newest:* \ _(Queue full at 4 events)_],
+        stack(dir: ltr, spacing: 6pt, k(1), k(2), k(3), k(4), d(5), d(6)),
+
+        [*Drop-Oldest:* \ _(Queue full at 4 events)_],
+        stack(dir: ltr, spacing: 6pt, d(1), d(2), k(3), k(4), k(5), k(6)),
+
+        [*Adaptive Decimation:* \ _(Queueing every 2nd event)_],
+        stack(dir: ltr, spacing: 6pt, k(1), d(2), k(3), d(4), k(5), d(6)),
+      )
+    ]
+  ],
+
+  caption: [Load shedding policies on a stream of sensor events. Green blocks
+    represent preserved data, red blocks represent dropped data. #v(1em)],
+) <fig:load_shedding>
+
 To ensure the runtime models were evaluated under sustained stress, the
 saturation threshold was determined by increasing the _load_ multiplier until at
 least one consumer buffer reached capacity, ensuring the backpressure mechanism
@@ -663,7 +759,7 @@ and removing execution speed as a confounding variable. ]
 To measure latency of the pipelines, the `CLOCK_MONOTONIC_RAW` clock was used to
 capture timestamps at key points as the data events flowed through the pipeline.
 This provides high-resolution timing information that is not affected by system
-time changes or adjustments. The following six timestamps were captured for each
+time changes or adjustments. The following six timestamps, as visualised in @fig:latency_timeline, were captured for each
 event:
 
 + `t_generated` when the generator pushes to the unbounded buffer
@@ -674,6 +770,47 @@ event:
 + `t_fusion_in` when inference completes and the pipeline begins late fusion
 + `t_fusion_out` when late fusion completes and the pipeline produces the
   final output
+
+#figure(
+  placement: top,
+  scope: "parent",
+
+  // pad(top: 1em, bottom: 0.5em)[
+  pad(bottom: 1em)[
+    #let n(x, t) = node((x,0), t)
+    #let e(x, y, t, s, ls) = edge((x,0), (y,0), "|-|", align(center)[#t],
+      shift: s, label-sep: 0.25em, label-side: ls)
+    #let te(x, y, t) = e(x, y, t, 25pt, left)
+    #let be(x, y, t) = e(x, y, t, -25pt, right)
+
+    #diagram(
+      node-stroke: 0.5pt + charcoal,
+      node-fill: pale_cream,
+      node-corner-radius: 1.5pt,
+      node-inset: 5pt,
+      spacing: 28pt,
+
+      e(0, 5, [*Total System Latency*], 60pt, left),
+      edge((0,0), (5,0), "-", stroke: 1pt + charcoal),
+
+      n(0, [`t_generated`]),
+      n(1, [`t_bridged`]),
+      n(2, [`t_pipeline_in`]),
+      n(3, [`t_pipeline_out`]),
+      n(4, [`t_fusion_in`]),
+      n(5, [`t_fusion_out`]),
+
+      be(0, 1, [Unbounded\ Queue Wait]),
+      te(1, 2, [Idiomatic\ Queue Wait]),
+      be(2, 3, [Data\ Preparation]),
+      te(3, 4, [Inference]),
+      be(4, 5, [Fusion\ Logic]),
+    )
+  ],
+
+  caption: [Timeline of the six timestamps captured for each event as it flows
+    through the pipeline. #v(0.25em)]
+) <fig:latency_timeline>
 
 Coordinated Omission occurs when a stalled system fails to record the true
 extent of tail-latency delays by omitting the time that the event truly occurred
@@ -708,6 +845,40 @@ periodically rotated the buffers, extracting the throughput alongside the
 $"p50"$, $"p95"$, $"p99"$, $"p99.9"$, $"p99.99"$, and maximum latency values
 from the newly inactive histogram into a pre-allocated fixed-size array at
 #ct[fixed intervals], without any blocking of the pipeline thread.
+
+#figure(
+  pad(top: 0.5em)[
+    #set text(size: 8pt)
+    
+    #let n(x, y, t, f, s) = node((x,y), align(center)[#t], fill: f, shape: s)
+    #let r(x, y, t) = n(x, y, t, pale_green, rect)
+    #let c(x, y, t) = n(x, y, t, pale_blue, cylinder)
+    #let e(p1, p2, t, ls) = edge(p1, p2, "-|>", mark-scale: 175%,
+      label: align(center)[#t], label-side: ls)
+
+    #diagram(
+      node-stroke: 0.5pt + charcoal,
+      node-corner-radius: 2pt,
+      node-inset: 8pt,
+      spacing: (70pt, 60pt),
+
+      r(0, 0, [Pipeline Thread\ (Writer)]),
+      r(1, 0, [Telemetry Thread\ (Reader)]),
+
+      c(0, 1, [Active\ HDR Histogram]),
+      c(1, 1, [Inactive\ HDR Histogram]),
+
+      e((0,0), (0,1), [Record Latency\ (Wait-Free)], center),
+      e((1,0), (1,1), [Extract p99 & Max\ (Locks Reader Only)], center),
+
+      edge((0,1), (1,1), "<|--|>", mark-scale: 175%,
+        label: align(center)[Atomic Swap\ (1 Hz Interval)], label-side: right)
+    )
+  ],
+
+  caption: [Double-buffering approach to atomically capture the telemetry
+    without\ blocking the pipeline thread.]
+) <fig:double_buffering>
 
 ==== Memory Churn (C++ and Rust)
 
@@ -768,10 +939,44 @@ tail-latency pauses.
 ==== Memory Fragmentation
 
 Repeated allocation and deallocation of memory can lead to fragmentation, where
-free memory is only available in small, non-contiguous blocks. This can cause
-memory to be exhausted, even when the total free memory is sufficient, as
+free memory is only available in small, non-contiguous blocks. As shown in @fig:memory_fragmentation, this can cause
+memory to be exhausted even when the total free memory is sufficient, as
 contiguous blocks larger than the fragmented sizes are not available, leading to
 Out-Of-Memory (OOM) errors.
+
+#figure(
+  align(center)[
+    #let block(c) = box(width: 0.75em, height: 0.75em, stroke: 0.5pt + grey,
+      fill: c, radius: 2pt)
+    #let a = block.with(blue)
+    #let f = block.with(cream)
+    #let n = block.with(red)
+
+    #pad(top: 1em, bottom: 0.75em)[
+      #grid(
+        columns: (100pt, auto),
+        align: (right + horizon, left + horizon),
+        row-gutter: 1.5em,
+        column-gutter: 1.5em,
+
+        [*1. Initial State:* \ _(8 blocks allocated)_],
+        stack(dir: ltr, spacing: 4pt, a(), a(), a(), a(), a(), a(), a(), a()),
+
+        [*2. Objects Freed:* \ _(4 blocks free)_],
+        stack(dir: ltr, spacing: 4pt, a(), f(), f(), a(), a(), f(), f(), a()),
+
+        [*3. New Allocation:* \ _(3 blocks needed)_],
+        stack(dir: ltr, spacing: 4pt, a(), f(), f(), a(), a(), f(), f(), a(),
+          n(), n(), n()),
+      )
+    ]
+  ],
+
+  caption: [Visualisation of memory fragmentation. Though the total free memory
+    (4 blocks) is sufficient for the new allocation (3 blocks), the allocator
+    must expand the heap due to the lack of contiguous space, increasing the
+    Resident Set Size (RSS). #v(1em)],
+) <fig:memory_fragmentation>
 
 To ensure a fair comparison, all three implementations use the Linux interface
 `/proc/self/statm` to capture the Resident Set Size (RSS) from the background
