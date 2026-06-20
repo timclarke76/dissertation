@@ -16,7 +16,9 @@
 #show "C++": box[C++]
 
 #let red = rgb("F8D7DA")
+#let dark_red = rgb("#E56C76")
 #let blue = rgb("CCE5FF")
+#let light_blue = rgb("#DBEDFF")
 #let pale_blue = rgb("#EBF4FF")
 #let green = rgb("D4EDDA")
 #let pale_green = rgb("#EDF8EF")
@@ -41,22 +43,22 @@
 #wc[
 In recent years, Edge-AI (Edge Artificial Intelligence) has begun to move the
 deployment of AI models from centralised cloud-based servers to local devices,
-such as sensors, mobile phones, and embedded systems. This decentralisation of
-AI processing offers several advantages over traditional cloud computing: (1) it
-enables _real-time processing_ by removing network latency, which is essential
-for time-sensitive applications such as autonomous vehicles and industrial
-automation; (2) it drastically _reduces internet bandwidth usage_, allowing
-systems to operate in environments where connectivity is unreliable or
-unavailable, such as remote weather stations or satellite image analysis; (3) it
-enhances _privacy and security_ by ensuring that sensitive information, such as
-healthcare monitoring or smart home video feeds, is processed locally and not
-transmitted across the internet; and (4) by removing the need for continuous
-data transmission, Edge-AI can improve overall _energy efficiency_ in
-battery-powered IoT deployments. These advantages are driving the expansion of
-large-scale Edge-AI projects, such as in smart city infrastructure, where
-Edge-AI is increasingly deployed directly into municipal infrastructure to
-improve efficiency and sustainability, such as in the control of "smart" traffic
-lights or street lighting.
+such as sensors, mobile phones, and other embedded systems. This
+decentralisation of AI processing offers several advantages over traditional
+cloud computing: (1) it enables _real-time processing_ by removing network
+latency, which is essential for time-sensitive applications such as autonomous
+vehicles and industrial automation; (2) it drastically _reduces internet
+bandwidth usage_, allowing systems to operate in environments where connectivity
+is unreliable or unavailable, such as remote weather stations or satellite image
+analysis; (3) it enhances _privacy and security_ by ensuring that sensitive
+information, such as healthcare monitoring or smart home video feeds, is
+processed locally and not transmitted across the internet; and (4) by removing
+the need for continuous data transmission, Edge-AI can improve overall _energy
+efficiency_ in battery-powered IoT deployments. These advantages are helping to
+drive the expansion of large-scale Edge-AI projects, such as in smart city
+infrastructure, where Edge-AI is increasingly deployed directly into municipal
+infrastructure to improve efficiency and sustainability, such as in the control
+of "smart" traffic lights or street lighting.
 
 While recent advancements in heterogeneous System-on-Chips (SoCs) have made
 Edge-AI deployments practical by integrating dedicated AI accelerators into
@@ -64,42 +66,43 @@ small form factors, these devices do bring challenges in terms of resource
 constraints, such as limited memory, power consumption, and thermal limits.
 Furthermore, remote software updates to maintain Edge-AI applications also come
 at a cost, as they can be expensive and time-consuming, especially when dealing
-with a large number of devices. Because the software must make maximum use of
-the limited hardware resources, while also remaining stable over the long term,
-programming language selection is an important design decision for Edge-AI
+with a large number of devices. The software must make maximum use of the
+limited hardware resources, while also remaining stable over the long term,
+making programming language selection an important design decision for Edge-AI
 pipelines.
 ]
 
 == Problem Statement
 
 #wc[
-When deploying on Edge hardware, the aforementioned challenges amplify the impact of
-programming language choice. A language's runtime model dictates memory management,
-concurrency, and scheduling behaviour under load, which directly impacts
-latency, throughput, and resource usage. For example, manual memory management
-offers fine-grained control and increased performance, but simultaneously
-increases the risk of memory leaks and undefined behaviour. Conversely, memory
-management may be automated through garbage collection (GC) at the cost of
-increased latency and unpredictable latency jitter.
+A language's runtime model dictates memory management, concurrency, and
+scheduling behaviour under load, which directly impacts latency, throughput, and
+resource usage. For example, manual memory management offers fine-grained
+control and increased performance, but simultaneously increases the risk of
+memory leaks and undefined behaviour. Conversely, memory management may be
+automated through garbage collection (GC) at the cost of increased latency and
+unpredictable latency jitter.
 
 This dissertation focuses on the performance metrics at the system level.
 _Latency_ does not refer to network transmission time, but rather the processing
 time from when the sensor data is created to when the final AI prediction is
-completed. This included queueing delays, inference time, and final fusion of
+completed. This includes queueing delays, inference time, and final fusion of
 the prediction. _Throughput_ measures how many sensor events the pipeline can
 process per unit of time (e.g. per second) when under sustained load.
 
 Selecting a language for Edge-AI pipelines is often guided by familiarity or
 generalised benchmarks, rather than the evaluation of runtime models under
-stress with the constraints of embedded hardware. There is a lack of empirical
-evidence of how specific memory management and concurrency models interact with
-backpressure policies under heavy, fluctuating loads. Additionally, resource
-contention and thermal throttling confounders can introduce noise that limits
-the validity of naive comparisons.
+stress with the constraints of embedded hardware. When deploying on Edge
+hardware, the aforementioned challenges amplify the impact of programming
+language choice. There is a lack of empirical evidence of how specific memory
+management and concurrency models interact with backpressure policies under
+heavy, fluctuating loads. Additionally, resource contention and thermal
+throttling confounders can introduce noise that limits the validity of naive
+comparisons.
 
-This dissertation addresses this gap by providing empirical evidence and an
+This dissertation addresses the gap by providing empirical evidence and an
 evaluation of pipelines deployed on resource-constrained hardware, with a focus
-on the trade-offs among Rust, C++, and Python implementations of a tri-stream
+on the trade-offs among C++, Rust, and Python implementations of a tri-stream
 Human Activity Recognition (HAR) pipeline on industry-standard Edge-AI hardware.
 It focuses on three confounders: (1) language runtime models, (2) backpressure
 policies under various loads, and (3) thermal/power throttling.
@@ -113,26 +116,18 @@ The primary research questions are:
 #text[
   #set enum(indent: 0em, numbering: n => [*RQ#n*])
 
-  + *Runtime Performance:* How do the runtime models /*(memory and
-    concurrency)*/ of Rust/*(borrow checker/async runtimes)*/, C++/*(manual
-    memory management/native threads)*/, and Python /*(GC/GIL)*/ influence
-    latency/*(p50/p95/p99)*/, throughput, and memory consumption in a tri-stream
-    HAR pipeline on Edge-AI hardware?
-    /* #todo[runtime models and latency percentiles might belong in the
-    methodology section] */
+  + *Runtime Performance:* How do the runtime models of C++, Rust, and Python
+    influence latency, throughput, and memory consumption in a tri-stream HAR
+    pipeline on Edge-AI hardware?
 
-  + *Backpressure Interaction:* How do the language-specific runtime models
-    interact with different backpressure policies /*(bounded queue, drop-oldest,
-    rate-limiting)*/ under varying load, and what are the trade-offs in observed
-    deadline adherence, system stability, and allocator/GC pressure and
-    concurrency overhead? /*#todo[backpressure policies might belong in the
-    methodology section]*/
+  + *Backpressure Interaction:* How do the runtime models interact with
+    different backpressure policies under varying load, and what are the
+    trade-offs in observed deadline adherence, system stability, and
+    allocator/GC pressure and concurrency overhead?
 
   + *Dynamic Profiling vs. Runtime Behaviour:* To what extent do dynamic
-    memory/concurrency profiling metrics /*(allocation churn, GC pause duration,
-    asynchronous task-switch overhead)*/ explain the observed performance
-    bottlenecks and trade-offs under load? /*#todo[exact metrics might belong in
-    the methodology section]*/
+    memory/concurrency profiling metrics explain the observed performance
+    bottlenecks and trade-offs under load?
 ]
 
 The primary research objectives are:
@@ -140,19 +135,17 @@ The primary research objectives are:
 #text[
   #set enum(indent: 0em, numbering: n => [*RO#n*])
 
-  + Implement a functionally identical tri-stream HAR pipeline in Rust, C++, and
+  + Implement a functionally identical tri-stream HAR pipeline in C++, Rust, and
     Python, ensuring optimised idiomatic implementations for each language.
 
   + Evaluate the performance of each implementation under controlled conditions,
     using a shared deterministic load generator, to quantify how backpressure
-    policies and runtime models impact latency/*(p50/p95/p99)*/, throughput,
-    memory consumption/* (RSS/PSS/USS)*/, and thermal/power dynamics under load.
-    //#todo[exact metrics might belong in the methodology section]
+    policies and runtime models impact latency, throughput, memory consumption,
+    and thermal/power dynamics under load.
 
   + Analyse runtime model overhead to explain performance differences, and
     derive empirically grounded guidance for language selection in constrained
-    Edge-AI deployments. /*#todo[allocation churn, GC pause duration, async
-    task-switch overhead belong in the methodology section]*/
+    Edge-AI deployments.
 ]
 ]
 
@@ -166,7 +159,7 @@ Edge-AI systems:
   #set enum(indent: 0em, numbering: n => [*C#n*])
 
   + *Cross-Language Runtime Evaluation:* Addressing RQ1, this work delivers an
-    empirical comparison of how Rust, C++, and Python runtime models (memory
+    empirical comparison of how C++, Rust, and Python runtime models (memory
     management and concurrency) influence latency, throughput, and memory
     consumption on resource-constrained embedded hardware.
 
@@ -189,7 +182,7 @@ Edge-AI systems:
 
 #wc[
 The focus of this dissertation is on the interaction of three language runtime
-models (Rust, C++, and Python) with system latency and throughput, using
+models (C++, Rust, and Python) with system latency and throughput, using
 standardised, idiomatic implementations of a tri-stream HAR pipeline on
 industry-standard Edge-AI hardware. The scope is limited to a standardised
 implementation representative of real-world multi-modal processing, with
@@ -223,20 +216,20 @@ the system level, and not the accuracy of the HAR model itself.
 The remainder of this dissertation is structured as follows: #box[*Chapter 2*]
 provides background on the evolution of Edge-AI and the heterogeneous devices
 employed. It also introduces the programming languages evaluated in this
-dissertation, and briefly explains the concepts of backpressure and load
-shedding. #box[*Chapter 3*] reviews related literature regarding language
-efficiency benchmarks and the trade-offs between memory safety and cognitive
-load, concluding by identifying the research gap.
-#box[*Chapter 4*] details the methodology, including the
-hardware and software setup, backpressure interfaces, and profiling toolchains
-used to collect metrics. #box[*Chapter 5*] describes the implementation of the HAR
-pipeline in each language, highlighting language-specific optimisations and
-challenges. #box[*Chapter 6*] presents the results, including performance
-metrics, memory allocation and GC pressure, and backpressure outcomes under
-varying loads. #box[*Chapter 7*] discusses the findings and limitations of the
-study. Finally, #box[*Chapter 8*] concludes by addressing the research
-questions, providing practical recommendations for language selection in Edge-AI
-contexts, and suggesting directions for future work.
+dissertation, and briefly explains the concepts of AI acceleration,
+backpressure, and load shedding. #box[*Chapter 3*] reviews related literature
+regarding language efficiency benchmarks and the trade-offs between memory
+safety and cognitive load, concluding by identifying the research gap.
+#box[*Chapter 4*] details the methodology, including the hardware and software
+setup, backpressure interfaces, and profiling toolchains used to collect
+metrics. #box[*Chapter 5*] describes the implementation of the HAR pipeline in
+each language, highlighting language-specific optimisations and challenges.
+#box[*Chapter 6*] presents the results, including performance metrics, memory
+allocation and GC pressure, and backpressure outcomes under varying loads.
+#box[*Chapter 7*] discusses the findings and limitations of the study. Finally,
+#box[*Chapter 8*] concludes by addressing the research questions, providing
+practical recommendations for language selection in Edge-AI contexts, and
+suggesting directions for future work.
 ]
 ]
 
@@ -287,15 +280,16 @@ processing to ensure safety and reduce dependence on available network bandwidth
 
 This transition to _Edge-AI_ required overcoming the hardware obstacles
 identified by Satyanarayanan et al. and the network bottlenecks identified by
-Shi et al. Zhou et al. (2019) @zhou2019 provided a comprehensive survey of
-recent research efforts in Edge Intelligence, and identified that physical
-proximity to the data source is critical to reducing monetary costs, latency,
-and the risk of privacy leakage. For evaluating the quality of Edge-AI
-inference, they highlighted latency, accuracy, energy consumption, privacy, and
-memory footprint. While communication overhead is eliminated by offline edge
-processing, the remaining metrics remain relevant to this dissertation. For
-example, backpressure policies may intentionally drop data to ensure system
-stability, sacrificing model accuracy to satisfy strict latency deadlines.
+Shi et al. (2016) @shi2016 and Zhou et al. (2019) @zhou2019 provided a
+comprehensive survey of recent research efforts in Edge Intelligence, and
+identified that physical proximity to the data source is critical to reducing
+monetary costs, latency, and the risk of privacy leakage. For evaluating the
+quality of Edge-AI inference, they highlighted latency, accuracy, energy
+consumption, privacy, and memory footprint. While communication overhead is
+eliminated by offline edge processing, the remaining metrics remain relevant to
+this dissertation. For example, backpressure policies may intentionally drop
+data to ensure system stability, sacrificing model accuracy to satisfy strict
+latency deadlines.
 ]
 
 #wc[
@@ -316,28 +310,108 @@ when under sustained heavy load such as that generated by Edge-AI pipelines. To
 prevent hardware failure, the Jetson Orin Nano relies on _Dynamic Voltage and
 Frequency Scaling_ (DVFS) to reactively throttle the CPU and GPU speeds when
 thermal limits are reached. Peluso et al. (2019) @peluso2019 demonstrated that
-this introduces non-deterministic pipeline performance degradation. To minimise
-premature throttling, the software architecture and language runtime model must
-be efficient by minimising unnecessary CPU and memory overhead.
+this introduces non-deterministic pipeline performance degradation. It can be
+concluded that to minimise premature throttling, the software architecture and
+language runtime model must be efficient by minimising unnecessary CPU and
+memory overhead.
 ]
 
 #wc[
 == AI Acceleration
 
-*CUDA* (Compute Unified Device Architecture) @cuda provides a parallel execution
-environment and programming model for heterogeneous computing systems with
-NVIDIA GPUs, using a Single Instruction Multiple Threads (SIMT) architecture. In
-CUDA, the CPU is referred to as the _host_, and the GPU is referred to as the
-_device_. CUDA clients are responsible for managing the transfer of data between
-_host memory_ and _device memory_.
+To deploy AI models on resource-constrained edge devices, they must first be
+compiled into a format that is optimised for the target AI acceleration
+hardware. A software stack on the device is responsible for executing the model,
+while the client, or _host_, manages the data transfer and inference
+orchestration.
+
+As visualised in @fig:cuda-arch, *CUDA* (Compute Unified Device Architecture)
+@cuda provides a parallel execution environment and programming model for
+heterogeneous computing systems with NVIDIA GPUs, using a Single Instruction
+Multiple Threads (SIMT) architecture. In CUDA, the CPU is referred to as the
+_host_, and the GPU is referred to as the _device_. CUDA clients are responsible
+for managing the transfer of data between _host memory_ and _device memory_.
 
 CUDA allows developers to write a _kernel_ function that is launched
 asynchronously from the host code and executed in parallel across many threads
 (using different data) on the device, enabling high-performance computing for AI
 workloads. The kernel _threads_ are grouped into _thread blocks_, which in turn
 are grouped into a _grid_. Each thread block is split into _warps_ of 32 threads
-that are executed in lock step on a single device _Streaming Multiprocessor_
-(SM).
+that are executed in lock step on a single device _Streaming Multiprocessor_.
+
+#figure(
+  pad(top: 1em, bottom: 0.5em)[
+    #set text(size: 8pt)
+
+    #let a(x, y, n) = node((x,y), stroke: none, name: n)
+    #let c(x, y, n, t) = node((x,y), name: n, align(center)[#t],
+      fill: pale_blue, shape: cylinder, inset: 5pt)
+    #let r(x, y, n, t, f) = node((x,y), name: n, align(center)[#t],
+      fill: f, shape: rect, corner-radius: 2pt)
+    #let w(x, y, n, t) = r(x, y, n, t, pale_blue)
+    #let e(p1, p2, t) = edge(p1, p2, "-|>", label: [#t],
+      label-side: center, mark-scale: 150%, label-pos: 25pt)
+
+    #diagram(
+      node-stroke: 0.5pt + charcoal,
+      spacing: (40pt, 20pt),
+
+      a(0, 0, <host-anchor>),
+      c(0, 0.5, <host-memory>, [Host Memory]),
+      r(1, 0.5, <host-thread>, [Host Thread], rgb("#F1F5F9")),
+
+      a(0, 3.0, <device-anchor>),
+      a(1, 3.95, <sm-anchor>),
+      a(1, 4.5, <warp-anchor>),
+      w(1, 4.9, <warp-1>, [Warp (32 Threads)]),
+      w(1, 5.5, <warp-2>, [Warp (32 Threads)]),
+      c(0, 5.2, <device-memory>, [Device Memory]),
+
+      node(
+        enclose: (<host-anchor>, <host-memory>, <host-thread>),
+        align(top + center, pad(top: -4pt, [*Host (CPU)*])),
+        stroke: 1pt + charcoal,
+        fill: pale_green,
+        inset: 8pt,
+        corner-radius: 4pt,
+      ),
+
+      node(
+        enclose: (<device-anchor>, <device-memory>, <sm-enc>),
+        align(top + center, pad(top: -3pt, [*Device (GPU)*])),
+        stroke: 1pt + charcoal,
+        fill: pale_green,
+        inset: 8pt,
+        corner-radius: 4pt,
+      ),
+
+      node(
+        name: <sm-enc>,
+        enclose: (<sm-anchor>, <warp-2>),
+        stroke: 0.5pt + charcoal,
+        fill: rgb("#FFFEF9"),
+        align(top + center, pad(top: -13pt, [*Streaming\ Multiprocessor*])),
+        inset: 16pt,
+        corner-radius: 4pt
+      ),
+
+      node(
+        enclose: (<warp-anchor>, <warp-1>, <warp-2>),
+        stroke: (paint: rgb("#4A5568"), dash: "dashed", thickness: 0.5pt),
+        fill: none,
+        align(top + center, pad(top: -0.5em, [Thread Block])),
+        inset: 10pt
+      ),
+
+      e(<host-memory>, <device-memory>, [Data Transfer]),
+      e(<host-thread>, <sm-enc>, [Asynchronous\ Kernel Launch]),
+    )
+  ],
+
+  caption: [CUDA Architecture Overview showing the host (CPU) and device (GPU)
+    memory separation, and the asynchronous launch of kernel functions to the
+    device.#v(1em)]
+) <fig:cuda-arch>
 
 *cuDNN* (CUDA Deep Neural Network) @cudnn is a GPU-accelerated library of
 primitives for deep neural networks, that sits on top of CUDA and runs on the
@@ -347,12 +421,6 @@ softmax, etc.).
 
 *TensorRT* @tensorRT is responsible for compiling an *ONNX* (Open Neural Network
 Exchange) @onnx model into a _.engine_ file, optimised to run on the Jetson GPU.
-
-All implementations interact with the *ONNX Runtime* to load and execute the AI
-model, which is responsible for the data transfer and inference orchestration on
-the host, and hands off responsibility to TensorRT for inference execution on
-the device. To ensure a consistent baseline, the same optimised _.engine_ file
-was used across all three implementations.
 ]
 
 #wc[
@@ -402,10 +470,8 @@ memory exhaustion and system instability if not managed effectively.
 However, because the pipeline cannot request the sensors to slow down their rate
 of transmission, traditional backpressure mechanisms are impossible. Instead,
 _load shedding_ policies are necessary. Policies such as dropping data (e.g.
-dropping the oldest or newest events) or limiting the rate of data production
-(e.g., adaptive decimation, which queues only every $n$-th event when under
-load) are commonly used to manage backpressure, but introduce an accuracy
-trade-off as data is lost.
+dropping the oldest, newest, or every $n$-th events) are commonly used to manage
+backpressure, but introduce an accuracy trade-off as data is lost.
 ]
 ]
 
@@ -471,7 +537,7 @@ the standard system allocator. This necessitates a re-evaluation of Rust's
 memory footprint, as the change in allocator may have impacted its memory and
 performance efficiency.
 
-Therefore, there is a research gap in empirically evaluating how the Rust, C++,
+Therefore, there is a research gap in empirically evaluating how the C++, Rust,
 and Python runtime models interact with backpressure policies under the thermal
 constraints of Edge-AI devices with continuous streams of sensor data.
 Consequently, an evaluation of their runtime performance under heavy load is
@@ -501,9 +567,9 @@ following features @jetson-orin-nano:
 - 32 Tensor cores for AI acceleration
 
 A Waveshare IMX219-160 Camera Module @imx219-160 was used to deliver the RGB
-video stream, configured to capture at #highlight[1920×1080 RGB frames at 30
-FPS], and connected via MIPI CSI-2 (Mobile Industry Processor Interface Camera
-Serial Interface 2). The camera captures images with a field of view (FOV) of
+video stream, configured to capture at #ct[1920×1080 RGB frames at \30 FPS], and
+connected via MIPI CSI-2 (Mobile Industry Processor Interface Camera Serial
+Interface \2). The camera captures images with a field of view (FOV) of
 160#sym.degree, making it suitable for capturing a wide area for human activity
 recognition after undistortion.
 
@@ -514,8 +580,8 @@ SPI for maximum throughput. The BMI088 combines a 3-axis accelerometer and a
 (accelerometer) and 2.0 kHz (gyroscope).
 
 To ensure that disk I/O did not cause bottlenecks or confound performance
-comparisons, all implementations were executed from a 1TB Samsung 990 PRO PCIe
-4.0 NVMe M.2 SSD @samsung-990-pro. A SanDisk "High-Endurance" microSD Card
+comparisons, all implementations were executed from a 1TB Samsung \990 PRO PCIe
+\4.0 NVMe M.2 SSD @samsung-990-pro. A SanDisk "High-Endurance" microSD Card
 (64GB, Class 10/U3) @sandisk-micro-sd was only used for initial device
 installation and bootloading, and was unmounted after boot to prevent any
 background I/O (such as writing logs) from interfering with performance
@@ -525,13 +591,22 @@ measurements.
 #wc[
 === Software Stack
 
-The Jetson was flashed with NVIDIA's JetPack 6.2.2 SDK @jetpack-6-2-2, which
+The Jetson was flashed with NVIDIA's JetPack \6.2.2 SDK @jetpack-6-2-2, which
 includes Jetson Linux 36.5 (featuring the Linux Kernel 5.15 and an Ubuntu
-22.04-based root file system), and CUDA 12.6, cuDNN 9.3, and TensorRT 10.3 for
-AI inference and acceleration. The software stack versions were selected as the
-most recent stable releases at the time of development, and were used for all
-implementations to ensure a consistent baseline for comparison. #todo[Add ONNX
-version and Python variant details.]
+\22.04-based root file system), and CUDA \12.6, cuDNN \9.3, and TensorRT \10.3
+for AI inference and acceleration. The software stack versions were selected as
+the most recent stable releases at the time of development, and were used for
+all implementations to ensure a consistent baseline for comparison. The Jetson
+Linux operating system utilises the GNU C Library (glibc) memory allocator,
+which in turn is used by the installed C++ and Rust toolchains as they rely on
+the system allocator. This enables use of glibc-specific tools for analysis of
+memory fragmentation. #todo[Add ONNX version and Python variant details.]
+
+All implementations interact with the *ONNX Runtime* to load and execute the AI
+model, which is responsible for the data transfer and inference orchestration on
+the host, and hands off responsibility to TensorRT for inference execution on
+the device. To ensure a consistent baseline, the same optimised _.engine_ file
+was used across all three implementations.
 
 Performance and overhead of the language runtime models was measured at the
 boundary of the host/device memory separation, where the CPU manages the runtime
@@ -548,62 +623,19 @@ overhead, it was considered acceptable to ensure a consistent and reproducible
 environment for all implementations.
 
 The latest stable releases of the language toolchains were used for all
-implementations: Rust #ct[version], C++20 with GCC #ct[version], and Python
+implementations: C++20 with GCC #ct[version], Rust #ct[version], and Python
 #ct[version].
 ]
 
 #wc[
 === Deterministic Load Generator
 
-To reliably compare the performance of the three implementations, a separate synthetic
-load generator, shown in @fig:architecture, was developed to create reproducible and deterministic simulated
-sensor data. This ensures that the behaviour of each implementation can be
-compared using the same baseline data, and that differences in performance can
-be attributed to the runtime models and backpressure policies, and not input
-variability.
-
-#figure(
-  scope: "parent",
-  placement: bottom,
-  
-  pad(top: 1.5em)[
-    #set text(size: 8pt)
-
-    #let n(x, t, f, s) = node((x,1), align(center)[#t], fill: f, shape: s)
-    #let r(x, t) = n(x, t, pale_green, rect)
-    #let c(x, t) = n(x, t, pale_blue, cylinder)
-    #let e(x, y, t) = edge((x,1), (y,1), "-|>", mark-scale: 175%,
-      label: align(center)[#t], label-side: left)
-
-    #diagram(
-      node-stroke: 0.5pt + charcoal,
-      node-corner-radius: 2pt,
-      node-inset: 6pt,
-      spacing: (45pt, 12pt),
-
-      node((3,0), align(center)[*HAR Pipeline*], stroke: none),
-      node(
-        enclose: ((2,1), (4,1)), 
-        stroke: (paint: charcoal, dash: "dashed", thickness: 1pt), 
-        inset: 12pt
-      ),
-
-      r(0, [Load Generator\ (Rust)]),
-      c(1, [Unbounded Buffer\ (Shared Memory)]),
-      r(2, [Language Bridge\ (C++/Rust/Py)]),
-      c(3, [Bounded Buffer\ (Idiomatic)]),
-      r(4, [AI Inference\ (TensorRT)]),
-
-      e(0, 1, [Push]),
-      e(1, 2, [Poll]),
-      e(2, 3, [Push/Drop]),
-      e(3, 4, [Dequeue]),
-    )
-  ],
-
-  caption: [System architecture demonstrating communication between the separate
-    Load Generator and the HAR Pipeline implementations.],
-) <fig:architecture>
+To reliably compare the performance of the three implementations, a separate
+synthetic load generator, shown in @fig:architecture, was developed to create
+reproducible and deterministic simulated sensor data. This ensures that the
+behaviour of each implementation can be compared using the same baseline data,
+and that differences in performance can be attributed to the runtime models and
+backpressure policies, and not input variability.
 
 The load generator produces three streams of data to shared memory buffers for
 consumption by the HAR pipelines: (1) an RGB video stream to simulate the
@@ -639,8 +671,8 @@ at the same rate as the sensors: \30 FPS for the camera (\1 frame every \33.3
 ms), and \1.6 kHz and \2.0 kHz for the accelerometer and gyroscope respectively
 (\0.625 ms and \0.5 ms intervals respectively). A value of \2.0 produces data
 twice as fast, \0.5 produces data at half the speed, and so on. 100% saturation
-of the pipelines was determined by adjusting the load argument until the
-pipelines were consistently backpressured (see @sec-backpressure).
+of the pipelines was determined by adjusting the load argument until one or more
+of the pipelines were consistently backpressured (see @sec-backpressure).
 
 The load generator was written in Rust to take advantage of its performance and
 memory safety guarantees. For maximum timing accuracy,
@@ -652,10 +684,54 @@ was given a real-time scheduling policy.
 Before using the load generator, the HAR pipelines were tested with real sensor
 data to ensure that they were functionally correct and optimised. A lightweight
 harness was developed to read data from the sensors, and write to the same
-shared memory buffers. This decoupling ensures the same pipeline code is
-executed during both the functional testing and the performance evaluations,
-without modifying the pipelines or using conditional logic to change the path of
-execution.
+shared memory buffers as used by the generator. This decoupling ensures the same
+pipeline code is executed during both the functional testing and the performance
+evaluations, without modifying the pipelines or using conditional logic to
+change the path of execution.
+
+#figure(
+  scope: "parent",
+  placement: top,
+
+  [
+    #set text(size: 8pt)
+
+    #let n(x, name, t, f, s) = node((x,1), name: name, align(center)[#t],
+      fill: f, shape: s)
+    #let r(x, name, t) = n(x, name, t, pale_green, rect)
+    #let c(x, name, t) = n(x, name, t, pale_blue, cylinder)
+    #let e(p1, p2, t, p) = edge(p1, p2, "-|>", mark-scale: 175%,
+      label: align(center)[#t], label-side: left, label-pos: p)
+
+    #diagram(
+      node-stroke: 0.5pt + charcoal,
+      node-corner-radius: 2pt,
+      node-inset: 6pt,
+      spacing: (45pt, 12pt),
+
+      node((3,0), align(center)[*HAR Pipeline*], stroke: none),
+      node(
+        enclose: ((2,1), (4,1)),
+        stroke: (paint: charcoal, dash: "dashed", thickness: 1pt),
+        inset: 12pt
+      ),
+
+      r(0, <generator>, [Load Generator\ (Rust)]),
+      c(1, <unbounded>, [Unbounded Buffer\ (Shared Memory)]),
+      r(2, <bridge>, [Language Bridge\ (C++/Rust/Py)]),
+      c(3, <bounded>, [Bounded Buffer\ (Idiomatic)]),
+      r(4, <inference>, [AI Inference\ (TensorRT)]),
+
+      e(<generator>, <unbounded>, [Push], 0.5),
+      e(<unbounded>, <bridge>, [Poll], 0.35),
+      e(<bridge>, <bounded>, [Push/Drop], 0.5),
+      e(<bounded>, <inference>, [Dequeue], 0.5),
+    )
+  ],
+
+  caption: [System architecture demonstrating communication between the separate
+    Load Generator and the HAR Pipeline implementations.#v(1em)],
+) <fig:architecture>
 ]
 
 #wc[
@@ -697,7 +773,7 @@ saturation when the consumer buffer is full:
   - *Drop-newest:* Drops incoming data when the buffer is full.
 
 *Policies that drop data while preserving temporal continuity:*
-  - *Adaptive decimation:* Dynamically downsamples the data stream (i.e.,
+  - *Adaptive decimation:* Dynamically downsamples the data stream (i.e.
     queueing only every _nth_ event) to reduce pressure on the consumer buffer
     while preserving the temporal continuity of the data.
 
@@ -710,46 +786,54 @@ visualised in @fig:load_shedding, though this does lead to a loss of temporal
 continuity and may impact prediction accuracy.
 
 #figure(
-  align(center)[
-    #let packet(n, c) = box(width: 1.2em, height: 1.2em, stroke: 0.5pt + grey,
-      fill: c, radius: 2pt, align(center+horizon)[#n])
-    #let k(n) = packet(n, green)
-    #let d(n) = packet(n, red)
+  [
+    #let n(n) = box(width: 1.2em, height: 1.2em,
+      text(fill: luma(80), size: 0.9em)[#align(center+bottom)[#n]])
+    #let p(c, t) = box(width: 1.2em, height: 1.2em, stroke: 0.5pt + grey,
+      fill: c, radius: 2pt, align(center+horizon)[#t])
+    #let k() = p(green, sym.checkmark)
+    #let d() = p(red, sym.crossmark)
 
-    #pad(top: 1em, bottom: 0.75em)[
+    #pad(bottom: 0.75em)[
       #grid(
         columns: (100pt, auto),
         align: (right + horizon, left + horizon),
-        row-gutter: 1.5em,
+        row-gutter: (0.3em, 1.5em, 1.5em, 1.5em),
         column-gutter: 1.5em,
 
+        [],
+        stack(dir: ltr, spacing: 6pt, n(1), n(2), n(3), n(4), n(5), n(6)),
+
         [*Incoming Stream:* \ _(Events 1 to 6)_],
-        stack(dir: ltr, spacing: 6pt, k(1), k(2), k(3), k(4), k(5), k(6)),
+        stack(dir: ltr, spacing: 6pt, k(), k(), k(), k(), k(), k()),
 
         [*Drop-Newest:* \ _(Queue full at 4 events)_],
-        stack(dir: ltr, spacing: 6pt, k(1), k(2), k(3), k(4), d(5), d(6)),
+        stack(dir: ltr, spacing: 6pt, k(), k(), k(), k(), d(), d()),
 
         [*Drop-Oldest:* \ _(Queue full at 4 events)_],
-        stack(dir: ltr, spacing: 6pt, d(1), d(2), k(3), k(4), k(5), k(6)),
+        stack(dir: ltr, spacing: 6pt, d(), d(), k(), k(), k(), k()),
 
         [*Adaptive Decimation:* \ _(Queueing every 2nd event)_],
-        stack(dir: ltr, spacing: 6pt, k(1), d(2), k(3), d(4), k(5), d(6)),
+        stack(dir: ltr, spacing: 6pt, k(), d(), k(), d(), k(), d()),
       )
     ]
   ],
 
-  caption: [Load shedding policies on a stream of sensor events. Green blocks
-    represent preserved data, red blocks represent dropped data. #v(1em)],
+  caption: [Load shedding policies on a stream of sensor events. Green
+    check-marked (#sym.checkmark) blocks represent preserved data, red
+    cross-marked (#sym.crossmark) blocks represent dropped data. #v(1em)],
 ) <fig:load_shedding>
 
 To ensure the runtime models were evaluated under sustained stress, the
 saturation threshold was determined by increasing the _load_ multiplier until at
 least one consumer buffer reached capacity, ensuring the backpressure mechanism
 was continuously engaged across all policies. Because the languages differ in
-performance, a single, separate load multiplier was determined for each
-language. This ensured that all policies were evaluated using identical rates of
-ingestion for each runtime model, isolating the behaviours of the runtime models
-and removing execution speed as a confounding variable. ]
+performance, a separate, fixed load multiplier was determined for each language.
+This isolated the memory and scheduling behaviours of the runtime models,
+removing execution speed as a confounding variable, and ensured that all five
+backpressure policies within a given language were evaluated under an identical
+ingestion rate.
+]
 
 #wc[
 === Profiling and Metrics
@@ -759,8 +843,8 @@ and removing execution speed as a confounding variable. ]
 To measure latency of the pipelines, the `CLOCK_MONOTONIC_RAW` clock was used to
 capture timestamps at key points as the data events flowed through the pipeline.
 This provides high-resolution timing information that is not affected by system
-time changes or adjustments. The following six timestamps, as visualised in @fig:latency_timeline, were captured for each
-event:
+time changes or adjustments. The following six timestamps, as visualised in
+@fig:latency_timeline, were captured for each event:
 
 + `t_generated` when the generator pushes to the unbounded buffer
 + `t_bridged` when the bridge pushes to the idiomatic buffer
@@ -768,17 +852,17 @@ event:
 + `t_pipeline_out` when the pipeline pushes data to the ONNX Runtime for
   inference
 + `t_fusion_in` when inference completes and the pipeline begins late fusion
-+ `t_fusion_out` when late fusion completes and the pipeline produces the
-  final output
++ `t_fusion_out` when late fusion completes and the pipeline produces the final
+  output
 
 #figure(
   placement: top,
   scope: "parent",
 
   // pad(top: 1em, bottom: 0.5em)[
-  pad(bottom: 1em)[
-    #let n(x, t) = node((x,0), t)
-    #let e(x, y, t, s, ls) = edge((x,0), (y,0), "|-|", align(center)[#t],
+  pad(bottom: 0.5em)[
+    #let n(x, name, t) = node((x,0), name: name, t)
+    #let e(p1, p2, t, s, ls) = edge(p1, p2, "|-|", align(center)[#t],
       shift: s, label-sep: 0.25em, label-side: ls)
     #let te(x, y, t) = e(x, y, t, 25pt, left)
     #let be(x, y, t) = e(x, y, t, -25pt, right)
@@ -790,29 +874,30 @@ event:
       node-inset: 5pt,
       spacing: 28pt,
 
-      e(0, 5, [*Total System Latency*], 60pt, left),
       edge((0,0), (5,0), "-", stroke: 1pt + charcoal),
 
-      n(0, [`t_generated`]),
-      n(1, [`t_bridged`]),
-      n(2, [`t_pipeline_in`]),
-      n(3, [`t_pipeline_out`]),
-      n(4, [`t_fusion_in`]),
-      n(5, [`t_fusion_out`]),
+      n(0, <generated>, [`t_generated`]),
+      n(1, <bridged>, [`t_bridged`]),
+      n(2, <pipeline-in>, [`t_pipeline_in`]),
+      n(3, <pipeline-out>, [`t_pipeline_out`]),
+      n(4, <fusion-in>, [`t_fusion_in`]),
+      n(5, <fusion-out>, [`t_fusion_out`]),
 
-      be(0, 1, [Unbounded\ Queue Wait]),
-      te(1, 2, [Idiomatic\ Queue Wait]),
-      be(2, 3, [Data\ Preparation]),
-      te(3, 4, [Inference]),
-      be(4, 5, [Fusion\ Logic]),
+      be(<generated>, <bridged>, [Unbounded\ Queue Wait]),
+      te(<bridged>, <pipeline-in>, [Idiomatic\ Queue Wait]),
+      be(<pipeline-in>, <pipeline-out>, [Data Preparation]),
+      te(<pipeline-out>, <fusion-in>, [Inference]),
+      be(<fusion-in>, <fusion-out>, [Fusion]),
+
+      e(<generated>, <fusion-out>, [Total System Latency], -65pt, right),
     )
   ],
 
   caption: [Timeline of the six timestamps captured for each event as it flows
-    through the pipeline. #v(0.25em)]
+    through the pipeline. #v(1em)]
 ) <fig:latency_timeline>
 
-Coordinated Omission occurs when a stalled system fails to record the true
+_Coordinated Omission_ occurs when a stalled system fails to record the true
 extent of tail-latency delays by omitting the time that the event truly occurred
 @howNotToMeasureLatency. By decoupling the load generator from the pipelines and
 ensuring that it pushes to an unbounded buffer, it is never blocked when the
@@ -849,10 +934,11 @@ from the newly inactive histogram into a pre-allocated fixed-size array at
 #figure(
   pad(top: 0.5em)[
     #set text(size: 8pt)
-    
-    #let n(x, y, t, f, s) = node((x,y), align(center)[#t], fill: f, shape: s)
-    #let r(x, y, t) = n(x, y, t, pale_green, rect)
-    #let c(x, y, t) = n(x, y, t, pale_blue, cylinder)
+
+    #let n(x, y, name, t, f, s) = node((x,y), name: name,
+      align(center)[#t], fill: f, shape: s)
+    #let r(x, y, name, t) = n(x, y, name, t, pale_green, rect)
+    #let c(x, y, name, t) = n(x, y, name, t, pale_blue, cylinder)
     #let e(p1, p2, t, ls) = edge(p1, p2, "-|>", mark-scale: 175%,
       label: align(center)[#t], label-side: ls)
 
@@ -862,16 +948,16 @@ from the newly inactive histogram into a pre-allocated fixed-size array at
       node-inset: 8pt,
       spacing: (70pt, 60pt),
 
-      r(0, 0, [Pipeline Thread\ (Writer)]),
-      r(1, 0, [Telemetry Thread\ (Reader)]),
+      r(0, 0, <writer>, [Pipeline Thread\ (Writer)]),
+      r(1, 0, <reader>, [Telemetry Thread\ (Reader)]),
 
-      c(0, 1, [Active\ HDR Histogram]),
-      c(1, 1, [Inactive\ HDR Histogram]),
+      c(0, 1, <active>, [Active\ HDR Histogram]),
+      c(1, 1, <inactive>, [Inactive\ HDR Histogram]),
 
-      e((0,0), (0,1), [Record Latency\ (Wait-Free)], center),
-      e((1,0), (1,1), [Extract p99 & Max\ (Locks Reader Only)], center),
+      e(<writer>, <active>, [Record Latency\ (Wait-Free)], center),
+      e(<reader>, <inactive>, [Extract Telemetry\ (Locks Reader Only)], center),
 
-      edge((0,1), (1,1), "<|--|>", mark-scale: 175%,
+      edge(<active>, <inactive>, "<|--|>", mark-scale: 175%,
         label: align(center)[Atomic Swap\ (1 Hz Interval)], label-side: right)
     )
   ],
@@ -896,7 +982,7 @@ memory churn under load and backpressure events.
 
 Read-tears occur when the telemetry thread reads the allocation metrics out of
 sync with the pipeline's updates, which would significantly skew results when
-handling large memory allocations, such as the RGB data stream. 
+handling large memory allocations, such as the RGB data stream.
 
 To prevent this, 128-bit atomic operations (`std::atomic` in C++, and
 `AtomicU128` in Rust) were utilised. These operations are guaranteed to be
@@ -926,7 +1012,7 @@ HDR Histogram approach was used, similar to the latency measurements, where the
 callback function writes the GC pause durations to an active histogram without
 blocking. The background telemetry thread then extracts the GC pause percentiles
 and maximums at the same time as the latency measurements, allowing correlation
-between GC pause durations and runtime model events. 
+between GC pause durations and runtime model events.
 
 The telemetry thread also employs `gc.get_stats()` to capture the cumulative
 number of objects collected since the Python interpreter was started, from which
@@ -939,20 +1025,29 @@ tail-latency pauses.
 ==== Memory Fragmentation
 
 Repeated allocation and deallocation of memory can lead to fragmentation, where
-free memory is only available in small, non-contiguous blocks. As shown in @fig:memory_fragmentation, this can cause
-memory to be exhausted even when the total free memory is sufficient, as
-contiguous blocks larger than the fragmented sizes are not available, leading to
-Out-Of-Memory (OOM) errors.
+free memory is only available in small non-contiguous blocks. As shown in
+@fig:memory_fragmentation, this can cause memory to be exhausted even when the
+total free memory is sufficient, as contiguous blocks larger than the fragmented
+sizes are not available, leading to Out-Of-Memory (OOM) errors.
 
 #figure(
   align(center)[
-    #let block(c) = box(width: 0.75em, height: 0.75em, stroke: 0.5pt + grey,
-      fill: c, radius: 2pt)
-    #let a = block.with(blue)
-    #let f = block.with(cream)
-    #let n = block.with(red)
+    #let b(f, s) = box(width: 0.75em, height: 0.75em, fill: f,
+      stroke: s, radius: 2pt)
+    #let a() = b(light_blue, 0.75pt + luma(100))
+    #let f() = b(white,
+      (paint: luma(80), dash: (1.2pt, 1.2pt), thickness: 0.5pt))
+    #let n() = b(dark_red, 0.75pt + black)
 
     #pad(top: 1em, bottom: 0.75em)[
+      #pad(bottom: 0.75em)[
+        #stack(dir: ltr, spacing: 2em,
+          stack(dir: ltr, spacing: 0.5em, a(), align(horizon)[_Used_]),
+          stack(dir: ltr, spacing: 0.5em, f(), align(horizon)[_Free_]),
+          stack(dir: ltr, spacing: 0.5em, n(), align(horizon)[_New Allocation_])
+        )
+      ]
+
       #grid(
         columns: (100pt, auto),
         align: (right + horizon, left + horizon),
@@ -1114,7 +1209,6 @@ and ownership model, C++'s manual memory management, or Python's dynamic
 typing). These can all significantly influence the development lifecycle
 overhead, and therefore LoC and CC should be interpreted as partial measurements
 of the engineering cost of language selection.
-
 ]
 ]
 
