@@ -7,6 +7,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use signal_hook::flag;
 
 use crate::{
     config::{EventDataType, Settings},
@@ -53,6 +54,8 @@ pub struct Events {
     // `u64::MAX`, allowing the application to run virtually indefinitely until
     // interrupted.
     runtime_nanos: u64,
+
+    is_interrupted: Arc<AtomicBool>,
 }
 
 impl Events {
@@ -114,6 +117,21 @@ impl Events {
             }
         }
 
+        // Set up a signal handler to allow a graceful exit on Ctrl-C
+        let is_interrupted = Arc::new(AtomicBool::new(false));
+
+        flag::register(
+            signal_hook::consts::SIGINT,
+            Arc::clone(&is_interrupted),
+        )
+        .context("Error registering SIGINT handler")?;
+
+        flag::register(
+            signal_hook::consts::SIGTERM,
+            Arc::clone(&is_interrupted),
+        )
+        .context("Error registering SIGTERM handler")?;
+
         Ok(Self {
             core: settings.core,
             priority: settings.priority,
@@ -123,6 +141,7 @@ impl Events {
             runtime_seconds: settings.runtime_seconds,
             runtime_nanos: 1_000_000_000
                 * settings.runtime_seconds.unwrap_or(u64::MAX),
+            is_interrupted,
         })
     }
 
@@ -135,15 +154,6 @@ impl Events {
     /// A `Result` containing the `Report` if successful, or an error if any
     /// issues occur during execution.
     pub fn run(&mut self) -> Result<Report> {
-        // Set up a signal handler to allow a graceful exit on Ctrl-C
-        let interrupted = Arc::new(AtomicBool::new(false));
-        let signal_interrupted = interrupted.clone();
-
-        ctrlc::set_handler(move || {
-            signal_interrupted.store(true, Ordering::Relaxed);
-        })
-        .context("Error setting Ctrl-C handler")?;
-
         // Initialise some variables for later reporting.
         let start_time_nanos: u64 =
             now_nanos().context("Failed to get current time for report")?;
@@ -162,8 +172,7 @@ impl Events {
             curr_time_nanos =
                 now_nanos().context("Failed to get current time for report")?;
 
-            // FIXME: doesn't work if stuck draining
-            if interrupted.load(Ordering::Relaxed) {
+            if self.is_interrupted.load(Ordering::Relaxed) {
                 break;
             }
 
@@ -253,6 +262,10 @@ impl Events {
         let mut cycles = 0;
 
         loop {
+            if self.is_interrupted.load(Ordering::Relaxed) {
+                break;
+            }
+
             cycles += 1;
 
             let now =
@@ -296,6 +309,10 @@ impl Events {
         let mut cycles = 0;
 
         loop {
+            if self.is_interrupted.load(Ordering::Relaxed) {
+                break;
+            }
+
             cycles += 1;
             spin_loop();
 
