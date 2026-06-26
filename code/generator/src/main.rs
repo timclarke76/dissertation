@@ -24,7 +24,7 @@ fn main() -> Result<()> {
     );
     println!("Simulated CPU Load Factor: {:.2}", settings.load);
 
-    let mut events = Events::new(&settings)?;
+    let mut events = Events::try_new(&settings)?;
     println!("Running event loop, use Ctrl-C to cancel.");
     let report = events.run()?;
 

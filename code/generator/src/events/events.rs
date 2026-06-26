@@ -65,7 +65,7 @@ impl Events {
     /// #Returns
     /// A `Result` containing the new `Events` instance if successful, or an
     /// error if any event fails to initialise.
-    pub fn new(settings: &Settings) -> Result<Self> {
+    pub fn try_new(settings: &Settings) -> Result<Self> {
         let mut events: Vec<Box<dyn EventTrait>> = Vec::new();
 
         for config in &settings.events {
