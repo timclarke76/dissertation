@@ -1,0 +1,279 @@
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
+
+use anyhow::{Context, Result};
+
+use crate::{
+    config::{EventDataType, Settings},
+    os::{now_nanos, sleep_until_nanos},
+};
+
+use super::{
+    event::{Event, EventTrait},
+    report::{EventReport, Report},
+};
+
+/// Represents a collection of events that can be run in a loop. Supports
+/// exiting the loop after a specified runtime duration, or when interrupted by
+/// a signal (Ctrl-C). The events are executed based on their next scheduled run
+/// time, and the loop sleeps or spins depending on how long before the next
+/// event is due to be run.
+pub struct Events {
+    // The CPU core on which the application is running. Only used for creating
+    // the report.
+    core: usize,
+
+    // The real-time priority of the application. Only used for creating the
+    // report.
+    priority: u8,
+
+    // The simulated CPU load multiplier.
+    load: f32,
+
+    // The vector of events to be executed in the loop.
+    events: Vec<Box<dyn EventTrait>>,
+
+    // The minimum sleep duration in nanoseconds for the main loop to use the
+    // `sleep` function instead of spinning. This prevents the `sleep` function
+    // from returning immediately, thus preventing excessive CPU usage.
+    min_sleep_nanos: u64,
+
+    // The optional runtime duration in seconds. If set, the application will
+    // run for the specified duration and then exit. If not set, the application
+    // will run virtually indefinitely until interrupted.
+    runtime_seconds: Option<u64>,
+
+    // The actual runtime duration in nanoseconds, calculated from
+    // `runtime_seconds`. If `runtime_seconds` is not set, this will be set to
+    // `u64::MAX`, allowing the application to run virtually indefinitely until
+    // interrupted.
+    runtime_nanos: u64,
+}
+
+impl Events {
+    /// Creates a new `Events` instance based on the provided settings.
+    /// Initialises the events according to their configurations, and prepares
+    /// them for execution.
+    /// #Args
+    /// * `settings` - A reference to the `Settings` struct containing the
+    ///   configuration for the events and runtime parameters.
+    /// #Returns
+    /// A `Result` containing the new `Events` instance if successful, or an
+    /// error if any event fails to initialise.
+    pub fn new(settings: &Settings) -> Result<Self> {
+        let mut events: Vec<Box<dyn EventTrait>> = Vec::new();
+
+        for config in &settings.events {
+            match config.data_type {
+                EventDataType::Integer { min, max } => {
+                    let event = Event::try_new(
+                        &config.name,
+                        config.seed,
+                        config.frame_length,
+                        config.pool_capacity_frames,
+                        config.buffer_capacity_frames,
+                        config.fps * settings.load,
+                        min as u8,
+                        max as u8,
+                    )
+                    .with_context(|| {
+                        format!(
+                            "Failed to create Integer event '{}'",
+                            config.name
+                        )
+                    })?;
+
+                    events.push(Box::new(event));
+                }
+
+                EventDataType::Float { min, max } => {
+                    let event = Event::try_new(
+                        &config.name,
+                        config.seed,
+                        config.frame_length,
+                        config.pool_capacity_frames,
+                        config.buffer_capacity_frames,
+                        config.fps * settings.load,
+                        min as f32,
+                        max as f32,
+                    )
+                    .with_context(|| {
+                        format!(
+                            "Failed to create Float event '{}'",
+                            config.name
+                        )
+                    })?;
+
+                    events.push(Box::new(event));
+                }
+            }
+        }
+
+        Ok(Self {
+            core: settings.core,
+            priority: settings.priority,
+            load: settings.load,
+            events,
+            min_sleep_nanos: settings.min_sleep_nanos,
+            runtime_seconds: settings.runtime_seconds,
+            runtime_nanos: 1_000_000_000
+                * settings.runtime_seconds.unwrap_or(u64::MAX),
+        })
+    }
+
+    /// Runs the main loop of the `Events` instance, executing events based on
+    /// their scheduled run times. The loop continues until the specified
+    /// runtime duration is reached or until interrupted by a signal (Ctrl-C).
+    /// Collects performance metrics during execution and returns a `Report` at
+    /// the end.
+    /// #Returns
+    /// A `Result` containing the `Report` if successful, or an error if any
+    /// issues occur during execution.
+    pub fn run(&mut self) -> Result<Report> {
+        // Set up a signal handler to allow a graceful exit on Ctrl-C
+        let interrupted = Arc::new(AtomicBool::new(false));
+        let signal_interrupted = interrupted.clone();
+
+        ctrlc::set_handler(move || {
+            signal_interrupted.store(true, Ordering::Relaxed);
+        })
+        .context("Error setting Ctrl-C handler")?;
+
+        // Initialise some variables for later reporting.
+        let start_time_nanos: u64 =
+            now_nanos().context("Failed to get current time for report")?;
+        let mut curr_time_nanos: u64;
+        let mut main_loop_cycles: u64 = 0;
+        let mut drain_cycles: u64 = 0;
+        let mut sleep_calls: u64 = 0;
+        let mut spin_calls: u64 = 0;
+
+        // Initialise all events to start immediately.
+        self.events.iter_mut().for_each(|event| {
+            event.set_next_run_nanos(start_time_nanos);
+        });
+
+        loop {
+            curr_time_nanos =
+                now_nanos().context("Failed to get current time for report")?;
+
+            // FIXME: doesn't work if stuck draining
+            if interrupted.load(Ordering::Relaxed) {
+                break;
+            }
+
+            if curr_time_nanos - start_time_nanos >= self.runtime_nanos {
+                println!(
+                    "Reached runtime limit of {:.2} seconds.",
+                    self.runtime_nanos / 1_000_000_000
+                );
+
+                break;
+            }
+
+            main_loop_cycles += 1;
+            drain_cycles += self.drain()?;
+
+            let event = self
+                .next_event()
+                .context("No events found in the event list for run loop")?;
+
+            let next_run_time_nanos = event.next_run_nanos();
+
+            if next_run_time_nanos < curr_time_nanos {
+                // Events are already ready to run, so loop back and drain them.
+                continue;
+            }
+
+            if (next_run_time_nanos - curr_time_nanos) >= self.min_sleep_nanos {
+                sleep_calls += 1;
+
+                sleep_until_nanos(next_run_time_nanos).with_context(|| {
+                    format!(
+                        "Failed to sleep until next event time: {}",
+                        next_run_time_nanos
+                    )
+                })?;
+            } else {
+                spin_calls += 1;
+                // FIXME: possibly loop here
+                std::hint::spin_loop();
+            }
+        }
+
+        let events = self
+            .events
+            .iter()
+            .map(|event| EventReport {
+                name: event.name().to_string(),
+                seed: event.seed(),
+                frame_length: event.frame_length(),
+                frame_size_bytes: event.frame_size_bytes(),
+                pool_capacity_frames: event.pool_capacity_frames(),
+                buffer_capacity_frames: event.buffer_capacity_frames(),
+                run_count: event.run_count(),
+            })
+            .collect();
+
+        let report = Report {
+            core: self.core,
+            priority: self.priority,
+            load: self.load,
+            min_sleep_nanos: self.min_sleep_nanos,
+            runtime_seconds: self.runtime_seconds,
+            elapsed_time_nanos: curr_time_nanos - start_time_nanos,
+            main_loop_cycles: main_loop_cycles,
+            drain_cycles: drain_cycles,
+            sleep_calls: sleep_calls,
+            spin_calls: spin_calls,
+            events,
+        };
+
+        Ok(report)
+    }
+
+    /// Drains the events by executing any that are scheduled to run at or
+    /// before the current time. This method continues to run events until there
+    /// are no more events scheduled to run at the current time. It returns the
+    /// number of cycles spent draining events.
+    /// #Returns
+    /// A `Result` containing the number of cycles spent draining events if
+    /// successful, or an error if any issues occur during execution.
+    fn drain(&mut self) -> Result<u64> {
+        let mut cycles = 0;
+
+        loop {
+            cycles += 1;
+
+            let now =
+                now_nanos().context("Failed to get current time for drain")?;
+
+            let event = self
+                .next_event()
+                .context("No events found in the event list for drain")?;
+
+            if event.next_run_nanos() > now {
+                break;
+            }
+
+            event.run().with_context(|| {
+                format!("Error running event {} during drain", event.name())
+            })?;
+        }
+
+        Ok(cycles)
+    }
+
+    /// Returns a mutable reference to the next event that is scheduled to run
+    /// based on the earliest `next_run_nanos` value. If there are no events
+    /// in the list, it returns `None`.
+    /// #Returns
+    /// An `Option` containing a mutable reference to the next event if one is
+    /// found, or `None` if there are no events in the list.
+    #[inline]
+    fn next_event(&mut self) -> Option<&mut Box<dyn EventTrait>> {
+        self.events.iter_mut().min_by_key(|e| e.next_run_nanos())
+    }
+}

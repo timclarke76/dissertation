@@ -1,0 +1,36 @@
+core = 4
+priority = 80
+load = 1.0
+min_sleep_nanos = 50_000
+# runtime_seconds = 5
+output = "generator.json"
+
+[[events]]
+name = "RGB"
+seed = 42
+frame_length = 6_220_800 # 1920 x 1080 x 3
+pool_capacity_frames = 10
+buffer_capacity_frames = 30
+fps = 30
+min = 0
+max = 255
+
+[[events]]
+name = "Accelerometer"
+seed = 43
+frame_length = 3
+pool_capacity_frames = 1600
+buffer_capacity_frames = 1600
+fps = 1600
+min = -24.0
+max = 24.0
+
+[[events]]
+name = "Gyroscope"
+seed = 44
+frame_length = 3
+pool_capacity_frames = 2000
+buffer_capacity_frames = 2000
+fps = 2000
+min = -2000.0
+max = 2000.0
