@@ -1,6 +1,9 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
+use std::{
+    hint::spin_loop,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use anyhow::{Context, Result};
@@ -197,9 +200,14 @@ impl Events {
                     )
                 })?;
             } else {
-                spin_calls += 1;
-                // FIXME: possibly loop here
-                std::hint::spin_loop();
+                spin_calls += self
+                    .spin_until(next_run_time_nanos)
+                    .with_context(|| {
+                        format!(
+                            "Failed to spin until next event time: {}",
+                            next_run_time_nanos
+                        )
+                    })?;
             }
         }
 
@@ -275,5 +283,30 @@ impl Events {
     #[inline]
     fn next_event(&mut self) -> Option<&mut Box<dyn EventTrait>> {
         self.events.iter_mut().min_by_key(|e| e.next_run_nanos())
+    }
+
+    /// Spins in a tight loop, using CPU hints, until the current time is at
+    /// least equal to the specified target time in nanoseconds.
+    /// #Args
+    /// * `target_time_nanos` - The target time in nanoseconds to spin until.
+    /// #Returns
+    /// A `Result` containing the number of cycles spent spinning if successful,
+    /// or an error if any issues occur while getting the current time.
+    fn spin_until(&self, target_time_nanos: u64) -> Result<u64> {
+        let mut cycles = 0;
+
+        loop {
+            cycles += 1;
+            spin_loop();
+
+            let now = now_nanos()
+                .context("Failed to get current time for spin_until")?;
+
+            if now >= target_time_nanos {
+                break;
+            }
+        }
+
+        Ok(cycles)
     }
 }
