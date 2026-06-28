@@ -1,0 +1,29 @@
+[rgb_queue]
+name = "RGB"
+capacity_frames = 3
+
+[rgb_policy]
+type = "AdaptiveDecimation"
+threshold = 2
+min_ratio = 2
+max_ratio = 10
+
+[accelerometer_queue]
+name = "Accelerometer"
+capacity_frames = 3
+
+[accelerometer_policy]
+type = "AdaptiveDecimation"
+threshold = 2
+min_ratio = 2
+max_ratio = 10
+
+[gyroscope_queue]
+name = "Gyroscope"
+capacity_frames = 3
+
+[gyroscope_policy]
+type = "AdaptiveDecimation"
+threshold = 2
+min_ratio = 2
+max_ratio = 10

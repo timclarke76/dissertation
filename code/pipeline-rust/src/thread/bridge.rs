@@ -6,6 +6,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use serde::Deserialize;
 
 use crate::{
     queue::Queue,
@@ -13,8 +14,8 @@ use crate::{
 };
 
 /// Defines the policy for handling data when the consumer buffer is full.
-#[derive(Clone, Copy)]
-#[allow(dead_code)] // FIXME: remove when args are implemented
+#[derive(Clone, Copy, Deserialize)]
+#[serde(tag = "type")]
 pub enum Policy {
     /// Blocks the producer until space is available in the consumer buffer.
     BoundedQueue,

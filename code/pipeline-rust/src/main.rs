@@ -5,48 +5,57 @@ use std::{
 };
 
 use anyhow::Result;
+use clap::Parser;
 
+mod config;
 mod os;
 mod queue;
 mod shm;
 mod thread;
 
+use config::{Args, Settings};
 use queue::Queue;
 use shm::SharedMemoryFrame;
 use thread::{Policy, spawn_bridge_thread, spawn_inference_thread};
 
 fn main() -> Result<()> {
-    let policy = Policy::AdaptiveDecimation {
-        threshold: 2,
-        min_ratio: 2,
-        max_ratio: 10,
-    };
+    let args = Args::try_parse()?;
+    let settings = Settings::try_new("settings", args)?;
 
-    let threads = vec![
-        create_bridge_and_inference_threads(
-            "RGB",
-            3,
-            policy,
+    let configs = [
+        (
+            &settings.rgb_queue,
+            settings.rgb_policy,
             Duration::from_millis(33),
         ),
-        create_bridge_and_inference_threads(
-            "Accelerometer",
-            160,
-            policy,
+        (
+            &settings.accelerometer_queue,
+            settings.accelerometer_policy,
             Duration::from_micros(500),
         ),
-        create_bridge_and_inference_threads(
-            "Gyroscope",
-            200,
-            policy,
+        (
+            &settings.gyroscope_queue,
+            settings.gyroscope_policy,
             Duration::from_micros(400),
         ),
     ];
 
-    threads.into_iter().for_each(|(bridge, inference)| {
-        bridge.join().unwrap();
-        inference.join().unwrap();
-    });
+    let handles: Vec<_> = configs
+        .into_iter()
+        .flat_map(|(queue, policy, duration)| {
+            let (bridge, inference) = create_bridge_and_inference_threads(
+                queue.name.as_str(),
+                queue.capacity_frames,
+                policy,
+                duration,
+            );
+            [bridge, inference]
+        })
+        .collect();
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
 
     Ok(())
 }
