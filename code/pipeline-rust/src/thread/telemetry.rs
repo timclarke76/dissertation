@@ -1,11 +1,16 @@
 use std::{
-    sync::mpsc::{Receiver, SyncSender, sync_channel},
+    sync::{
+        atomic::Ordering,
+        mpsc::{Receiver, SyncSender, sync_channel},
+    },
     thread,
     time::{Duration, Instant},
 };
 
 use anyhow::{Context, Result};
 use hdrhistogram::Histogram;
+
+use crate::allocator::{ALLOCATED_BYTES, ALLOCATION_COUNT, FREED_BYTES};
 
 /// A CSV file writer for telemetry data.
 struct CsvFile {
@@ -47,6 +52,10 @@ impl CsvFile {
             record.push(format!("{}_max", label));
         }
 
+        record.push("allocated_bytes".to_string());
+        record.push("allocation_count".to_string());
+        record.push("freed_bytes".to_string());
+
         writer
             .write_record(&record)
             .expect("Failed to write telemetry record to CSV");
@@ -75,6 +84,10 @@ impl CsvFile {
             record.push(format!("{:.3}", max));
         }
 
+        record.push(epoch.allocated_bytes.to_string());
+        record.push(epoch.allocation_count.to_string());
+        record.push(epoch.freed_bytes.to_string());
+
         self.writer
             .write_record(record)
             .context("Failed to write telemetry record to CSV")?;
@@ -89,6 +102,9 @@ impl CsvFile {
 /// specific stage of the inference pipeline, as well as the total latency.
 pub struct TelemetryEpoch {
     latency_nanos: [Histogram<u64>; 6],
+    allocated_bytes: usize,
+    allocation_count: usize,
+    freed_bytes: usize,
 }
 
 impl TelemetryEpoch {
@@ -143,7 +159,20 @@ impl TelemetryEpoch {
                 fusion,
                 total,
             ],
+            allocated_bytes: 0,
+            allocation_count: 0,
+            freed_bytes: 0,
         })
+    }
+
+    fn reset(&mut self) {
+        for histogram in self.latency_nanos.iter_mut() {
+            histogram.reset();
+        }
+
+        self.allocated_bytes = 0;
+        self.allocation_count = 0;
+        self.freed_bytes = 0;
     }
 
     /// Creates a new HdrHistogram instance for recording latency measurements
@@ -197,8 +226,9 @@ impl TelemetryWriter {
         sender: SyncSender<TelemetryEpoch>,
         receiver: Receiver<TelemetryEpoch>,
     ) -> Result<Self> {
-        let current_epoch = TelemetryEpoch::try_new()
-            .context("Failed to create initial telemetry epoch")?;
+        let current_epoch = receiver
+            .recv()
+            .context("Failed to receive initial telemetry epoch")?;
 
         Ok(Self {
             current_epoch,
@@ -246,13 +276,16 @@ impl TelemetryWriter {
         // Try to receive the fresh epoch from the telemetry thread. If the
         // channel is empty, we skip the swap and continue recording into the
         // current epoch.
-        if let Ok(mut fresh_epoch) = self.receiver.try_recv() {
+        if let Ok(mut epoch) = self.receiver.try_recv() {
             self.last_swap = Instant::now();
-            std::mem::swap(&mut self.current_epoch, &mut fresh_epoch);
+
+            // Using `std::mem::swap` to swap the populated epoch with the fresh
+            // epoch, avoiding the need for cloning or moving the data.
+            std::mem::swap(&mut self.current_epoch, &mut epoch);
 
             // Send the completed epoch to the telemetry thread for processing.
             self.sender
-                .try_send(fresh_epoch)
+                .try_send(epoch)
                 .expect("Failed to send completed epoch to telemetry thread");
         }
     }
@@ -279,19 +312,29 @@ pub fn spawn_telemetry_thread<S: AsRef<str>>(
     // fresh epoch to the inference thread for recording the next set of
     // measurements.
     let (inference_sender, telemetry_receiver) =
-        sync_channel::<TelemetryEpoch>(2);
+        sync_channel::<TelemetryEpoch>(3);
     let (telemetry_sender, inference_receiver) =
-        sync_channel::<TelemetryEpoch>(2);
+        sync_channel::<TelemetryEpoch>(3);
 
     // The `TelemetryEpoch` is used to record measurements, and is what is
-    // communicated between the inference thread and the telemetry thread. This
-    // instance is the initial epoch that the telemtry thread will receive in
-    // `TelemetryWriter::swap_buffers()` and use for the first epoch.
-    let epoch = TelemetryEpoch::try_new()
-        .context("Failed to create initial telemetry epoch")?;
-    telemetry_sender
-        .send(epoch)
-        .context("Failed to send initial telemetry epoch")?;
+    // communicated between the inference thread and the telemetry thread. Three
+    // epochs are created:
+    // * One will be used by the inference thread to record measurements.
+    // * One will be used by the telemetry thread to process the completed
+    //   measurements.
+    // * One will be sitting in the channel, ready to be read in even if the
+    //   telemetry thread is blocked while writing to the CSV file.
+    for i in 0..=2 {
+        let epoch = TelemetryEpoch::try_new()
+            .with_context(|| format!("Failed to create telemetry epoch {i}"))?;
+        telemetry_sender
+            .send(epoch)
+            .with_context(|| format!("Failed to send telemetry epoch {i}"))?;
+    }
+
+    let mut last_allocated_bytes = 0;
+    let mut last_allocation_count = 0;
+    let mut last_freed = 0;
 
     // Telemtry is written to a CSV file for later analysis.
     let csv_file_path = format!("telemetry_{}.csv", t_stream_name);
@@ -305,21 +348,35 @@ pub fn spawn_telemetry_thread<S: AsRef<str>>(
     thread::Builder::new()
         .name(format!("telemetry_{}", t_stream_name))
         .spawn(move || {
-            while let Ok(completed_epoch) = telemetry_receiver.recv() {
-                // A populated epoch has been received from the inference
-                // thread. We can now send a fresh epoch back for the next
-                // epoch.
-                let fresh_epoch = TelemetryEpoch::try_new()
-                    .expect("Failed to create fresh telemetry epoch");
-                telemetry_sender
-                    .send(fresh_epoch)
-                    .expect("Failed to send fresh telemetry epoch");
-
+            while let Ok(mut epoch) = telemetry_receiver.recv() {
                 // Now the inference thread is no longer updating the completed
                 // epoch, we can save it.
+
+                let current_allocated_bytes =
+                    ALLOCATED_BYTES.load(Ordering::Relaxed);
+                epoch.allocated_bytes = current_allocated_bytes
+                    .saturating_sub(last_allocated_bytes);
+                last_allocated_bytes = current_allocated_bytes;
+
+                let current_allocation_count =
+                    ALLOCATION_COUNT.load(Ordering::Relaxed);
+                epoch.allocation_count = current_allocation_count
+                    .saturating_sub(last_allocation_count);
+                last_allocation_count = current_allocation_count;
+
+                let current_freed_bytes = FREED_BYTES.load(Ordering::Relaxed);
+                epoch.freed_bytes =
+                    current_freed_bytes.saturating_sub(last_freed);
+                last_freed = current_freed_bytes;
+
                 csv_file
-                    .write_record(&completed_epoch)
+                    .write_record(&epoch)
                     .expect("Failed to write telemetry record to CSV");
+
+                epoch.reset();
+                telemetry_sender
+                    .send(epoch)
+                    .expect("Failed to send clean telemetry epoch");
             }
         })
         .with_context(|| {

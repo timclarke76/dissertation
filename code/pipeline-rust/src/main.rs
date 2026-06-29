@@ -7,16 +7,21 @@ use std::{
 use anyhow::Result;
 use clap::Parser;
 
+mod allocator;
 mod config;
 mod os;
 mod queue;
 mod shm;
 mod thread;
 
+use allocator::TrackingAllocator;
 use config::{Args, Settings};
 use queue::Queue;
 use shm::SharedMemoryFrame;
 use thread::{Policy, spawn_bridge_thread, spawn_inference_thread};
+
+#[global_allocator]
+static GLOBAL: TrackingAllocator = TrackingAllocator;
 
 fn main() -> Result<()> {
     let args = Args::try_parse()?;
