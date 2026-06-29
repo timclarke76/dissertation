@@ -49,6 +49,10 @@ pub struct SharedMemoryBuffer {
     /// messages.
     name: String,
 
+    /// The stream ID associated with this buffer. Used to create the
+    /// `SharedMemoryFrame` struct when reading frames.
+    stream_id: usize,
+
     /// A pointer to the header of the shared memory buffer.
     header: *const SharedMemoryHeader,
 
@@ -75,6 +79,10 @@ pub struct SharedMemoryBuffer {
 /// Represents a single frame read from the shared memory buffer.
 #[derive(Clone)]
 pub struct SharedMemoryFrame {
+    /// The stream ID associated with this frame. Used to identify the source of
+    /// the frame.
+    pub stream_id: usize,
+
     /// The sequence number of the frame.
     pub seq_num: u64,
 
@@ -93,6 +101,15 @@ pub struct SharedMemoryFrame {
 }
 
 impl SharedMemoryBuffer {
+    /// The stream ID for the RGB camera frames.
+    pub const RGB_STREAM_ID: usize = 0;
+
+    /// The stream ID for the accelerometer frames.
+    pub const ACCELEROMETER_STREAM_ID: usize = 1;
+
+    /// The stream ID for the gyroscope frames.
+    pub const GYROSCOPE_STREAM_ID: usize = 2;
+
     /// The magic number used to identify the shared memory buffer. It is set to
     /// the ASCII representation of "EDGE" (0x45444745) to help confirm that the
     /// buffer has been correctly initialised and is valid.
@@ -105,10 +122,11 @@ impl SharedMemoryBuffer {
     /// error is returned.
     /// #Args
     /// * `name` - The name of the shared memory buffer to connect to.
+    /// * `stream_id` - The stream ID associated with this buffer.
     /// #Returns
     /// A `Result` containing the new `SharedMemoryBuffer`, or an error if the
     /// operation fails.
-    pub fn try_new(name: impl Into<String>) -> Result<Self> {
+    pub fn try_new(name: impl Into<String>, stream_id: usize) -> Result<Self> {
         let name = name.into();
         let shm_ptr = Self::open_shm_file(&name)?;
         let header = shm_ptr as *const SharedMemoryHeader;
@@ -124,6 +142,7 @@ impl SharedMemoryBuffer {
 
         Ok(Self {
             name,
+            stream_id,
             header,
             data_ptr: unsafe {
                 shm_ptr.add(std::mem::size_of::<SharedMemoryHeader>())
@@ -247,6 +266,7 @@ impl SharedMemoryBuffer {
                 self.frame_idx += 1;
 
                 return Ok(SharedMemoryFrame {
+                    stream_id: self.stream_id,
                     seq_num,
                     timestamps: [
                         t_generated,

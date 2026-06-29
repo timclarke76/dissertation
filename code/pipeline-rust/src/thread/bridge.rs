@@ -73,6 +73,7 @@ pub enum Policy {
 /// policy when the queue is full.
 /// #Args
 /// * `shm_name` - The name of the shared memory buffer to read from.
+/// * `stream_id` - The stream ID associated with this bridge.
 /// * `queue` - A reference to the queue where frames will be pushed.
 /// * `policy` - The backpressure policy to apply when the queue is full.
 /// #Returns
@@ -80,6 +81,7 @@ pub enum Policy {
 /// the thread could not be spawned.
 pub fn spawn_bridge_thread<S: AsRef<str>>(
     shm_name: S,
+    stream_id: usize,
     queue: &Arc<Mutex<Queue<SharedMemoryFrame>>>,
     policy: Policy,
 ) -> Result<JoinHandle<()>> {
@@ -89,8 +91,9 @@ pub fn spawn_bridge_thread<S: AsRef<str>>(
     thread::Builder::new()
         .name(format!("bridge_{}", &thread_shm_name))
         .spawn(move || {
-            let mut shm_buffer = SharedMemoryBuffer::try_new(thread_shm_name)
-                .expect("Failed to connect to {thread_shm_name}");
+            let mut shm_buffer =
+                SharedMemoryBuffer::try_new(thread_shm_name, stream_id)
+                    .expect("Failed to connect to {thread_shm_name}");
 
             let mut seq_num = 0;
             let mut decimation_counter = 0;
