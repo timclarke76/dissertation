@@ -108,16 +108,27 @@ pub struct TelemetryEpoch {
 }
 
 impl TelemetryEpoch {
+    /// The index of the histogram for unbounded queue wait latency.
     #[allow(dead_code)]
     pub const UNBOUNDED_QUEUE_WAIT: usize = 0;
+
+    /// The index of the histogram for idiomatic queue wait latency.
     #[allow(dead_code)]
     pub const IDIOMATIC_QUEUE_WAIT: usize = 1;
+
+    /// The index of the histogram for data preparation latency.
     #[allow(dead_code)]
     pub const DATA_PREPARATION: usize = 2;
+
+    /// The index of the histogram for inference latency.
     #[allow(dead_code)]
     pub const INFERENCE: usize = 3;
+
+    /// The index of the histogram for fusion latency.
     #[allow(dead_code)]
     pub const FUSION: usize = 4;
+
+    /// The index of the histogram for total latency.
     #[allow(dead_code)]
     pub const TOTAL: usize = 5;
 

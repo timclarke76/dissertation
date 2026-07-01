@@ -1,14 +1,17 @@
 use std::{
     hint::spin_loop,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, mpsc::SyncSender},
     thread::{self, JoinHandle},
     time::{Duration, Instant},
 };
 
 use anyhow::{Context, Result};
 
-use super::telemetry::spawn_telemetry_thread;
-use crate::{os::now_nanos, queue::Queue, shm::SharedMemoryFrame};
+use crate::{
+    os::now_nanos,
+    queue::Queue,
+    shm::{SharedMemoryBuffer, SharedMemoryFrame},
+};
 
 /// Spawns a thread that simulates inference processing on frames from a shared
 /// memory queue. The thread will process frames at a specified inference time
@@ -20,6 +23,8 @@ use crate::{os::now_nanos, queue::Queue, shm::SharedMemoryFrame};
 ///   identification.
 /// * `queue` - An `Arc<Mutex<Queue<SharedMemoryFrame>>>` that holds the frames
 ///   to be processed.
+/// * `sender` - A `SyncSender<SharedMemoryFrame>` used to send processed frames
+///   to the next stage in the pipeline.
 /// * `inference_time` - The duration to simulate inference processing for each
 ///   frame.
 /// #Returns
@@ -28,6 +33,7 @@ use crate::{os::now_nanos, queue::Queue, shm::SharedMemoryFrame};
 pub fn spawn_inference_thread<S: AsRef<str>>(
     stream_name: S,
     queue: &Arc<Mutex<Queue<SharedMemoryFrame>>>,
+    sender: SyncSender<SharedMemoryFrame>,
     inference_time: Duration,
 ) -> Result<JoinHandle<()>> {
     let thread_stream_name = stream_name.as_ref().to_string();
@@ -36,8 +42,6 @@ pub fn spawn_inference_thread<S: AsRef<str>>(
     thread::Builder::new()
         .name(format!("inference_{}", thread_stream_name))
         .spawn(move || {
-            let mut telemetry = spawn_telemetry_thread(thread_stream_name)
-                .expect("Failed to spawn telemetry thread");
             let start_time = Instant::now();
 
             loop {
@@ -52,25 +56,25 @@ pub fn spawn_inference_thread<S: AsRef<str>>(
                 );
 
                 if let Some(mut frame) = item {
-                    frame.timestamps[2] = t_pipeline_in;
-                    frame.timestamps[3] = now_nanos().expect(
-                        "Failed to get current time in \
-                            nanoseconds for t_pipeline_out",
-                    );
-                    std::thread::sleep(inference_time); // Simulate inference
-                    frame.timestamps[4] = now_nanos().expect(
-                        "Failed to get current time in \
-                            nanoseconds for t_fusion_in",
-                    );
-                    frame.timestamps[5] = now_nanos().expect(
-                        "Failed to get current time in \
-                            nanoseconds for t_fusion_out",
-                    );
+                    frame.timestamps
+                        [SharedMemoryBuffer::PIPELINE_IN_TIMESTAMP] =
+                        t_pipeline_in;
 
-                    telemetry
-                        .record(frame.timestamps)
-                        .expect("Failed to record telemetry");
+                    std::thread::sleep(inference_time); // Simulate inference
+
+                    frame.timestamps
+                        [SharedMemoryBuffer::PIPELINE_OUT_TIMESTAMP] =
+                        now_nanos().expect(
+                            "Failed to get current time in \
+                            nanoseconds for t_pipeline_out",
+                        );
+
+                    sender
+                        .send(frame)
+                        .expect("Failed to send frame to output queue");
                 } else {
+                    // Yield the thread to avoid busy waiting when the queue is
+                    // empty.
                     spin_loop();
                 }
 
