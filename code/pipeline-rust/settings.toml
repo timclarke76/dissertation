@@ -14,7 +14,7 @@ capacity_frames = 160
 
 [accelerometer_policy]
 type = "AdaptiveDecimation"
-threshold = 2
+threshold = 128 # 80% of capacity_frames
 min_ratio = 2
 max_ratio = 10
 
@@ -24,6 +24,6 @@ capacity_frames = 200
 
 [gyroscope_policy]
 type = "AdaptiveDecimation"
-threshold = 2
+threshold = 160 # 80% of capacity_frames
 min_ratio = 2
 max_ratio = 10
