@@ -1,3 +1,3 @@
-mod buffer;
+mod shm;
 
-pub use buffer::*;
+pub use shm::*;
