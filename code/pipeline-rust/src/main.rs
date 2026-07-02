@@ -20,7 +20,7 @@ mod thread;
 use allocator::TrackingAllocator;
 use config::{Args, Policy, Settings};
 use queue::Queue;
-use shm::{SharedMemoryBuffer, SharedMemoryFrame};
+use shm::{SharedMemoryFrame, ShmBuffer};
 use thread::{
     spawn_bridge_thread, spawn_fusion_thread, spawn_inference_thread,
 };
@@ -35,19 +35,19 @@ fn main() -> Result<()> {
     let configs = [
         (
             &settings.rgb_queue,
-            SharedMemoryBuffer::RGB_STREAM_ID,
+            ShmBuffer::RGB_STREAM_ID,
             settings.rgb_policy,
             Duration::from_millis(33),
         ),
         (
             &settings.accelerometer_queue,
-            SharedMemoryBuffer::ACCELEROMETER_STREAM_ID,
+            ShmBuffer::ACCELEROMETER_STREAM_ID,
             settings.accelerometer_policy,
             Duration::from_micros(500),
         ),
         (
             &settings.gyroscope_queue,
-            SharedMemoryBuffer::GYROSCOPE_STREAM_ID,
+            ShmBuffer::GYROSCOPE_STREAM_ID,
             settings.gyroscope_policy,
             Duration::from_micros(400),
         ),

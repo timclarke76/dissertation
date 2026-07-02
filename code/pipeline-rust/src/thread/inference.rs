@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use crate::{
     os::now_nanos,
     queue::Queue,
-    shm::{SharedMemoryBuffer, SharedMemoryFrame},
+    shm::{SharedMemoryFrame, ShmBuffer},
 };
 
 /// Spawns a thread that simulates inference processing on frames from a shared
@@ -56,14 +56,12 @@ pub fn spawn_inference_thread<S: AsRef<str>>(
                 );
 
                 if let Some(mut frame) = item {
-                    frame.timestamps
-                        [SharedMemoryBuffer::PIPELINE_IN_TIMESTAMP] =
+                    frame.timestamps[ShmBuffer::PIPELINE_IN_TIMESTAMP] =
                         t_pipeline_in;
 
                     std::thread::sleep(inference_time); // Simulate inference
 
-                    frame.timestamps
-                        [SharedMemoryBuffer::PIPELINE_OUT_TIMESTAMP] =
+                    frame.timestamps[ShmBuffer::PIPELINE_OUT_TIMESTAMP] =
                         now_nanos().expect(
                             "Failed to get current time in \
                             nanoseconds for t_pipeline_out",

@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use crate::{
     config::Policy,
     queue::Queue,
-    shm::{SharedMemoryBuffer, SharedMemoryFrame},
+    shm::{SharedMemoryFrame, ShmBuffer},
 };
 
 /// Spawns a new thread that continuously reads frames from a shared memory
@@ -36,9 +36,8 @@ pub fn spawn_bridge_thread<S: AsRef<str>>(
     thread::Builder::new()
         .name(format!("bridge_{}", &thread_shm_name))
         .spawn(move || {
-            let mut shm_buffer =
-                SharedMemoryBuffer::try_new(thread_shm_name, stream_id)
-                    .expect("Failed to connect to {thread_shm_name}");
+            let mut shm_buffer = ShmBuffer::try_new(thread_shm_name, stream_id)
+                .expect("Failed to connect to {thread_shm_name}");
 
             let mut seq_num = 0;
             let mut decimation_counter = 0;

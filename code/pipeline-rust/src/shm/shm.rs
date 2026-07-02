@@ -44,7 +44,7 @@ pub struct SharedMemoryHeader {
 }
 
 /// Connects to a circular shared memory buffer and reads its frames.
-pub struct SharedMemoryBuffer {
+pub struct ShmBuffer {
     /// The name of the shared memory buffer. Also used for logging and error
     /// messages.
     name: String,
@@ -100,7 +100,7 @@ pub struct SharedMemoryFrame {
     pub timestamps: [u64; 6],
 }
 
-impl SharedMemoryBuffer {
+impl ShmBuffer {
     /// The stream ID for the RGB camera frames.
     pub const RGB_STREAM_ID: usize = 0;
 
@@ -144,17 +144,17 @@ impl SharedMemoryBuffer {
     /// buffer has been correctly initialised and is valid.
     const MAGIC: u32 = 0x45444745; // "EDGE" in ASCII
 
-    /// Creates a new `SharedMemoryBuffer` by connecting to an existing shared
-    /// memory buffer with the given name. The buffer must have been created by
-    /// a producer process and must contain a valid `SharedMemoryHeader` at the
+    /// Creates a new `ShmBuffer` by connecting to an existing shared memory
+    /// buffer with the given name. The buffer must have been created by a
+    /// producer process and must contain a valid `SharedMemoryHeader` at the
     /// start of the buffer. If the buffer does not exist or is invalid, an
     /// error is returned.
     /// #Args
     /// * `name` - The name of the shared memory buffer to connect to.
     /// * `stream_id` - The stream ID associated with this buffer.
     /// #Returns
-    /// A `Result` containing the new `SharedMemoryBuffer`, or an error if the
-    /// operation fails.
+    /// A `Result` containing the new `ShmBuffer`, or an error if the operation
+    /// fails.
     pub fn try_new(name: impl Into<String>, stream_id: usize) -> Result<Self> {
         let name = name.into();
         let shm_ptr = Self::open_shm_file(&name)?;
