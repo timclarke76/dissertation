@@ -76,7 +76,7 @@ pub fn spawn_fusion_thread(
                     ShmBuffer::RGB_STREAM_ID => {
                         frame.timestamps[ShmBuffer::FUSION_IN_TS] = now_nanos()
                             .expect(
-                                "Failed to get current time for t_fusion_in",
+                                "Failed to get current time for FUSION_IN_TS",
                             );
 
                         // Simulate fusion
@@ -84,7 +84,7 @@ pub fn spawn_fusion_thread(
 
                         frame.timestamps[ShmBuffer::FUSION_OUT_TS] = now_nanos(
                         )
-                        .expect("Failed to get current time for t_fusion_out");
+                        .expect("Failed to get current time for FUSION_OUT_TS");
 
                         // Record the RGB telemetry.
                         telemetry_writers[ShmBuffer::RGB_STREAM_ID]
