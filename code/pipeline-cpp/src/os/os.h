@@ -7,11 +7,11 @@
 // Platform-specific spin lock implementations.
 #if defined(__x86_64__) || defined(_M_X64)
   #include <immintrin.h>
-  inline void spin_lock() { _mm_pause(); }
+  inline void spin_loop() { _mm_pause(); }
 #elif defined(__aarch64__) || defined(_M_ARM64)
-  inline void spin_lock() { __asm__ volatile("yield" ::: "memory"); }
+  inline void spin_loop() { __asm__ volatile("yield" ::: "memory"); }
 #else
-  inline void spin_lock() { } // Fallback for unsupported architectures (no-op).
+  inline void spin_loop() { } // Fallback for unsupported architectures (no-op).
 #endif
 // clang-format on
 
