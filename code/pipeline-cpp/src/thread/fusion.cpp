@@ -10,13 +10,13 @@ spawn_fusion_thread(Receiver<ShmBuffer::Frame> receiver,
 {
   auto thread = std::jthread([stream_names, &receiver]() {
     auto telemetry_threads = std::vector<std::jthread>();
-    auto telemetry_writers = std::vector<Telemetry>();
+    auto telemetry_writers = std::vector<TelemetryWriter>();
 
     for (const auto& name : stream_names) {
       auto [telemetry_sender, inference_receiver] =
-        make_channel<Telemetry::Epoch>(3);
+        make_channel<TelemetryWriter::Epoch>(3);
       auto [inference_sender, telemetry_receiver] =
-        make_channel<Telemetry::Epoch>(3);
+        make_channel<TelemetryWriter::Epoch>(3);
 
       try {
         telemetry_threads.push_back(spawn_telemetry_thread(
@@ -26,7 +26,7 @@ spawn_fusion_thread(Receiver<ShmBuffer::Frame> receiver,
       }
 
       try {
-        telemetry_writers.push_back(Telemetry(
+        telemetry_writers.push_back(TelemetryWriter(
           std::move(inference_sender), std::move(inference_receiver)));
       } catch (const std::exception& e) {
         throw std::runtime_error("Failed to create telemetry writer");
