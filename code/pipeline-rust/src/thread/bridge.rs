@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use crate::{
     config::Policy,
     queue::Queue,
-    shm::{SharedMemoryFrame, ShmBuffer},
+    shm::{ShmBuffer, ShmFrame},
 };
 
 /// Spawns a new thread that continuously reads frames from a shared memory
@@ -27,7 +27,7 @@ use crate::{
 pub fn spawn_bridge_thread<S: AsRef<str>>(
     shm_name: S,
     stream_id: usize,
-    queue: &Arc<Mutex<Queue<SharedMemoryFrame>>>,
+    queue: &Arc<Mutex<Queue<ShmFrame>>>,
     policy: Policy,
 ) -> Result<JoinHandle<()>> {
     let thread_shm_name = shm_name.as_ref().to_string();

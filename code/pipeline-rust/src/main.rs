@@ -20,7 +20,7 @@ mod thread;
 use allocator::TrackingAllocator;
 use config::{Args, Policy, Settings};
 use queue::Queue;
-use shm::{SharedMemoryFrame, ShmBuffer};
+use shm::{ShmBuffer, ShmFrame};
 use thread::{
     spawn_bridge_thread, spawn_fusion_thread, spawn_inference_thread,
 };
@@ -41,13 +41,13 @@ fn main() -> Result<()> {
         ),
         (
             &settings.accelerometer_queue,
-            ShmBuffer::ACCELEROMETER_STREAM_ID,
+            ShmBuffer::ACCEL_STREAM_ID,
             settings.accelerometer_policy,
             Duration::from_micros(500),
         ),
         (
             &settings.gyroscope_queue,
-            ShmBuffer::GYROSCOPE_STREAM_ID,
+            ShmBuffer::GYRO_STREAM_ID,
             settings.gyroscope_policy,
             Duration::from_micros(400),
         ),
@@ -63,7 +63,7 @@ fn main() -> Result<()> {
         .sum();
 
     let (inference_sender, fusion_receiver) =
-        sync_channel::<SharedMemoryFrame>(channel_size);
+        sync_channel::<ShmFrame>(channel_size);
 
     let mut handles: Vec<_> = configs
         .into_iter()
@@ -106,7 +106,7 @@ fn main() -> Result<()> {
 /// * `stream_id` - The stream ID associated with the bridge thread.
 /// * `queue_capacity` - The maximum number of frames that can be held in the
 ///   queue.
-/// * `inference_sender` - A `SyncSender<SharedMemoryFrame>` used to send
+/// * `inference_sender` - A `SyncSender<ShmFrame>` used to send
 ///   processed frames to the fusion thread.
 /// * `policy` - The backpressure policy to apply when the queue is full.
 /// #Returns
@@ -116,12 +116,11 @@ fn create_bridge_and_inference_threads(
     stream_name: &str,
     stream_id: usize,
     queue_capacity: usize,
-    inference_sender: SyncSender<SharedMemoryFrame>,
+    inference_sender: SyncSender<ShmFrame>,
     policy: Policy,
     inference_time: Duration,
 ) -> (JoinHandle<()>, JoinHandle<()>) {
-    let queue =
-        Arc::new(Mutex::new(Queue::<SharedMemoryFrame>::new(queue_capacity)));
+    let queue = Arc::new(Mutex::new(Queue::<ShmFrame>::new(queue_capacity)));
 
     let bridge_thread =
         spawn_bridge_thread(stream_name, stream_id, &queue, policy)

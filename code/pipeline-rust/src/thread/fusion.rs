@@ -4,13 +4,13 @@ use anyhow::{Context, Result};
 
 use super::spawn_telemetry_thread;
 
-use crate::{os::now_nanos, shm::SharedMemoryFrame, shm::ShmBuffer};
+use crate::{os::now_nanos, shm::ShmBuffer, shm::ShmFrame};
 
 /// Spawns a thread for late fusion of frames from a shared memory queue. Fusion
 /// is only performed when an RGB frame is received, with the latest
 /// accelerometer and gyrometer frames.
 /// #Args
-/// * `receiver` - A `Receiver<SharedMemoryFrame>` that receives frames to be
+/// * `receiver` - A `Receiver<ShmFrame>` that receives frames to be
 ///   processed.
 /// * `stream_names` - A vector of stream names to be used for telemetry and
 ///   thread identification. The first name in the vector is used for the RGB
@@ -20,7 +20,7 @@ use crate::{os::now_nanos, shm::SharedMemoryFrame, shm::ShmBuffer};
 /// A `Result` containing the `JoinHandle` of the spawned thread, or an error if
 /// the thread could not be spawned.
 pub fn spawn_fusion_thread(
-    receiver: Receiver<SharedMemoryFrame>,
+    receiver: Receiver<ShmFrame>,
     stream_names: Vec<String>,
 ) -> Result<std::thread::JoinHandle<()>> {
     std::thread::Builder::new()
@@ -43,31 +43,30 @@ pub fn spawn_fusion_thread(
 
             while let Ok(mut frame) = receiver.recv() {
                 match frame.stream_id {
-                    ShmBuffer::ACCELEROMETER_STREAM_ID => {
+                    ShmBuffer::ACCEL_STREAM_ID => {
                         // Only the most recent accelerometer timestamps are
                         // needed for fusion, so we store them here.
                         latest_accelerometer_timestamps = frame.timestamps;
                     }
 
-                    ShmBuffer::GYROSCOPE_STREAM_ID => {
+                    ShmBuffer::GYRO_STREAM_ID => {
                         // Only the most recent gyrometer timestamps are
                         // needed for fusion, so we store them here.
                         latest_gyrometer_timestamps = frame.timestamps;
                     }
 
                     ShmBuffer::RGB_STREAM_ID => {
-                        frame.timestamps[ShmBuffer::FUSION_IN_TIMESTAMP] =
-                            now_nanos().expect(
+                        frame.timestamps[ShmBuffer::FUSION_IN_TS] = now_nanos()
+                            .expect(
                                 "Failed to get current time for t_fusion_in",
                             );
 
                         // Simulate fusion
                         std::thread::sleep(Duration::from_millis(5));
 
-                        frame.timestamps[ShmBuffer::FUSION_OUT_TIMESTAMP] =
-                            now_nanos().expect(
-                                "Failed to get current time for t_fusion_out",
-                            );
+                        frame.timestamps[ShmBuffer::FUSION_OUT_TS] = now_nanos(
+                        )
+                        .expect("Failed to get current time for t_fusion_out");
 
                         // Record the RGB telemetry.
                         telemetry_writers[ShmBuffer::RGB_STREAM_ID]
@@ -77,24 +76,22 @@ pub fn spawn_fusion_thread(
                         // Copy the fusion timestamps and record the
                         // accelerometer telemetry.
                         latest_accelerometer_timestamps
-                            [ShmBuffer::FUSION_IN_TIMESTAMP] =
-                            frame.timestamps[ShmBuffer::FUSION_IN_TIMESTAMP];
+                            [ShmBuffer::FUSION_IN_TS] =
+                            frame.timestamps[ShmBuffer::FUSION_IN_TS];
                         latest_accelerometer_timestamps
-                            [ShmBuffer::FUSION_OUT_TIMESTAMP] =
-                            frame.timestamps[ShmBuffer::FUSION_OUT_TIMESTAMP];
-                        telemetry_writers[ShmBuffer::ACCELEROMETER_STREAM_ID]
+                            [ShmBuffer::FUSION_OUT_TS] =
+                            frame.timestamps[ShmBuffer::FUSION_OUT_TS];
+                        telemetry_writers[ShmBuffer::ACCEL_STREAM_ID]
                             .record(latest_accelerometer_timestamps)
                             .expect("Failed to record accelerometer telemetry");
 
                         // Copy the fusion timestamps and record the gyrometer
                         // telemetry.
-                        latest_gyrometer_timestamps
-                            [ShmBuffer::FUSION_IN_TIMESTAMP] =
-                            frame.timestamps[ShmBuffer::FUSION_IN_TIMESTAMP];
-                        latest_gyrometer_timestamps
-                            [ShmBuffer::FUSION_OUT_TIMESTAMP] =
-                            frame.timestamps[ShmBuffer::FUSION_OUT_TIMESTAMP];
-                        telemetry_writers[ShmBuffer::GYROSCOPE_STREAM_ID]
+                        latest_gyrometer_timestamps[ShmBuffer::FUSION_IN_TS] =
+                            frame.timestamps[ShmBuffer::FUSION_IN_TS];
+                        latest_gyrometer_timestamps[ShmBuffer::FUSION_OUT_TS] =
+                            frame.timestamps[ShmBuffer::FUSION_OUT_TS];
+                        telemetry_writers[ShmBuffer::GYRO_STREAM_ID]
                             .record(latest_gyrometer_timestamps)
                             .expect("Failed to record gyroscope telemetry");
                     }
