@@ -5,8 +5,8 @@ use std::{
 
 use anyhow::{Context, Result};
 
-use crate::os::{ShmBuffer, ShmFrame, now_nanos};
 use super::{TelemetryEpoch, TelemetryWriter, spawn_telemetry_thread};
+use crate::os::{ShmBuffer, ShmFrame, now_nanos};
 
 /// Spawns a thread for late fusion of frames from a shared memory queue. Fusion
 /// is only performed when an RGB frame is received, with the latest
