@@ -12,133 +12,53 @@ use hdrhistogram::Histogram;
 
 use crate::allocator::{ALLOCATED_BYTES, ALLOCATION_COUNT, FREED_BYTES};
 
-/// A CSV file writer for telemetry data.
-struct CsvFile {
-    writer: csv::Writer<std::fs::File>,
-}
-
-impl CsvFile {
-    /// Creates a new `CsvFile` writer for the specified file path. The writer
-    /// is initialised with a header row containing the names of the latency
-    /// percentiles for each stage of the inference pipeline, as well as the
-    /// total latency.
-    /// #Args
-    /// * `file_path` - The path to the CSV file to be created.
-    /// #Returns
-    /// A `Result` containing the newly created `CsvFile`, or an error if the
-    /// file could not be created or the header row could not be written.
-    fn try_new<S: AsRef<str>>(file_path: S) -> Result<Self> {
-        let mut writer = csv::Writer::from_path(file_path.as_ref())
-            .with_context(|| {
-                format!(
-                    "Failed to create CSV writer for telemetry file '{}'",
-                    file_path.as_ref()
-                )
-            })?;
-
-        let mut record = Vec::new();
-
-        for label in [
-            "unbounded",
-            "idiomatic",
-            "data",
-            "inference",
-            "fusion",
-            "total",
-        ] {
-            record.push(format!("{}_p50", label));
-            record.push(format!("{}_p99", label));
-            record.push(format!("{}_p99_9", label));
-            record.push(format!("{}_max", label));
-        }
-
-        record.push("allocated_bytes".to_string());
-        record.push("allocation_count".to_string());
-        record.push("freed_bytes".to_string());
-
-        writer
-            .write_record(&record)
-            .expect("Failed to write telemetry record to CSV");
-
-        Ok(Self { writer })
-    }
-
-    /// Writes a telemetry record to the CSV file.
-    /// #Args
-    /// * `epoch` - A reference to the `TelemetryEpoch` containing the latency
-    ///   measurements to be written.
-    /// #Returns
-    /// A `Result` indicating whether the record was successfully written, or an
-    /// error if the operation failed.
-    fn write_record(&mut self, epoch: &TelemetryEpoch) -> Result<()> {
-        let mut record = Vec::new();
-
-        for histogram in epoch.latency_nanos.iter() {
-            let p50 = histogram.value_at_quantile(0.5) as f64;
-            let p99 = histogram.value_at_quantile(0.99) as f64;
-            let p99_9 = histogram.value_at_quantile(0.999) as f64;
-            let max = histogram.max();
-            record.push(format!("{:.3}", p50));
-            record.push(format!("{:.3}", p99));
-            record.push(format!("{:.3}", p99_9));
-            record.push(format!("{:.3}", max));
-        }
-
-        record.push(epoch.allocated_bytes.to_string());
-        record.push(epoch.allocation_count.to_string());
-        record.push(epoch.freed_bytes.to_string());
-
-        self.writer
-            .write_record(record)
-            .context("Failed to write telemetry record to CSV")?;
-        self.writer.flush().context("Failed to flush CSV writer")?;
-
-        Ok(())
-    }
-}
-
-/// A telemetry epoch that contains six HdrHistogram instances for recording
+/// A telemetry epoch that contains six `HdrHistogram` instances for recording
 /// latency measurements in nanoseconds. Each histogram tracks latency for a
 /// specific stage of the inference pipeline, as well as the total latency.
 pub struct TelemetryEpoch {
+    /// The histograms for recording latency measurements in nanoseconds for
+    /// each stage of the inference pipeline, as well as the total latency.
     latency_nanos: [Histogram<u64>; 6],
+
+    /// The total number of bytes allocated during the epoch.
     allocated_bytes: usize,
+
+    /// The total number of allocations made during the epoch.
     allocation_count: usize,
+
+    /// The total number of bytes freed during the epoch.
     freed_bytes: usize,
 }
 
 impl TelemetryEpoch {
     /// The index of the histogram for unbounded queue wait latency.
-    #[allow(dead_code)]
     pub const UNBOUNDED_QUEUE_WAIT: usize = 0;
 
     /// The index of the histogram for idiomatic queue wait latency.
-    #[allow(dead_code)]
     pub const IDIOMATIC_QUEUE_WAIT: usize = 1;
 
     /// The index of the histogram for data preparation latency.
-    #[allow(dead_code)]
     pub const DATA_PREPARATION: usize = 2;
 
     /// The index of the histogram for inference latency.
-    #[allow(dead_code)]
     pub const INFERENCE: usize = 3;
 
     /// The index of the histogram for fusion latency.
-    #[allow(dead_code)]
     pub const FUSION: usize = 4;
 
     /// The index of the histogram for total latency.
-    #[allow(dead_code)]
     pub const TOTAL: usize = 5;
+
+    /// The number of latency measures tracked in an epoch.
+    pub const NUM_LATENCY_MEASURES: usize = Self::TOTAL + 1;
 
     /// Creates a new `TelemetryEpoch` with six HdrHistogram instances for
     /// recording latency measurements in nanoseconds. Each histogram is
     /// initialised to track values from 1 nanosecond to 60 seconds with 3
     /// significant figures of precision.
-    /// #Returns
-    /// A `Result` containing the newly created `TelemetryEpoch`, or an error if
-    /// any of the histograms could not be initialised.
+    ///
+    /// Returns a `Result` containing the newly created `TelemetryEpoch`, or an
+    /// error if any of the histograms could not be initialised.
     pub fn try_new() -> Result<Self> {
         let unbounded_queue_wait = Self::create_histogram().context(
             "Failed to create HdrHistogram for unbounded queue wait latency",
@@ -176,6 +96,7 @@ impl TelemetryEpoch {
         })
     }
 
+    /// Resets the histograms and allocation statistics for the epoch.
     fn reset(&mut self) {
         for histogram in self.latency_nanos.iter_mut() {
             histogram.reset();
@@ -189,22 +110,101 @@ impl TelemetryEpoch {
     /// Creates a new HdrHistogram instance for recording latency measurements
     /// in nanoseconds. The histogram is initialised to track values from 1
     /// nanosecond to 60 seconds with 3 significant figures of precision.
-    /// #Returns
-    /// A `Result` containing the newly created `Histogram<u64>`, or an error if
-    /// the histogram could not be initialised.
+    ///
+    /// Returns a `Result` containing the newly created `Histogram<u64>`, or an
+    /// error if the histogram could not be initialised.
     fn create_histogram() -> Result<Histogram<u64>> {
         Histogram::<u64>::new_with_bounds(1, 60_000_000_000, 3)
             .context("Failed to create HdrHistogram")
     }
 }
 
-/// A telemetry writer that records latency measurements into an epoch buffer.
-/// Used by the inference thread to publish the results to the telemetry thread
-/// for processing, and to receive a fresh buffer for the next epoch.
-pub struct TelemetryWriter {
-    /// The currently active telemetry epoch for recording latency measurements.
-    current_epoch: TelemetryEpoch,
+/// A CSV file writer for telemetry data.
+struct Csv {
+    /// The CSV writer for writing telemetry records to a file.
+    writer: csv::Writer<std::fs::File>,
+}
 
+impl Csv {
+    /// Creates a new `Csv` writer for the specified filename. The writer is
+    /// initialised with a header row containing the names of the latency
+    /// percentiles for each stage of the inference pipeline, as well as the
+    /// total latency.
+    ///
+    /// * `filename` - The name of the CSV file to write to.
+    ///
+    /// Returns a `Result` containing the newly created `Csv`, or an error if
+    /// the file could not be created or the header row could not be written.
+    fn try_new<S: AsRef<str>>(filename: S) -> Result<Self> {
+        let mut writer = csv::Writer::from_path(filename.as_ref())
+            .with_context(|| {
+                format!(
+                    "Failed to create CSV writer for telemetry file '{}'",
+                    filename.as_ref()
+                )
+            })?;
+
+        let mut record = Vec::new();
+
+        for label in [
+            "unbounded",
+            "idiomatic",
+            "data",
+            "inference",
+            "fusion",
+            "total",
+        ] {
+            record.push(format!("{}_p50", label));
+            record.push(format!("{}_p99", label));
+            record.push(format!("{}_p99_9", label));
+            record.push(format!("{}_max", label));
+        }
+
+        record.push("allocated_bytes".to_string());
+        record.push("allocation_count".to_string());
+        record.push("freed_bytes".to_string());
+
+        writer
+            .write_record(&record)
+            .expect("Failed to write telemetry record to CSV");
+
+        Ok(Self { writer })
+    }
+
+    /// Writes a telemetry record to the CSV file.
+    ///
+    /// * `epoch` - The telemetry epoch containing the latency measurements to
+    /// be written.
+    ///
+    /// Returns a `Result` indicating whether the record was successfully
+    /// written, or an error if the operation failed.
+    fn write_record(&mut self, epoch: &TelemetryEpoch) -> Result<()> {
+        let mut record = Vec::new();
+
+        for histogram in epoch.latency_nanos.iter() {
+            record.push(histogram.value_at_quantile(0.5).to_string());
+            record.push(histogram.value_at_quantile(0.99).to_string());
+            record.push(histogram.value_at_quantile(0.999).to_string());
+            record.push(histogram.max().to_string());
+        }
+
+        record.push(epoch.allocated_bytes.to_string());
+        record.push(epoch.allocation_count.to_string());
+        record.push(epoch.freed_bytes.to_string());
+
+        self.writer
+            .write_record(record)
+            .context("Failed to write telemetry record to CSV")?;
+        self.writer.flush().context("Failed to flush CSV writer")?;
+
+        Ok(())
+    }
+}
+
+/// Records latency measurements into an epoch buffer. Used by the inference
+/// thread to publish the results to the telemetry thread for processing, and to
+/// receive a fresh buffer for the next epoch.
+pub struct TelemetryWriter {
     /// The sender channel for publishing the current epoch to the telemetry
     /// thread for processing.
     sender: SyncSender<TelemetryEpoch>,
@@ -216,6 +216,9 @@ pub struct TelemetryWriter {
     /// The timestamp of the last buffer swap, used to determine when to next
     /// swap the buffers.
     last_swap: Instant,
+
+    /// The currently active telemetry epoch for recording latency measurements.
+    current_epoch: TelemetryEpoch,
 }
 
 impl TelemetryWriter {
@@ -223,16 +226,16 @@ impl TelemetryWriter {
     /// buffer received from the telemetry thread.
     const SWAP_INTERVAL: Duration = Duration::from_secs(1);
 
-    /// Creates a new `TelemetryWriter` with the specified sender and receiver
-    /// channels for double-buffered histogram processing.
-    /// #Args
+    /// Constructs a new `TelemetryWriter` with the specified sender and
+    /// receiver channels for double-buffered histogram processing.
+    ///
     /// * `sender` - The sender channel for publishing the populated epoch to
     ///   the telemetry thread for processing.
     /// * `receiver` - The receiver channel for receiving a fresh epoch buffer
     ///   from the telemetry thread.
-    /// #Returns
-    /// A `Result` containing the newly created `TelemetryWriter`, or an error
-    /// if the histogram buffer could not be initialised
+    ///
+    /// Returns a `Result` containing the newly created `TelemetryWriter`, or an
+    /// error if the histogram buffer could not be initialised
     pub fn try_new(
         sender: SyncSender<TelemetryEpoch>,
         receiver: Receiver<TelemetryEpoch>,
@@ -253,27 +256,28 @@ impl TelemetryWriter {
     /// If at least one second has elapsed since the last buffer swap, the
     /// active buffer is swapped with a fresh buffer received from the telemetry
     /// thread.
-    /// #Args
+    ///
     /// * `ts` - An array of six timestamps in nanoseconds, representing the
     ///   start and end times of each stage of the inference pipeline, as well
     ///   as the total latency.
-    /// #Returns
-    /// A `Result` indicating whether the latency measurements were successfully
-    /// recorded, or an error if the operation failed.
+    ///
+    /// Returns a `Result` indicating whether the latency measurements were
+    /// successfully recorded, or an error if the operation failed.
     pub fn record(&mut self, ts: [u64; 6]) -> Result<()> {
         if self.last_swap.elapsed() >= Self::SWAP_INTERVAL {
             self.swap_buffers();
         }
 
-        for i in 0..=4 {
-            let nanos = ts[i + 1].saturating_sub(ts[i]);
-            self.current_epoch.latency_nanos[i]
+        for idx in 0..(TelemetryEpoch::NUM_LATENCY_MEASURES - 1) {
+            let nanos = ts[idx + 1].saturating_sub(ts[idx]);
+            self.current_epoch.latency_nanos[idx]
                 .record(nanos)
                 .context("Failed to record latency")?;
         }
 
-        let total_nanos = ts[5].saturating_sub(ts[0]);
-        self.current_epoch.latency_nanos[5]
+        let total_nanos = ts[TelemetryEpoch::TOTAL]
+            .saturating_sub(ts[TelemetryEpoch::UNBOUNDED_QUEUE_WAIT]);
+        self.current_epoch.latency_nanos[TelemetryEpoch::TOTAL]
             .record(total_nanos)
             .context("Failed to record total latency")?;
 
@@ -306,28 +310,22 @@ impl TelemetryWriter {
 /// `TelemetryWriter`. The telemtry thread receives populated epoch buffers from
 /// the `TelemetryWriter`, calculates latency percentiles, and saves the results
 /// to a CSV file for later analysis.
-/// #Args
+///
 /// * `stream_name` - The name of the stream to be used for telemetry and thread
 ///   identification.
-/// #Returns
-/// A `Result` containing the newly created `TelemetryWriter`, or an error if
-/// the thread could not be spawned.
+/// * `sender` - The sender channel for publishing the current epoch to the
+///   telemetry thread for processing.
+/// * `receiver` - The receiver channel for receiving a fresh epoch buffer from
+///   the telemetry thread.
+///
+/// Returns a `Result` containing the join handle for the spawned thread, or an
+/// error if the thread could not be spawned.
 pub fn spawn_telemetry_thread<S: AsRef<str>>(
     stream_name: S,
-    telemetry_sender: SyncSender<TelemetryEpoch>,
-    telemetry_receiver: Receiver<TelemetryEpoch>,
+    sender: SyncSender<TelemetryEpoch>,
+    receiver: Receiver<TelemetryEpoch>,
 ) -> Result<JoinHandle<()>> {
     let t_stream_name = stream_name.as_ref().to_string();
-
-    // Create a pair of channels for double-buffered histogram processing. The
-    // inference thread will send the populated epoch to the
-    // telemetry thread for processing, and the telemetry thread will send a
-    // fresh epoch to the inference thread for recording the next set of
-    // measurements.
-    // let (inference_sender, telemetry_receiver) =
-    //     sync_channel::<TelemetryEpoch>(3);
-    // let (telemetry_sender, inference_receiver) =
-    //     sync_channel::<TelemetryEpoch>(3);
 
     // The `TelemetryEpoch` is used to record measurements, and is what is
     // communicated between the inference thread and the telemetry thread. Three
@@ -340,28 +338,28 @@ pub fn spawn_telemetry_thread<S: AsRef<str>>(
     for i in 0..=2 {
         let epoch = TelemetryEpoch::try_new()
             .with_context(|| format!("Failed to create telemetry epoch {i}"))?;
-        telemetry_sender
+        sender
             .send(epoch)
             .with_context(|| format!("Failed to send telemetry epoch {i}"))?;
     }
 
-    let mut last_allocated_bytes = 0;
-    let mut last_allocation_count = 0;
-    let mut last_freed = 0;
-
     // Telemtry is written to a CSV file for later analysis.
-    let csv_file_path = format!("telemetry_{}.csv", t_stream_name);
-    let mut csv_file = CsvFile::try_new(&csv_file_path).with_context(|| {
+    let csv_filename = format!("telemetry_{}.csv", t_stream_name);
+    let mut csv = Csv::try_new(&csv_filename).with_context(|| {
         format!(
             "Failed to create CSV file for telemetry file '{}'",
-            csv_file_path
+            csv_filename
         )
     })?;
 
     thread::Builder::new()
         .name(format!("telemetry_{}", t_stream_name))
         .spawn(move || {
-            while let Ok(mut epoch) = telemetry_receiver.recv() {
+            let mut last_allocated_bytes = 0;
+            let mut last_allocation_count = 0;
+            let mut last_freed = 0;
+
+            while let Ok(mut epoch) = receiver.recv() {
                 // Now the inference thread is no longer updating the completed
                 // epoch, we can save it.
 
@@ -382,12 +380,11 @@ pub fn spawn_telemetry_thread<S: AsRef<str>>(
                     current_freed_bytes.saturating_sub(last_freed);
                 last_freed = current_freed_bytes;
 
-                csv_file
-                    .write_record(&epoch)
+                csv.write_record(&epoch)
                     .expect("Failed to write telemetry record to CSV");
 
                 epoch.reset();
-                telemetry_sender
+                sender
                     .send(epoch)
                     .expect("Failed to send clean telemetry epoch");
             }
