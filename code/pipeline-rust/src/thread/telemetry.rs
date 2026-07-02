@@ -1,9 +1,9 @@
 use std::{
     sync::{
         atomic::Ordering,
-        mpsc::{Receiver, SyncSender, sync_channel},
+        mpsc::{Receiver, SyncSender},
     },
-    thread,
+    thread::{self, JoinHandle},
     time::{Duration, Instant},
 };
 
@@ -314,7 +314,9 @@ impl TelemetryWriter {
 /// the thread could not be spawned.
 pub fn spawn_telemetry_thread<S: AsRef<str>>(
     stream_name: S,
-) -> Result<TelemetryWriter> {
+    telemetry_sender: SyncSender<TelemetryEpoch>,
+    telemetry_receiver: Receiver<TelemetryEpoch>,
+) -> Result<JoinHandle<()>> {
     let t_stream_name = stream_name.as_ref().to_string();
 
     // Create a pair of channels for double-buffered histogram processing. The
@@ -322,10 +324,10 @@ pub fn spawn_telemetry_thread<S: AsRef<str>>(
     // telemetry thread for processing, and the telemetry thread will send a
     // fresh epoch to the inference thread for recording the next set of
     // measurements.
-    let (inference_sender, telemetry_receiver) =
-        sync_channel::<TelemetryEpoch>(3);
-    let (telemetry_sender, inference_receiver) =
-        sync_channel::<TelemetryEpoch>(3);
+    // let (inference_sender, telemetry_receiver) =
+    //     sync_channel::<TelemetryEpoch>(3);
+    // let (telemetry_sender, inference_receiver) =
+    //     sync_channel::<TelemetryEpoch>(3);
 
     // The `TelemetryEpoch` is used to record measurements, and is what is
     // communicated between the inference thread and the telemetry thread. Three
@@ -393,7 +395,5 @@ pub fn spawn_telemetry_thread<S: AsRef<str>>(
         .with_context(|| {
             let stream_name = stream_name.as_ref().to_string();
             format!("Failed to spawn telemetry thread for '{stream_name}'")
-        })?;
-
-    TelemetryWriter::try_new(inference_sender, inference_receiver)
+        })
 }

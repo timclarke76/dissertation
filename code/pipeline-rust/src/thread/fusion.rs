@@ -1,24 +1,26 @@
-use std::{sync::mpsc::Receiver, time::Duration};
+use std::{
+    sync::mpsc::{Receiver, sync_channel},
+    time::Duration,
+};
 
 use anyhow::{Context, Result};
 
-use super::spawn_telemetry_thread;
-
 use crate::os::{ShmBuffer, ShmFrame, now_nanos};
+use super::{TelemetryEpoch, TelemetryWriter, spawn_telemetry_thread};
 
 /// Spawns a thread for late fusion of frames from a shared memory queue. Fusion
 /// is only performed when an RGB frame is received, with the latest
 /// accelerometer and gyrometer frames.
-/// #Args
-/// * `receiver` - A `Receiver<ShmFrame>` that receives frames to be
-///   processed.
+///
+/// * `receiver` - A reference to the `Receiver` used to receive frames from the
+///   inference threads.
 /// * `stream_names` - A vector of stream names to be used for telemetry and
 ///   thread identification. The first name in the vector is used for the RGB
 ///   stream, the second for the accelerometer stream, and the third for the
 ///   gyroscope stream.
-/// #Returns
-/// A `Result` containing the `JoinHandle` of the spawned thread, or an error if
-/// the thread could not be spawned.
+///
+/// Returns a `Result` containing the `JoinHandle` of the spawned thread, or an
+/// error if the thread could not be spawned.
 pub fn spawn_fusion_thread(
     receiver: Receiver<ShmFrame>,
     stream_names: Vec<String>,
@@ -26,13 +28,29 @@ pub fn spawn_fusion_thread(
     std::thread::Builder::new()
         .name("fusion".to_string())
         .spawn(move || {
-            let mut telemetry_writers: Vec<_> = stream_names
-                .iter()
-                .map(|name| {
-                    spawn_telemetry_thread(name.as_str())
-                        .expect("Failed to spawn telemetry thread")
-                })
-                .collect();
+            let (telemetry_handles, mut telemetry_writers): (Vec<_>, Vec<_>) =
+                stream_names
+                    .iter()
+                    .map(|name| {
+                        let (telemetry_sender, inference_receiver) =
+                            sync_channel::<TelemetryEpoch>(3);
+                        let (inference_sender, telemetry_receiver) =
+                            sync_channel::<TelemetryEpoch>(3);
+                        (
+                            spawn_telemetry_thread(
+                                name.as_str(),
+                                telemetry_sender,
+                                telemetry_receiver,
+                            )
+                            .expect("Failed to spawn telemetry thread"),
+                            TelemetryWriter::try_new(
+                                inference_sender,
+                                inference_receiver,
+                            )
+                            .expect("Failed to create telemetry writer"),
+                        )
+                    })
+                    .unzip();
 
             // Required to save the latest accelerometer and gyrometer
             // timestamps for fusion telemetry.
@@ -100,6 +118,10 @@ pub fn spawn_fusion_thread(
                         unreachable!("Unknown stream ID: {}", frame.stream_id);
                     }
                 }
+            }
+
+            for handle in telemetry_handles {
+                handle.join().unwrap();
             }
         })
         .context("Failed to spawn fusion thread")
