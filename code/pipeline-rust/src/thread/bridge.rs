@@ -16,14 +16,14 @@ use crate::{
 /// Spawns a new thread that continuously reads frames from a shared memory
 /// buffer and pushes them into a queue, applying the specified backpressure
 /// policy when the queue is full.
-/// #Args
+///
 /// * `shm_name` - The name of the shared memory buffer to read from.
 /// * `stream_id` - The stream ID associated with this bridge.
-/// * `queue` - A reference to the queue where frames will be pushed.
-/// * `policy` - The backpressure policy to apply when the queue is full.
-/// #Returns
-/// A `Result` containing the join handle for the spawned thread, or an error if
-/// the thread could not be spawned.
+/// * `queue` - A reference to the `Queue` where frames will be pushed.
+/// * `policy` - The backpressure `Policy` to apply when the queue is full.
+///
+/// Returns a `Result` containing the join handle for the spawned thread, or an
+/// error if the thread could not be spawned.
 pub fn spawn_bridge_thread<S: AsRef<str>>(
     shm_name: S,
     stream_id: usize,
@@ -70,15 +70,13 @@ pub fn spawn_bridge_thread<S: AsRef<str>>(
                     // the "danger zone" (the region between the threshold and
                     // the queue's capacity) we are, and scaled between a
                     // minimum and maximum ratio.
-                    let len = q.len();
-                    let capacity = q.capacity();
 
-                    if len >= threshold {
+                    if q.len() >= threshold {
                         // Determine how deep into the danger zone we are, and
                         // scale the decimation ratio accordingly.
                         // `saturating_sub` avoids underflow and wraparound.
-                        let zone_size = capacity.saturating_sub(threshold);
-                        let depth = len.saturating_sub(threshold);
+                        let zone_size = q.capacity().saturating_sub(threshold);
+                        let depth = q.len().saturating_sub(threshold);
 
                         // Calculate a decimation ratio scaled between min_ratio
                         // and max_ratio based on how deep into the danger zone
