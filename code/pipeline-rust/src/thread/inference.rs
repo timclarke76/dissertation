@@ -13,23 +13,20 @@ use crate::{
     queue::Queue,
 };
 
-/// Spawns a thread that simulates inference processing on frames from a shared
-/// memory queue. The thread will process frames at a specified inference time
-/// and record latency telemetry for each processed frame. The thread will
-/// exit after 10 seconds of processing, printing a summary of processed and
-/// dropped frames, as well as the current queue depth.
-/// #Args
-/// * `stream_name` - The name of the stream to be used for telemetry and thread
-///   identification.
-/// * `queue` - An `Arc<Mutex<Queue<ShmFrame>>>` that holds the frames
-///   to be processed.
-/// * `sender` - A `SyncSender<ShmFrame>` used to send processed frames
-///   to the next stage in the pipeline.
-/// * `inference_time` - The duration to simulate inference processing for each
-///   frame.
-/// #Returns
-/// A `Result` containing the `JoinHandle` of the spawned thread, or an error if
-/// the thread could not be spawned.
+/// Spawns a new thread that continuously processes frames from a shared memory
+/// buffer and sends them to the next stage in the pipeline, simulating
+/// inference processing time for each frame.
+///
+/// * `stream_name` - The name of the stream associated with this inference
+///   thread.
+/// * `queue` - A reference to the Queue from which frames will be popped for
+///   processing.
+/// * `sender` - A reference to the Sender used to send processed frames to the
+///   next stage in the pipeline.
+/// * `inference_time` - The simulated time taken to process each frame.
+///
+/// Returns a `Result` containing the `JoinHandle` of the spawned thread, or an
+/// error if the thread could not be spawned.
 pub fn spawn_inference_thread<S: AsRef<str>>(
     stream_name: S,
     queue: &Arc<Mutex<Queue<ShmFrame>>>,
