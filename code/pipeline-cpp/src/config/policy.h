@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <variant>
 
 /// \brief Blocks the producer until space is available in the consumer buffer.
 struct BoundedQueue
