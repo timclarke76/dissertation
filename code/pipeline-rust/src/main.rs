@@ -18,11 +18,11 @@ mod shm;
 mod thread;
 
 use allocator::TrackingAllocator;
-use config::{Args, Settings};
+use config::{Args, Policy, Settings};
 use queue::Queue;
 use shm::{SharedMemoryBuffer, SharedMemoryFrame};
 use thread::{
-    Policy, spawn_bridge_thread, spawn_fusion_thread, spawn_inference_thread,
+    spawn_bridge_thread, spawn_fusion_thread, spawn_inference_thread,
 };
 
 #[global_allocator]
