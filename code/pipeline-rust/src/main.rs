@@ -14,13 +14,12 @@ mod allocator;
 mod config;
 mod os;
 mod queue;
-mod shm;
 mod thread;
 
 use allocator::TrackingAllocator;
 use config::{Args, Policy, Settings};
+use os::{ShmBuffer, ShmFrame};
 use queue::Queue;
-use shm::{ShmBuffer, ShmFrame};
 use thread::{
     spawn_bridge_thread, spawn_fusion_thread, spawn_inference_thread,
 };

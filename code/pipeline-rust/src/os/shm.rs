@@ -15,7 +15,7 @@ use nix::{
     },
 };
 
-use crate::os::now_nanos;
+use super::now_nanos;
 
 /// Represents the header of the shared memory buffer. Aligned to 64 bytes to
 /// ensure proper memory alignment for atomic operations.

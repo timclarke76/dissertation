@@ -9,8 +9,8 @@ use anyhow::{Context, Result};
 
 use crate::{
     config::Policy,
+    os::{ShmBuffer, ShmFrame},
     queue::Queue,
-    shm::{ShmBuffer, ShmFrame},
 };
 
 /// Spawns a new thread that continuously reads frames from a shared memory

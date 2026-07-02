@@ -9,8 +9,8 @@ use anyhow::{Context, Result};
 
 use crate::{
     os::now_nanos,
+    os::{ShmBuffer, ShmFrame},
     queue::Queue,
-    shm::{ShmBuffer, ShmFrame},
 };
 
 /// Spawns a thread that simulates inference processing on frames from a shared
