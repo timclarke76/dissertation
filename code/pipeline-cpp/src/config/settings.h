@@ -22,7 +22,7 @@ public:
   };
 
 public:
-  /// \brief Creates a new `Settings` instance by loading configuration from a
+  /// \brief Creates a new Settings instance by loading configuration from a
   /// TOML file specified by the `args` argument, and applying command-line
   /// arguments.
   ///
@@ -32,7 +32,7 @@ public:
   /// \param args The command-line arguments that supplies the settings
   /// filename, and may override configuration settings.
   ///
-  /// \return A `Result` containing the `Settings` instance if successful, or an
+  /// \return A Result containing the Settings instance if successful, or an
   /// error if the configuration could not be loaded or deserialized.
   Settings(const Args& args);
 
@@ -41,7 +41,7 @@ private:
   ///
   /// \param tbl The TOML table containing the event queue configuration.
   /// \param config_name The name of the configuration to parse.
-  /// \return A `QueueConfig` instance containing the parsed configuration.
+  /// \return A QueueConfig instance containing the parsed configuration.
   static QueueConfig parse_event_queue_config(const toml::table& tbl,
     const std::string& config_name);
 
@@ -49,7 +49,7 @@ private:
   ///
   /// \param tbl The TOML table containing the policy configuration.
   /// \param policy_name The name of the policy to parse.
-  /// \return A `Policy` instance containing the parsed policy.
+  /// \return A Policy instance containing the parsed policy.
   static Policy parse_policy(const toml::table& tbl,
     const std::string& policy_name);
 
