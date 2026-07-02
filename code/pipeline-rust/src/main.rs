@@ -30,7 +30,7 @@ static GLOBAL: TrackingAllocator = TrackingAllocator;
 
 fn main() -> Result<()> {
     let args = Args::try_parse()?;
-    let settings = Settings::try_new("settings", args)?;
+    let settings = Settings::try_new(args)?;
 
     let configs = [
         (

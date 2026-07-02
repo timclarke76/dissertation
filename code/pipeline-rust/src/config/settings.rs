@@ -2,8 +2,17 @@ use anyhow::{Context, Result};
 use config::Config;
 use serde::Deserialize;
 
-use super::args::Args;
-use crate::thread::Policy;
+use super::{args::Args, policy::Policy};
+
+/// Represents the configuration for an event queue.
+#[derive(Deserialize)]
+pub struct EventQueueConfig {
+    /// The name of the queue.
+    pub name: String,
+
+    /// The capacity of the queue in frames.
+    pub capacity_frames: usize,
+}
 
 /// Represents the configuration settings for the application.
 #[derive(Deserialize)]
@@ -27,34 +36,20 @@ pub struct Settings {
     pub gyroscope_policy: Policy,
 }
 
-#[derive(Deserialize)]
-pub struct EventQueueConfig {
-    /// The name of the queue.
-    pub name: String,
-
-    /// The capacity of the queue in frames.
-    pub capacity_frames: usize,
-}
-
 impl Settings {
-    /// Creates a new `Settings` instance by loading configuration from a file
-    /// and applying command-line arguments. If a setting is provided in the
-    /// command-line arguments, it will override the corresponding value from
-    /// the configuration file.
-    /// #Args
-    /// * `default_source`: The default path to the configuration file.
+    /// Creates a new `Settings` instance by loading configuration from a TOML
+    /// file specified by the `args` argument, and applying command-line
+    /// arguments. If a setting is provided in the command-line arguments, it
+    /// will override the corresponding value from the configuration file.
+    ///
     /// * `args`: The command-line arguments that may override configuration
     ///   settings.
-    /// #Returns
-    /// A `Result` containing the `Settings` instance if successful, or an
-    /// error if the configuration could not be loaded or deserialized.
-    pub fn try_new<S: AsRef<str>>(
-        default_source: S,
-        args: Args,
-    ) -> Result<Self> {
-        let source = args
-            .settings
-            .unwrap_or_else(|| default_source.as_ref().to_string());
+    ///
+    /// Returns a `Result` containing the `Settings` instance if successful, or
+    /// an error if the configuration could not be loaded or deserialized.
+    pub fn try_new(args: Args) -> Result<Self> {
+        let source =
+            args.settings.context("Settings file path not provided")?;
 
         let settings = Config::builder()
             .add_source(config::File::with_name(&source))
