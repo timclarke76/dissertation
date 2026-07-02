@@ -10,15 +10,13 @@ use std::{
 use anyhow::Result;
 use clap::Parser;
 
-mod allocator;
 mod config;
 mod os;
 mod queue;
 mod thread;
 
-use allocator::TrackingAllocator;
 use config::{Args, Policy, Settings};
-use os::{ShmBuffer, ShmFrame};
+use os::{ShmBuffer, ShmFrame, TrackingAllocator};
 use queue::Queue;
 use thread::{
     spawn_bridge_thread, spawn_fusion_thread, spawn_inference_thread,

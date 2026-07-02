@@ -10,7 +10,7 @@ use std::{
 use anyhow::{Context, Result};
 use hdrhistogram::Histogram;
 
-use crate::allocator::{ALLOCATED_BYTES, ALLOCATION_COUNT, FREED_BYTES};
+use crate::os::{ALLOCATED_BYTES, ALLOCATION_COUNT, FREED_BYTES};
 
 /// A telemetry epoch that contains six `HdrHistogram` instances for recording
 /// latency measurements in nanoseconds. Each histogram tracks latency for a
