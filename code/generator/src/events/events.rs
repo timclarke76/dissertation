@@ -47,13 +47,7 @@ pub struct Events {
     // The optional runtime duration in seconds. If set, the application will
     // run for the specified duration and then exit. If not set, the application
     // will run virtually indefinitely until interrupted.
-    runtime_seconds: Option<u64>,
-
-    // The actual runtime duration in nanoseconds, calculated from
-    // `runtime_seconds`. If `runtime_seconds` is not set, this will be set to
-    // `u64::MAX`, allowing the application to run virtually indefinitely until
-    // interrupted.
-    runtime_nanos: u64,
+    runtime_seconds: Option<usize>,
 
     is_interrupted: Arc<AtomicBool>,
 }
@@ -83,6 +77,7 @@ impl Events {
                         config.fps * settings.load,
                         min as u8,
                         max as u8,
+                        settings.runtime_seconds,
                     )
                     .with_context(|| {
                         format!(
@@ -104,6 +99,7 @@ impl Events {
                         config.fps * settings.load,
                         min as f32,
                         max as f32,
+                        settings.runtime_seconds,
                     )
                     .with_context(|| {
                         format!(
@@ -139,8 +135,6 @@ impl Events {
             events,
             min_sleep_nanos: settings.min_sleep_nanos,
             runtime_seconds: settings.runtime_seconds,
-            runtime_nanos: 1_000_000_000
-                * settings.runtime_seconds.unwrap_or(u64::MAX),
             is_interrupted,
         })
     }
@@ -155,18 +149,11 @@ impl Events {
     /// issues occur during execution.
     pub fn run(&mut self) -> Result<Report> {
         // Initialise some variables for later reporting.
-        let start_time_nanos: u64 =
-            now_nanos().context("Failed to get current time for report")?;
         let mut curr_time_nanos: u64;
         let mut main_loop_cycles: u64 = 0;
         let mut drain_cycles: u64 = 0;
         let mut sleep_calls: u64 = 0;
         let mut spin_calls: u64 = 0;
-
-        // Initialise all events to start immediately.
-        self.events.iter_mut().for_each(|event| {
-            event.set_next_run_nanos(start_time_nanos);
-        });
 
         println!("Waiting for pipelines to connect.");
         while !self.events.iter().all(|event| event.is_pipeline_ready()) {
@@ -180,6 +167,14 @@ impl Events {
         }
         println!("Pipelines connected.");
 
+        let start_time_nanos: u64 =
+            now_nanos().context("Failed to get current time for report")?;
+
+        // Initialise all events to start immediately.
+        self.events.iter_mut().for_each(|event| {
+            event.set_next_run_nanos(start_time_nanos);
+        });
+
         loop {
             curr_time_nanos =
                 now_nanos().context("Failed to get current time for report")?;
@@ -188,21 +183,13 @@ impl Events {
                 break;
             }
 
-            if curr_time_nanos - start_time_nanos >= self.runtime_nanos {
-                println!(
-                    "Reached runtime limit of {:.2} seconds.",
-                    self.runtime_nanos / 1_000_000_000
-                );
-
-                break;
-            }
-
             main_loop_cycles += 1;
             drain_cycles += self.drain()?;
 
-            let event = self
-                .next_event()
-                .context("No events found in the event list for run loop")?;
+            let event = match self.next_event() {
+                None => break,
+                Some(event) => event,
+            };
 
             let next_run_time_nanos = event.next_run_nanos();
 
@@ -283,9 +270,12 @@ impl Events {
             let now =
                 now_nanos().context("Failed to get current time for drain")?;
 
-            let event = self
-                .next_event()
-                .context("No events found in the event list for drain")?;
+            let event = match self.next_event() {
+                None => break,
+                Some(event) => {
+                    event
+                }
+            };
 
             if event.next_run_nanos() > now {
                 break;
@@ -307,7 +297,9 @@ impl Events {
     /// found, or `None` if there are no events in the list.
     #[inline]
     fn next_event(&mut self) -> Option<&mut Box<dyn EventTrait>> {
-        self.events.iter_mut().min_by_key(|e| e.next_run_nanos())
+        self.events.iter_mut()
+            .filter(|e| !e.is_finished())
+            .min_by_key(|e| e.next_run_nanos())
     }
 
     /// Spins in a tight loop, using CPU hints, until the current time is at

@@ -18,7 +18,7 @@ pub struct Report {
 
     /// The configure runtime duration in seconds. If not set, the application
     /// ran indefinitely until interrupted.
-    pub runtime_seconds: Option<u64>,
+    pub runtime_seconds: Option<usize>,
 
     /// The actual runtime duration in nanoseconds.
     pub elapsed_time_nanos: u64,

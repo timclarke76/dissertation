@@ -50,6 +50,13 @@ pub trait EventTrait {
 
     /// Returns the number of times the event has been executed.
     fn run_count(&self) -> u64;
+
+    /// Returns whether the event has finished executing based on its runtime
+    /// configuration. If the event has a specified runtime in frames, this
+    /// method checks if the run count has reached or exceeded that limit. If no
+    /// runtime is specified, the event is considered to be running indefinitely
+    /// and this method will always return `false`.
+    fn is_finished(&self) -> bool;
 }
 
 /// Represents an event that generates random data of type `T` and writes it to
@@ -95,6 +102,10 @@ pub struct Event<T> {
 
     /// The number of times the event has been executed.
     run_count: u64,
+
+    /// How long to generate events before exiting (in frames). If not provided,
+    /// the event will run indefinitely.
+    runtime_frames: Option<u64>,
 }
 
 impl<T> Event<T>
@@ -130,6 +141,7 @@ where
         fps: f32,
         min: T,
         max: T,
+        runtime_seconds: Option<usize>,
     ) -> Result<Self> {
         let name = name.into();
 
@@ -196,6 +208,7 @@ where
             interval_nanos: (1_000_000_000.0 / fps) as u64,
             next_run_nanos: 0,
             run_count: 0,
+            runtime_frames: runtime_seconds.map(|s| (s as f32 * fps) as u64),
         })
     }
 }
@@ -283,6 +296,12 @@ where
         self.run_count += 1;
         self.next_run_nanos += self.interval_nanos;
 
+        if let Some(runtime_frames) = self.runtime_frames {
+            if self.run_count() >= runtime_frames {
+                self.buffer.set_pipeline_finished();
+            }
+        }
+
         Ok(())
     }
 
@@ -295,5 +314,18 @@ where
     /// Returns whether the pipeline is ready for the next event execution.
     fn is_pipeline_ready(&self) -> bool {
         self.buffer.is_pipeline_ready()
+    }
+
+    /// Returns whether the event has finished executing based on its runtime
+    /// configuration. If the event has a specified runtime in frames, this
+    /// method checks if the run count has reached or exceeded that limit. If no
+    /// runtime is specified, the event is considered to be running indefinitely
+    /// and this method will always return `false`.
+    fn is_finished(&self) -> bool {
+        if let Some(runtime_frames) = self.runtime_frames {
+            self.run_count() >= runtime_frames
+        } else {
+            false
+        }
     }
 }

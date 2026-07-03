@@ -22,10 +22,10 @@ pub struct Settings {
     /// from returning immediately.
     pub min_sleep_nanos: u64,
 
-    /// The optional runtime duration in seconds. If set, the application will
-    /// run for the specified duration and then exit. If not set, the
-    /// application will run indefinitely until interrupted.
-    pub runtime_seconds: Option<u64>,
+    /// How long to generate events before exiting (in seconds). This is used in
+    /// conjuction with each event's FPS to determine how many events to
+    /// generate. If not provided, the application will run indefinitely.
+    pub runtime_seconds: Option<usize>,
 
     /// The output file path for the report.
     pub output: String,
@@ -108,6 +108,10 @@ impl Settings {
 
         if let Some(priority) = args.priority {
             settings.priority = priority;
+        }
+
+        if let Some(runtime_seconds) = args.runtime_seconds {
+            settings.runtime_seconds = Some(runtime_seconds);
         }
 
         if let Some(load) = args.load {

@@ -20,6 +20,12 @@ pub struct Args {
     #[arg(short, long)]
     pub load: Option<f32>,
 
+    /// How long to generate events before exiting (in seconds). This is used in
+    /// conjuction with each event's FPS to determine how many events to
+    /// generate. If not provided, the application will run indefinitely.
+    #[arg(short, long)]
+    pub runtime_seconds: Option<usize>,
+
     /// Output file path for the report.
     #[arg(short, long)]
     pub output: Option<String>,

@@ -292,10 +292,25 @@ impl ShmBuffer {
         }
     }
 
+    /// Checks if the pipeline is ready to receive data from the generator by
+    /// reading the `pipeline_stage` field in the header. Returns `true` if the
+    /// pipeline is ready, or `false` otherwise.
     pub fn is_pipeline_ready(&self) -> bool {
         unsafe {
             (*self.header).pipeline_stage.load(Ordering::Acquire)
                 == ShmHeader::READY
+        }
+    }
+
+    /// Sets the `pipeline_stage` field in the header to `FINISHED`, indicating
+    /// that the generator has finished writing data to the shared memory
+    /// buffer.
+    pub fn set_pipeline_finished(&mut self) {
+        unsafe {
+            (*self.header).pipeline_stage.store(
+                ShmHeader::FINISHED,
+                Ordering::Release,
+            );
         }
     }
 }
