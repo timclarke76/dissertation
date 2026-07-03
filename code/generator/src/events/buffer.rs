@@ -307,10 +307,9 @@ impl ShmBuffer {
     /// buffer.
     pub fn set_pipeline_finished(&mut self) {
         unsafe {
-            (*self.header).pipeline_stage.store(
-                ShmHeader::FINISHED,
-                Ordering::Release,
-            );
+            (*self.header)
+                .pipeline_stage
+                .store(ShmHeader::FINISHED, Ordering::Release);
         }
     }
 }

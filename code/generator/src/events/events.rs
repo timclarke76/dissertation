@@ -272,9 +272,7 @@ impl Events {
 
             let event = match self.next_event() {
                 None => break,
-                Some(event) => {
-                    event
-                }
+                Some(event) => event,
             };
 
             if event.next_run_nanos() > now {
@@ -297,7 +295,8 @@ impl Events {
     /// found, or `None` if there are no events in the list.
     #[inline]
     fn next_event(&mut self) -> Option<&mut Box<dyn EventTrait>> {
-        self.events.iter_mut()
+        self.events
+            .iter_mut()
             .filter(|e| !e.is_finished())
             .min_by_key(|e| e.next_run_nanos())
     }
