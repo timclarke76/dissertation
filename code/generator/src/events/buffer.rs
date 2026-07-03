@@ -57,7 +57,7 @@ impl ShmHeader {
     pub const READY: u64 = 1;
 
     /// The generator has finished writing data to the shared memory buffer.
-    pub const FINISHED: u64 = 1;
+    pub const FINISHED: u64 = 2;
 }
 
 /// Represents a shared memory buffer that can be used for communication between
