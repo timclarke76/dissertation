@@ -46,12 +46,18 @@ TelemetryWriter::Csv::write_epoch(const Epoch& epoch)
   std::vector<std::string> row;
 
   for (size_t i = 0; i < Epoch::NUM_LATENCY_MEASURES; ++i) {
-    row.push_back(
-      std::to_string(epoch.latency_nanos[i].value_at_percentile(50.0)));
-    row.push_back(
-      std::to_string(epoch.latency_nanos[i].value_at_percentile(99.0)));
-    row.push_back(
-      std::to_string(epoch.latency_nanos[i].value_at_percentile(99.9)));
+    const auto p50 =
+      static_cast<uint64_t>(epoch.latency_nanos[i].value_at_percentile(50.0));
+    row.push_back(std::to_string(p50));
+
+    const auto p99 =
+      static_cast<uint64_t>(epoch.latency_nanos[i].value_at_percentile(99.0));
+    row.push_back(std::to_string(p99));
+
+    const auto p99_9 =
+      static_cast<uint64_t>(epoch.latency_nanos[i].value_at_percentile(99.9));
+    row.push_back(std::to_string(p99_9));
+
     row.push_back(std::to_string(epoch.latency_nanos[i].max()));
   }
 
