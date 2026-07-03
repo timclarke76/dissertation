@@ -260,7 +260,7 @@ impl ShmBuffer {
 
                 return Ok(ShmFrame {
                     stream_id: self.stream_id,
-                    seq_num: frame_idx + 1,
+                    seq_num: self.frame_idx + 1,
                     timestamps: [t_generated, t_bridged, 0, 0, 0, 0],
                 });
             }
