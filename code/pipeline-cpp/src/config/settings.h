@@ -17,6 +17,9 @@ public:
     /// The name of the queue.
     std::string name;
 
+    /// The target frame rate for the queue in frames per second.
+    size_t fps;
+
     /// The capacity of the queue in frames.
     size_t capacity_frames;
   };

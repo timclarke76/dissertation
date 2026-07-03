@@ -38,6 +38,13 @@ Settings::parse_event_queue_config(const toml::table& tbl_in,
         std::format("Missing or invalid 'name' in {}", config_name));
     }
 
+    if (auto fps_node = (*tbl)["fps"].as<int64_t>()) {
+      config.fps = static_cast<size_t>(fps_node->get());
+    } else {
+      throw std::runtime_error(
+        std::format("Missing or invalid 'fps' in {}", config_name));
+    }
+
     if (auto cap_node = (*tbl)["capacity_frames"].as<int64_t>()) {
       config.capacity_frames = static_cast<size_t>(cap_node->get());
     } else {

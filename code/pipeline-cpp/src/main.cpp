@@ -18,16 +18,16 @@ using namespace std::chrono_literals;
 /// \brief Structure to hold configuration for each data stream.
 struct StreamConfig
 {
-  /// \brief The queue configuration for the data stream.
+  /// The queue configuration for the data stream.
   const Settings::QueueConfig& queue;
 
-  /// \brief The stream ID for the data stream.
+  /// The stream ID for the data stream.
   const size_t stream_id;
 
-  /// \brief The policy for handling the data stream.
+  /// The policy for handling the data stream.
   const Policy& policy;
 
-  /// \brief The simulated inference time for the data stream.
+  /// The simulated inference time for the data stream.
   const std::chrono::duration<double> inference_time;
 };
 
@@ -42,6 +42,10 @@ struct StreamConfig
 /// \param inference_sender A SyncSender<ShmBuffer::Frame> used to send
 /// processed frames to the fusion thread.
 /// \param policy The backpressure policy to apply when the queue is full.
+/// \param inference_time The simulated time taken to process each frame in the
+/// inference thread.
+/// \param inference_window The number of frames to process in each inference
+/// window.
 ///
 /// \returns A pair of std::jthread objects representing the bridge and
 /// inference threads, respectively.
@@ -51,12 +55,13 @@ spawn_bridge_and_inference_threads(const std::string& stream_name,
   const size_t queue_capacity,
   Sender<ShmBuffer::Frame>& inference_sender,
   const Policy& policy,
-  const std::chrono::duration<double>& inference_time)
+  const std::chrono::duration<double>& inference_time,
+  const size_t inference_window)
 {
   auto queue = std::make_shared<Queue<ShmBuffer::Frame>>(queue_capacity);
   auto bridge = spawn_bridge_thread(stream_name, stream_id, *queue, policy);
   auto inference = spawn_inference_thread(
-    stream_name, *queue, inference_sender, inference_time);
+    stream_name, *queue, inference_sender, inference_time, inference_window);
 
   return { std::move(bridge), std::move(inference) };
 }
@@ -90,10 +95,17 @@ main(const int argc, const char* const* argv)
   }};
   // clang-format on
 
+  // Calculate the total size of the channel between the inference threads and
+  // the fusion thread as the sum of the capacities of all queues. This ensures
+  // that the channel can hold all frames from the inference threads without
+  // blocking.
   size_t channel_size = 0;
+  size_t min_fps = std::numeric_limits<size_t>::max();
 
-  for (const auto& cfg : configs)
+  for (const auto& cfg : configs) {
     channel_size += cfg.queue.capacity_frames;
+    min_fps = std::min(min_fps, cfg.queue.fps);
+  }
 
   auto [inference_sender, fusion_receiver] =
     make_channel<ShmBuffer::Frame>(channel_size);
@@ -106,7 +118,8 @@ main(const int argc, const char* const* argv)
         cfg.queue.capacity_frames,
         inference_sender,
         cfg.policy,
-        cfg.inference_time);
+        cfg.inference_time,
+        size_t(cfg.queue.fps / min_fps));
 
     handles.push_back(std::move(bridge));
     handles.push_back(std::move(inference));

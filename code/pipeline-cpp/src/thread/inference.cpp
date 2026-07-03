@@ -9,9 +9,11 @@ std::jthread
 spawn_inference_thread(const std::string& stream_name,
   Queue<ShmBuffer::Frame>& queue,
   Sender<ShmBuffer::Frame>& sender,
-  const std::chrono::duration<double>& inference_time)
+  const std::chrono::duration<double>& time,
+  const size_t window)
 {
-  auto thread = std::jthread([stream_name, &sender, &queue, inference_time]() {
+  auto thread = std::jthread([stream_name, &sender, &queue, time, window]() {
+    size_t samples_collected = 0;
     const auto start_time = std::chrono::steady_clock::now();
 
     for (;;) {
@@ -20,15 +22,21 @@ spawn_inference_thread(const std::string& stream_name,
       transaction_lock.unlock();
 
       if (item.has_value()) {
-        item->timestamps[ShmBuffer::PIPELINE_IN_TS] = current_time_nanos();
-        std::this_thread::sleep_for(inference_time); // Simulate inference
-        item->timestamps[ShmBuffer::PIPELINE_OUT_TS] = current_time_nanos();
+        samples_collected++;
 
-        try {
-          sender.send(std::move(item.value()));
-        } catch (const std::exception& e) {
-          throw std::runtime_error(
-            std::format("Failed to send frame to output queue: {}", e.what()));
+        if (samples_collected >= window) {
+          item->timestamps[ShmBuffer::PIPELINE_IN_TS] = current_time_nanos();
+          std::this_thread::sleep_for(time); // Simulate inference
+          item->timestamps[ShmBuffer::PIPELINE_OUT_TS] = current_time_nanos();
+
+          try {
+            sender.send(std::move(item.value()));
+          } catch (const std::exception& e) {
+            throw std::runtime_error(std::format(
+              "Failed to send frame to output queue: {}", e.what()));
+          }
+
+          samples_collected = 0;
         }
       } else {
         spin_loop();
