@@ -13,7 +13,7 @@ use tui::render_report;
 
 fn main() -> Result<()> {
     let args = Args::try_parse()?;
-    let settings = Settings::try_new("generator", args)?;
+    let settings = Settings::try_new("settings", args)?;
 
     pin_to_core(settings.core)?;
     set_realtime_priority(settings.priority)?;
