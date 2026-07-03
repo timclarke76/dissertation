@@ -67,7 +67,7 @@ ShmBuffer::next_frame()
       const auto data = this->data_ptr_ + data_offset;
 
       Frame frame = {
-        stream_id_, frame_idx + 1, { 0, current_time_nanos(), 0, 0, 0, 0 }
+        stream_id_, frame_idx_ + 1, { 0, current_time_nanos(), 0, 0, 0, 0 }
       };
 
       std::memcpy(&frame.timestamps[0], data, sizeof(uint64_t));
