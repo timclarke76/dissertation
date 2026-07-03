@@ -38,6 +38,12 @@ struct ShmHeader {
     /// signal to consumers that a new frame has been written and is ready for
     /// processing.
     pub seq_num: AtomicU64,
+
+    /// The pipeline stage of the shared memory buffer. This field is used to
+    /// synchronise between the generator and the pipeline. Initialised to zero,
+    /// it is incremented to one when the pipeline is ready to receive data, and
+    /// incremented to two when the generator has finished writing data.
+    pub pipeline_stage: AtomicU64,
 }
 
 impl ShmHeader {
@@ -49,6 +55,16 @@ impl ShmHeader {
     /// The version of the shared memory buffer. It is set to 1 for the initial
     /// version. This field allows for backward compatibility in the future.
     pub const VERSION: u32 = 1;
+
+    /// The generator is waiting for the pipeline to be ready to receive data.
+    #[allow(unused)]
+    pub const WAITING: u64 = 0;
+
+    /// The pipeline is ready to receive data from the generator.
+    pub const READY: u64 = 1;
+
+    /// The generator has finished writing data to the shared memory buffer.
+    pub const FINISHED: u64 = 1;
 }
 
 /// Represents a single frame read from the shared memory buffer.
@@ -185,6 +201,12 @@ impl ShmBuffer {
             }
         }
 
+        unsafe {
+            (*header)
+                .pipeline_stage
+                .store(ShmHeader::READY, Ordering::Release);
+        }
+
         Ok(Self {
             name,
             stream_id,
@@ -286,11 +308,10 @@ impl ShmBuffer {
         let c_name = CString::new(name.as_str())
             .with_context(|| format!("Invalid shared memory name: '{name}'"))?;
 
-        let shm_fd =
-            shm_open(c_name.as_c_str(), OFlag::O_RDONLY, Mode::empty())
-                .with_context(|| {
-                    format!("Failed to open shared memory: '{name}'")
-                })?;
+        let shm_fd = shm_open(c_name.as_c_str(), OFlag::O_RDWR, Mode::empty())
+            .with_context(|| {
+                format!("Failed to open shared memory: '{name}'")
+            })?;
 
         let file = unsafe { File::from_raw_fd(shm_fd.into_raw_fd()) };
         let metadata = file.metadata().with_context(|| {
@@ -302,7 +323,7 @@ impl ShmBuffer {
             let mem = mmap(
                 None,
                 std::num::NonZeroUsize::new(len_bytes).unwrap(),
-                ProtFlags::PROT_READ,
+                ProtFlags::PROT_READ | ProtFlags::PROT_WRITE,
                 MapFlags::MAP_SHARED,
                 &file,
                 0,

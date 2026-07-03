@@ -34,6 +34,9 @@ ShmBuffer::ShmBuffer(const std::string_view& name, const size_t stream_id)
   data_ptr_ = reinterpret_cast<char*>(header_) + sizeof(Header);
   capacity_frames_ = header_->capacity_frames;
   frame_size_bytes_ = header_->frame_size_bytes;
+
+  header_->pipeline_stage.store(
+    ShmBuffer::Header::READY, std::memory_order_release);
 }
 
 ShmBuffer::Frame
@@ -84,7 +87,7 @@ ShmBuffer::next_frame()
 ShmBuffer::Header*
 ShmBuffer::open_shm_file()
 {
-  const int fd = shm_open(name_.c_str(), O_RDONLY, 0);
+  const int fd = shm_open(name_.c_str(), O_RDWR, 0);
 
   if (fd == -1) {
     throw std::runtime_error(std::format(
@@ -101,7 +104,8 @@ ShmBuffer::open_shm_file()
         std::strerror(errno)));
   }
 
-  void* ptr = mmap(nullptr, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+  void* ptr =
+    mmap(nullptr, sb.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
   if (ptr == MAP_FAILED) {
     close(fd);

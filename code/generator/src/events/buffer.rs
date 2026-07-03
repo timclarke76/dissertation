@@ -41,6 +41,23 @@ pub struct ShmHeader {
     /// signal to consumers that a new frame has been written and is ready for
     /// processing.
     pub seq_num: AtomicU64,
+
+    /// The pipeline stage of the shared memory buffer. This field is used to
+    /// synchronise between the generator and the pipeline. Initialised to zero,
+    /// it is incremented to one when the pipeline is ready to receive data, and
+    /// incremented to two when the generator has finished writing data.
+    pub pipeline_stage: AtomicU64,
+}
+
+impl ShmHeader {
+    /// The generator is waiting for the pipeline to be ready to receive data.
+    pub const WAITING: u64 = 0;
+
+    /// The pipeline is ready to receive data from the generator.
+    pub const READY: u64 = 1;
+
+    /// The generator has finished writing data to the shared memory buffer.
+    pub const FINISHED: u64 = 1;
 }
 
 /// Represents a shared memory buffer that can be used for communication between
@@ -238,6 +255,10 @@ impl ShmBuffer {
             (*header).frame_size_bytes = frame_size_bytes as u32;
             (*header).capacity_frames = capacity_frames as u32;
             std::ptr::write(&mut (*header).seq_num, AtomicU64::new(0));
+            std::ptr::write(
+                &mut (*header).pipeline_stage,
+                AtomicU64::new(ShmHeader::WAITING),
+            );
         }
 
         Ok(header)
@@ -268,6 +289,13 @@ impl ShmBuffer {
     pub fn commit(&mut self) {
         unsafe {
             (*self.header).seq_num.fetch_add(1, Ordering::Release);
+        }
+    }
+
+    pub fn is_pipeline_ready(&self) -> bool {
+        unsafe {
+            (*self.header).pipeline_stage.load(Ordering::Acquire)
+                == ShmHeader::READY
         }
     }
 }

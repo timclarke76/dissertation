@@ -168,6 +168,18 @@ impl Events {
             event.set_next_run_nanos(start_time_nanos);
         });
 
+        println!("Waiting for pipelines to connect.");
+        while !self.events.iter().all(|event| event.is_pipeline_ready()) {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+
+            if self.is_interrupted.load(Ordering::Relaxed) {
+                return Err(anyhow::anyhow!(
+                    "Interrupted while waiting for consumers to connect"
+                ));
+            }
+        }
+        println!("Pipelines connected.");
+
         loop {
             curr_time_nanos =
                 now_nanos().context("Failed to get current time for report")?;

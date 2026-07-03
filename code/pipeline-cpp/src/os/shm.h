@@ -23,6 +23,15 @@ private:
     /// version. This field allows for backward compatibility in the future.
     static constexpr uint32_t VERSION = 1;
 
+    /// The generator is waiting for the pipeline to be ready to receive data.
+    static constexpr uint64_t WAITING = 0;
+
+    /// The pipeline is ready to receive data from the generator.
+    static constexpr uint64_t READY = 1;
+
+    /// The generator has finished writing data to the shared memory buffer.
+    static constexpr uint64_t FINISHED = 2;
+
     /// A magic number used to identify the shared memory buffer.
     uint32_t magic;
 
@@ -40,6 +49,12 @@ private:
     /// signal to consumers that a new frame has been written and is ready for
     /// processing.
     std::atomic<uint64_t> seq_num;
+
+    /// The pipeline stage of the shared memory buffer. This field is used to
+    /// synchronise between the generator and the pipeline. Initialised to zero,
+    /// it is incremented to one when the pipeline is ready to receive data, and
+    /// incremented to two when the generator has finished writing data.
+    std::atomic<uint32_t> pipeline_stage;
   };
 
 public:

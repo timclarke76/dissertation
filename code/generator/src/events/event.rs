@@ -36,6 +36,9 @@ pub trait EventTrait {
     /// Returns the next scheduled run time for the event in nanoseconds.
     fn next_run_nanos(&self) -> u64;
 
+    /// Returns whether the pipeline is ready for the next event execution.
+    fn is_pipeline_ready(&self) -> bool;
+
     /// Executes the event, generating random data and writing it to the shared
     /// memory buffer. This method also updates the next scheduled run time and
     /// increments the run count.
@@ -287,5 +290,10 @@ where
     #[inline]
     fn run_count(&self) -> u64 {
         self.run_count
+    }
+
+    /// Returns whether the pipeline is ready for the next event execution.
+    fn is_pipeline_ready(&self) -> bool {
+        self.buffer.is_pipeline_ready()
     }
 }
