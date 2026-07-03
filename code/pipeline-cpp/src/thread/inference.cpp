@@ -7,48 +7,49 @@
 
 std::jthread
 spawn_inference_thread(const std::string& stream_name,
-  Queue<ShmBuffer::Frame>& queue,
-  Sender<ShmBuffer::Frame>& sender,
+  std::shared_ptr<Queue<ShmBuffer::Frame>> queue,
+  Sender<ShmBuffer::Frame> sender,
   const std::chrono::duration<double>& time,
   const size_t window)
 {
-  auto thread = std::jthread([stream_name, &sender, &queue, time, window]() {
-    size_t samples_collected = 0;
-    const auto start_time = std::chrono::steady_clock::now();
+  auto thread =
+    std::jthread([stream_name, sender, queue, time, window]() mutable {
+      size_t samples_collected = 0;
+      const auto start_time = std::chrono::steady_clock::now();
 
-    for (;;) {
-      std::unique_lock<std::mutex> transaction_lock(queue.mutex);
-      auto item = queue.pop();
-      transaction_lock.unlock();
+      for (;;) {
+        std::unique_lock<std::mutex> transaction_lock(queue->mutex);
+        auto item = queue->pop();
+        transaction_lock.unlock();
 
-      if (item.has_value()) {
-        samples_collected++;
+        if (item.has_value()) {
+          samples_collected++;
 
-        if (samples_collected >= window) {
-          item->timestamps[ShmBuffer::PIPELINE_IN_TS] = current_time_nanos();
-          std::this_thread::sleep_for(time); // Simulate inference
-          item->timestamps[ShmBuffer::PIPELINE_OUT_TS] = current_time_nanos();
+          if (samples_collected >= window) {
+            item->timestamps[ShmBuffer::PIPELINE_IN_TS] = current_time_nanos();
+            std::this_thread::sleep_for(time); // Simulate inference
+            item->timestamps[ShmBuffer::PIPELINE_OUT_TS] = current_time_nanos();
 
-          try {
-            sender.send(std::move(item.value()));
-          } catch (const std::exception& e) {
-            throw std::runtime_error(std::format(
-              "Failed to send frame to output queue: {}", e.what()));
+            try {
+              sender.send(std::move(item.value()));
+            } catch (const std::exception& e) {
+              throw std::runtime_error(std::format(
+                "Failed to send frame to output queue: {}", e.what()));
+            }
+
+            samples_collected = 0;
           }
-
-          samples_collected = 0;
+        } else {
+          spin_loop();
         }
-      } else {
-        spin_loop();
-      }
 
-      if (std::chrono::steady_clock::now() - start_time >
-          std::chrono::seconds(10)) {
-        std::cout << "Benchmark complete. Exiting.\n";
-        return;
+        if (std::chrono::steady_clock::now() - start_time >
+            std::chrono::seconds(10)) {
+          std::cout << "Benchmark complete. Exiting.\n";
+          return;
+        }
       }
-    }
-  });
+    });
 
   pthread_setname_np(thread.native_handle(),
     std::format("inference_{}", stream_name).substr(0, 15).c_str());

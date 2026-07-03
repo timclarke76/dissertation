@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <thread>
 
@@ -14,11 +15,11 @@
 ///
 /// \param shm_name The name of the shared memory buffer to read from.
 /// \param stream_id The stream ID associated with this bridge.
-/// \param queue A reference to the Queue where frames will be pushed.
+/// \param queue A shared pointer to the Queue into which frames will be pushed.
 /// \param policy The backpressure Policy to apply when the queue is full.
 /// \return A std::jthread representing the spawned thread.
 std::jthread
 spawn_bridge_thread(const std::string& shm_name,
   const size_t stream_id,
-  Queue<ShmBuffer::Frame>& queue,
+  std::shared_ptr<Queue<ShmBuffer::Frame>> queue,
   const Policy& policy);

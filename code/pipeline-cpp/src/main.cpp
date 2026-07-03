@@ -53,15 +53,15 @@ std::pair<std::jthread, std::jthread>
 spawn_bridge_and_inference_threads(const std::string& stream_name,
   const size_t stream_id,
   const size_t queue_capacity,
-  Sender<ShmBuffer::Frame>& inference_sender,
+  Sender<ShmBuffer::Frame> inference_sender,
   const Policy& policy,
   const std::chrono::duration<double>& inference_time,
   const size_t inference_window)
 {
   auto queue = std::make_shared<Queue<ShmBuffer::Frame>>(queue_capacity);
-  auto bridge = spawn_bridge_thread(stream_name, stream_id, *queue, policy);
+  auto bridge = spawn_bridge_thread(stream_name, stream_id, queue, policy);
   auto inference = spawn_inference_thread(
-    stream_name, *queue, inference_sender, inference_time, inference_window);
+    stream_name, queue, inference_sender, inference_time, inference_window);
 
   return { std::move(bridge), std::move(inference) };
 }

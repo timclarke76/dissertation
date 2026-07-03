@@ -1,5 +1,6 @@
 #pragma once
 #include <chrono>
+#include <memory>
 #include <thread>
 
 #include <os/channel.h>
@@ -12,16 +13,15 @@
 ///
 /// \param stream_name The name of the stream associated with this inference
 /// thread.
-/// \param queue A reference to the Queue from which frames will be popped for
-/// processing.
-/// \param sender A reference to the Sender used to send processed frames to the
-/// next stage in the pipeline.
+/// \param queue A shared pointer to the Queue from which frames will be popped.
+/// \param sender The Sender used to send processed frames to the next stage in
+/// the pipeline.
 /// \param time The simulated time taken to process each frame.
 /// \param window The number of frames to process in each inference window.
 /// \return A std::jthread representing the spawned inference thread.
 std::jthread
 spawn_inference_thread(const std::string& stream_name,
-  Queue<ShmBuffer::Frame>& queue,
-  Sender<ShmBuffer::Frame>& sender,
+  std::shared_ptr<Queue<ShmBuffer::Frame>> queue,
+  Sender<ShmBuffer::Frame> sender,
   const std::chrono::duration<double>& time,
   const size_t window);

@@ -14,10 +14,10 @@ template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 std::jthread
 spawn_bridge_thread(const std::string& shm_name,
   const size_t stream_id,
-  Queue<ShmBuffer::Frame>& queue,
+  std::shared_ptr<Queue<ShmBuffer::Frame>> queue,
   const Policy& policy)
 {
-  auto thread = std::jthread([shm_name, stream_id, &queue, policy]() {
+  auto thread = std::jthread([shm_name, stream_id, queue, policy]() {
     ShmBuffer shm_buffer(shm_name, stream_id);
     uint64_t seq_num = 0;
     uint64_t decimation_counter = 0;
@@ -34,7 +34,7 @@ spawn_bridge_thread(const std::string& shm_name,
       }
 
       frame.seq_num = seq_num;
-      std::unique_lock<std::mutex> queue_lock(queue.mutex);
+      std::unique_lock<std::mutex> queue_lock(queue->mutex);
 
       if (std::holds_alternative<AdaptiveDecimation>(policy)) {
         // Dynamically downsamples the data stream (i.e. queueing only every nth
@@ -50,13 +50,13 @@ spawn_bridge_thread(const std::string& shm_name,
 
         const auto& adp = std::get<AdaptiveDecimation>(policy);
 
-        if (queue.len() > adp.threshold) {
+        if (queue->len() > adp.threshold) {
           // Determine how deep into the danger zone we are, and scale the
           // decimation ratio accordingly. `saturating_sub` avoids underflow and
           // wraparound.
           const auto zone_size =
-            saturating_sub(queue.capacity(), adp.threshold);
-          const auto depth = saturating_sub(queue.len(), adp.threshold);
+            saturating_sub(queue->capacity(), adp.threshold);
+          const auto depth = saturating_sub(queue->len(), adp.threshold);
 
           // Calculate a decimation ratio scaled between min_ratio and max_ratio
           // based on how deep into the danger zone that we are. The deeper we
@@ -72,7 +72,7 @@ spawn_bridge_thread(const std::string& shm_name,
           decimation_counter++;
 
           if (decimation_counter % ratio != 0) {
-            queue.dropped_frames++;
+            queue->dropped_frames++;
             continue; // drop
           }
         } else {
@@ -82,7 +82,7 @@ spawn_bridge_thread(const std::string& shm_name,
       }
 
       // clang-format off
-      if (!queue.push(frame)) {
+      if (!queue->push(frame)) {
         std::visit(
           overloaded{
             [&queue, &queue_lock, frame](const BoundedQueue&) mutable {
@@ -94,7 +94,7 @@ spawn_bridge_thread(const std::string& shm_name,
                 spin_loop();
                 queue_lock.lock();
 
-                if (queue.push(frame)) {
+                if (queue->push(frame)) {
                   break;
                 }
               }
@@ -111,14 +111,14 @@ spawn_bridge_thread(const std::string& shm_name,
                   static_cast<uint64_t>(backoff_nanos)));
                 queue_lock.lock();
 
-                if (queue.push(frame)) {
+                if (queue->push(frame)) {
                   break;
                 }
 
                 backoff_nanos *= p.multiplier;
 
                 if (backoff_nanos >= static_cast<double>(p.max_nanos)) {
-                  queue.dropped_frames++;
+                  queue->dropped_frames++;
                   break;
                 }
               }
@@ -127,19 +127,19 @@ spawn_bridge_thread(const std::string& shm_name,
             [&queue, frame](const DropOldest&) {
                 // Drops the oldest data in the consumer buffer to make room for
                 // new data.
-                queue.overwrite_oldest(frame);
-                queue.dropped_frames++;
+                queue->overwrite_oldest(frame);
+                queue->dropped_frames++;
             },
 
             [&queue](const DropNewest&) {
                 // DropNewest drops incoming data when the buffer is full.
-                queue.dropped_frames++;
+                queue->dropped_frames++;
             },
 
             [&queue](const AdaptiveDecimation&) {
                 // If the Adaptive Decimation throttling is not enough to keep
                 // the queue from filling up, we drop the incoming frame.
-                queue.dropped_frames++;
+                queue->dropped_frames++;
             },
 
           }, policy);
