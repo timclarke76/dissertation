@@ -128,6 +128,25 @@ public:
     return value;
   }
 
+  /// \brief Attempts to receive a value of type T from the sending end of the
+  /// channel without blocking.
+  ///
+  /// If the queue is empty, returns an empty optional.
+  ///
+  /// \return An optional containing the received value of type T if successful,
+  /// or an empty optional if the queue is empty.
+  std::optional<T> try_receive()
+  {
+    T value;
+
+    if (state_->queue.try_dequeue(value)) {
+      state_->slots.release();
+      return value;
+    }
+
+    return std::nullopt;
+  }
+
 private:
   /// \brief A shared pointer to the ChannelState that manages the queue and
   /// semaphore for the channel.

@@ -84,10 +84,13 @@ TelemetryWriter::record(uint64_t ts[Epoch::NUM_LATENCY_MEASURES])
 void
 TelemetryWriter::swap_buffers()
 {
-  Epoch next_epoch = receiver_.receive();
-  last_swap_ = std::chrono::steady_clock::now();
-  sender_.send(std::move(current_epoch_));
-  current_epoch_ = std::move(next_epoch);
+  auto next_epoch_opt = receiver_.try_receive();
+
+  if (next_epoch_opt.has_value()) {
+    last_swap_ = std::chrono::steady_clock::now();
+    sender_.send(std::move(current_epoch_));
+    current_epoch_ = std::move(next_epoch_opt.value());
+  }
 }
 
 std::jthread
