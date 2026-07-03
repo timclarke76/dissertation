@@ -34,7 +34,7 @@ spawn_bridge_thread(const std::string& shm_name,
       }
 
       frame.seq_num = seq_num;
-      std::unique_lock<std::mutex> queue_lock(queue.mutex());
+      std::unique_lock<std::mutex> queue_lock(queue.mutex);
 
       if (std::holds_alternative<AdaptiveDecimation>(policy)) {
         // Dynamically downsamples the data stream (i.e. queueing only every nth
@@ -72,7 +72,7 @@ spawn_bridge_thread(const std::string& shm_name,
           decimation_counter++;
 
           if (decimation_counter % ratio != 0) {
-            queue.increment_dropped_frames();
+            queue.dropped_frames++;
             continue; // drop
           }
         } else {
@@ -118,7 +118,7 @@ spawn_bridge_thread(const std::string& shm_name,
                 backoff_nanos *= p.multiplier;
 
                 if (backoff_nanos >= static_cast<double>(p.max_nanos)) {
-                  queue.increment_dropped_frames();
+                  queue.dropped_frames++;
                   break;
                 }
               }
@@ -128,18 +128,18 @@ spawn_bridge_thread(const std::string& shm_name,
                 // Drops the oldest data in the consumer buffer to make room for
                 // new data.
                 queue.overwrite_oldest(frame);
-                queue.increment_dropped_frames();
+                queue.dropped_frames++;
             },
 
             [&queue](const DropNewest&) {
                 // DropNewest drops incoming data when the buffer is full.
-                queue.increment_dropped_frames();
+                queue.dropped_frames++;
             },
 
             [&queue](const AdaptiveDecimation&) {
                 // If the Adaptive Decimation throttling is not enough to keep
                 // the queue from filling up, we drop the incoming frame.
-                queue.increment_dropped_frames();
+                queue.dropped_frames++;
             },
 
           }, policy);

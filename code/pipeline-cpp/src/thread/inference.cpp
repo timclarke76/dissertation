@@ -15,7 +15,7 @@ spawn_inference_thread(const std::string& stream_name,
     const auto start_time = std::chrono::steady_clock::now();
 
     for (;;) {
-      std::unique_lock<std::mutex> transaction_lock(queue.mutex());
+      std::unique_lock<std::mutex> transaction_lock(queue.mutex);
       auto item = queue.pop();
       transaction_lock.unlock();
 
