@@ -59,21 +59,22 @@ pub fn spawn_inference_thread<S: AsRef<str>>(
                     samples_collected += 1;
 
                     if samples_collected > window {
-                    frame.timestamps[ShmBuffer::PIPELINE_IN_TS] = t_pipeline_in;
+                        frame.timestamps[ShmBuffer::PIPELINE_IN_TS] =
+                            t_pipeline_in;
 
-                    std::thread::sleep(time); // Simulate inference
+                        std::thread::sleep(time); // Simulate inference
 
-                    frame.timestamps[ShmBuffer::PIPELINE_OUT_TS] = now_nanos()
-                        .expect(
-                            "Failed to get current time in \
+                        frame.timestamps[ShmBuffer::PIPELINE_OUT_TS] =
+                            now_nanos().expect(
+                                "Failed to get current time in \
                             nanoseconds for t_pipeline_out",
-                        );
+                            );
 
-                    sender
-                        .send(frame)
-                        .expect("Failed to send frame to output queue");
+                        sender
+                            .send(frame)
+                            .expect("Failed to send frame to output queue");
 
-                    samples_collected = 0;
+                        samples_collected = 0;
                     }
                 } else {
                     // Yield the thread to avoid busy waiting when the queue is

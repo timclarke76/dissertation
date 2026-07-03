@@ -54,9 +54,8 @@ fn create_bridge_and_inference_threads(
 ) -> (JoinHandle<()>, JoinHandle<()>) {
     let queue = Arc::new(Mutex::new(Queue::<ShmFrame>::new(queue_capacity)));
 
-    let bridge =
-        spawn_bridge_thread(stream_name, stream_id, &queue, policy)
-            .expect("Failed to spawn bridge thread");
+    let bridge = spawn_bridge_thread(stream_name, stream_id, &queue, policy)
+        .expect("Failed to spawn bridge thread");
 
     let inference = spawn_inference_thread(
         stream_name,
