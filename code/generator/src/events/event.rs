@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use bytemuck::Pod;
 use rand::distr::uniform::SampleUniform;
 
-use super::{buffer::SharedMemoryBuffer, pool::RandomPool};
+use super::{buffer::ShmBuffer, pool::RandomPool};
 use crate::os::now_nanos;
 
 /// A trait that defines the behavior of an event that generates random data
@@ -81,7 +81,7 @@ pub struct Event<T> {
 
     /// The shared memory buffer which is the destination for the generated
     /// random data.
-    buffer: SharedMemoryBuffer,
+    buffer: ShmBuffer,
 
     /// The interval between event executions in nanoseconds, calculated based
     /// on the specified frames per second (FPS) rate.
@@ -170,19 +170,16 @@ where
                 )
             })?;
 
-        // SharedMemoryBuffer needs to know the frame size to create each
-        // frame's header, and therefore can calculate its own total size.
-        let buffer = SharedMemoryBuffer::try_new(
-            &name,
-            frame_size_bytes,
-            buffer_capacity_frames,
-        )
-        .with_context(|| {
-            format!(
-                "Failed to create SharedMemoryBuffer of \
+        // ShmBuffer needs to know the frame size to create each frame's header,
+        // and therefore can calculate its own total size.
+        let buffer =
+            ShmBuffer::try_new(&name, frame_size_bytes, buffer_capacity_frames)
+                .with_context(|| {
+                    format!(
+                        "Failed to create ShmBuffer of \
                 {buffer_capacity_frames} frames for event '{name}'"
-            )
-        })?;
+                    )
+                })?;
 
         Ok(Self {
             name,

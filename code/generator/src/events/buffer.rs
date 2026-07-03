@@ -45,7 +45,7 @@ pub struct ShmHeader {
 
 /// Represents a shared memory buffer that can be used for communication between
 /// processes using a shared memory file.
-pub struct SharedMemoryBuffer {
+pub struct ShmBuffer {
     /// The name of the shared memory buffer, used to identify the shared memory
     /// file. It should be unique to avoid conflicts with other shared memory
     /// buffers in the system.
@@ -74,7 +74,7 @@ pub struct SharedMemoryBuffer {
     write_offset_bytes: usize,
 }
 
-impl SharedMemoryBuffer {
+impl ShmBuffer {
     /// The size of the header of the shared memory buffer, in bytes.
     const HEADER_SIZE: usize = std::mem::size_of::<ShmHeader>();
 
@@ -88,8 +88,8 @@ impl SharedMemoryBuffer {
     /// * `capacity_frames` - The total number of frames that the buffer can
     ///   hold.
     /// #Returns
-    /// A `Result` containing the `SharedMemoryBuffer` if successful, or an
-    /// error if the shared memory buffer could not be created or initialised.
+    /// A `Result` containing the `ShmBuffer` if successful, or an error if the
+    /// shared memory buffer could not be created or initialised.
     pub fn try_new(
         name: impl Into<String>,
         frame_size_bytes: usize,
@@ -272,11 +272,11 @@ impl SharedMemoryBuffer {
     }
 }
 
-impl Drop for SharedMemoryBuffer {
+impl Drop for ShmBuffer {
     /// Cleans up the shared memory buffer by unmapping the memory and unlinking
-    /// the shared memory file. Called automatically when the
-    /// `SharedMemoryBuffer` instance goes out of scope or is dropped. Any
-    /// errors during cleanup are logged to standard error.
+    /// the shared memory file. Called automatically when the `ShmBuffer`
+    /// instance goes out of scope or is dropped. Any errors during cleanup are
+    /// logged to standard error.
     fn drop(&mut self) {
         unsafe {
             match NonNull::new(self.header as *mut std::ffi::c_void) {
