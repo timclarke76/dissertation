@@ -35,15 +35,19 @@ impl TelemetryEpoch {
     pub const UNBOUNDED_QUEUE_WAIT: usize = 0;
 
     /// The index of the histogram for idiomatic queue wait latency.
+    #[allow(unused)]
     pub const IDIOMATIC_QUEUE_WAIT: usize = 1;
 
     /// The index of the histogram for data preparation latency.
+    #[allow(unused)]
     pub const DATA_PREPARATION: usize = 2;
 
     /// The index of the histogram for inference latency.
+    #[allow(unused)]
     pub const INFERENCE: usize = 3;
 
     /// The index of the histogram for fusion latency.
+    #[allow(unused)]
     pub const FUSION: usize = 4;
 
     /// The index of the histogram for total latency.
