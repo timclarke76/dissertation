@@ -10,6 +10,9 @@ pub struct EventQueueConfig {
     /// The name of the queue.
     pub name: String,
 
+    /// The target frame rate for the queue in frames per second.
+    pub fps: usize,
+
     /// The capacity of the queue in frames.
     pub capacity_frames: usize,
 }

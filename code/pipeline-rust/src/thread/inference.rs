@@ -23,7 +23,8 @@ use crate::{
 ///   processing.
 /// * `sender` - A reference to the Sender used to send processed frames to the
 ///   next stage in the pipeline.
-/// * `inference_time` - The simulated time taken to process each frame.
+/// * `time` - The simulated time taken to process each frame.
+/// * `window` - The number of frames to process in each inference window.
 ///
 /// Returns a `Result` containing the `JoinHandle` of the spawned thread, or an
 /// error if the thread could not be spawned.
@@ -31,7 +32,8 @@ pub fn spawn_inference_thread<S: AsRef<str>>(
     stream_name: S,
     queue: &Arc<Mutex<Queue<ShmFrame>>>,
     sender: SyncSender<ShmFrame>,
-    inference_time: Duration,
+    time: Duration,
+    window: usize,
 ) -> Result<JoinHandle<()>> {
     let thread_stream_name = stream_name.as_ref().to_string();
     let queue = Arc::clone(queue);
@@ -39,6 +41,7 @@ pub fn spawn_inference_thread<S: AsRef<str>>(
     thread::Builder::new()
         .name(format!("inference_{}", thread_stream_name))
         .spawn(move || {
+            let mut samples_collected = 0;
             let start_time = Instant::now();
 
             loop {
@@ -53,9 +56,12 @@ pub fn spawn_inference_thread<S: AsRef<str>>(
                 );
 
                 if let Some(mut frame) = item {
+                    samples_collected += 1;
+
+                    if samples_collected > window {
                     frame.timestamps[ShmBuffer::PIPELINE_IN_TS] = t_pipeline_in;
 
-                    std::thread::sleep(inference_time); // Simulate inference
+                    std::thread::sleep(time); // Simulate inference
 
                     frame.timestamps[ShmBuffer::PIPELINE_OUT_TS] = now_nanos()
                         .expect(
@@ -66,6 +72,9 @@ pub fn spawn_inference_thread<S: AsRef<str>>(
                     sender
                         .send(frame)
                         .expect("Failed to send frame to output queue");
+
+                    samples_collected = 0;
+                    }
                 } else {
                     // Yield the thread to avoid busy waiting when the queue is
                     // empty.

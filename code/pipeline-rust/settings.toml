@@ -1,5 +1,6 @@
 [rgb_queue]
 name = "RGB"
+fps = 30
 capacity_frames = 3
 
 [rgb_policy]
@@ -10,6 +11,7 @@ max_ratio = 10
 
 [accelerometer_queue]
 name = "Accelerometer"
+fps = 1600
 capacity_frames = 160
 
 [accelerometer_policy]
@@ -20,6 +22,7 @@ max_ratio = 10
 
 [gyroscope_queue]
 name = "Gyroscope"
+fps = 2000
 capacity_frames = 200
 
 [gyroscope_policy]

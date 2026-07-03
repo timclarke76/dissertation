@@ -36,6 +36,10 @@ static GLOBAL: TrackingAllocator = TrackingAllocator;
 /// * `inference_sender` - A `SyncSender<ShmFrame>` used to send
 ///   processed frames to the fusion thread.
 /// * `policy` - The backpressure policy to apply when the queue is full.
+/// * `inference_time` - The simulated time taken to process each frame in the
+///   inference thread.
+/// * `inference_window` - The number of frames to process in each inference
+///   window.
 ///
 /// Returns a tuple containing the `JoinHandle`s of the spawned bridge and
 /// inference threads.
@@ -46,6 +50,7 @@ fn create_bridge_and_inference_threads(
     inference_sender: SyncSender<ShmFrame>,
     policy: Policy,
     inference_time: Duration,
+    inference_window: usize,
 ) -> (JoinHandle<()>, JoinHandle<()>) {
     let queue = Arc::new(Mutex::new(Queue::<ShmFrame>::new(queue_capacity)));
 
@@ -58,6 +63,7 @@ fn create_bridge_and_inference_threads(
         &queue,
         inference_sender,
         inference_time,
+        inference_window,
     )
     .expect("Failed to spawn inference thread");
 
@@ -98,6 +104,12 @@ fn main() -> Result<()> {
         .map(|(queue, _, _, _)| queue.capacity_frames)
         .sum();
 
+    let min_fps = configs
+        .iter()
+        .map(|(queue, _, _, _)| queue.fps)
+        .min()
+        .unwrap();
+
     let (inference_sender, fusion_receiver) =
         sync_channel::<ShmFrame>(channel_size);
 
@@ -111,6 +123,7 @@ fn main() -> Result<()> {
                 inference_sender.clone(),
                 policy,
                 duration,
+                min_fps / queue.fps,
             );
             [bridge, inference]
         })
