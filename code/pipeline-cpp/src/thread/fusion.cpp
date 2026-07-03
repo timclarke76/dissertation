@@ -8,7 +8,8 @@ std::jthread
 spawn_fusion_thread(Receiver<ShmBuffer::Frame> receiver,
   const std::vector<std::string>& stream_names)
 {
-  auto thread = std::jthread([stream_names, &receiver]() {
+  auto thread = std::jthread([stream_names,
+                               receiver = std::move(receiver)]() mutable {
     auto telemetry_threads = std::vector<std::jthread>();
     auto telemetry_writers = std::vector<TelemetryWriter>();
 
