@@ -139,12 +139,13 @@ impl Csv {
     ///
     /// Returns a `Result` containing the newly created `Csv`, or an error if
     /// the file could not be created or the header row could not be written.
-    fn try_new<S: AsRef<str>>(filename: S) -> Result<Self> {
-        let mut writer = csv::Writer::from_path(filename.as_ref())
-            .with_context(|| {
+    fn try_new(filename: impl Into<String>) -> Result<Self> {
+        let filename = filename.into();
+        let mut writer =
+            csv::Writer::from_path(&filename).with_context(|| {
                 format!(
                     "Failed to create CSV writer for telemetry file '{}'",
-                    filename.as_ref()
+                    filename
                 )
             })?;
 
@@ -324,12 +325,12 @@ impl TelemetryWriter {
 ///
 /// Returns a `Result` containing the join handle for the spawned thread, or an
 /// error if the thread could not be spawned.
-pub fn spawn_telemetry_thread<S: AsRef<str>>(
-    stream_name: S,
+pub fn spawn_telemetry_thread(
+    stream_name: impl Into<String>,
     sender: SyncSender<TelemetryEpoch>,
     receiver: Receiver<TelemetryEpoch>,
 ) -> Result<JoinHandle<()>> {
-    let t_stream_name = stream_name.as_ref().to_string();
+    let stream_name = stream_name.into();
 
     // The `TelemetryEpoch` is used to record measurements, and is what is
     // communicated between the inference thread and the telemetry thread. Three
@@ -348,7 +349,7 @@ pub fn spawn_telemetry_thread<S: AsRef<str>>(
     }
 
     // Telemtry is written to a CSV file for later analysis.
-    let csv_filename = format!("telemetry_{}.csv", t_stream_name);
+    let csv_filename = format!("telemetry_{}.csv", stream_name);
     let mut csv = Csv::try_new(&csv_filename).with_context(|| {
         format!(
             "Failed to create CSV file for telemetry file '{}'",
@@ -357,7 +358,7 @@ pub fn spawn_telemetry_thread<S: AsRef<str>>(
     })?;
 
     thread::Builder::new()
-        .name(format!("telemetry_{}", t_stream_name))
+        .name(format!("telemetry_{}", stream_name))
         .spawn(move || {
             let mut last_allocated_bytes = 0;
             let mut last_allocation_count = 0;
@@ -394,7 +395,6 @@ pub fn spawn_telemetry_thread<S: AsRef<str>>(
             }
         })
         .with_context(|| {
-            let stream_name = stream_name.as_ref().to_string();
             format!("Failed to spawn telemetry thread for '{stream_name}'")
         })
 }

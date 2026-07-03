@@ -28,18 +28,18 @@ use crate::{
 ///
 /// Returns a `Result` containing the `JoinHandle` of the spawned thread, or an
 /// error if the thread could not be spawned.
-pub fn spawn_inference_thread<S: AsRef<str>>(
-    stream_name: S,
+pub fn spawn_inference_thread(
+    stream_name: impl Into<String>,
     queue: &Arc<Mutex<Queue<ShmFrame>>>,
     sender: SyncSender<ShmFrame>,
     time: Duration,
     window: usize,
 ) -> Result<JoinHandle<()>> {
-    let thread_stream_name = stream_name.as_ref().to_string();
+    let stream_name = stream_name.into();
     let queue = Arc::clone(queue);
 
     thread::Builder::new()
-        .name(format!("inference_{}", thread_stream_name))
+        .name(format!("inference_{}", stream_name))
         .spawn(move || {
             let mut samples_collected = 0;
             let start_time = Instant::now();
@@ -89,7 +89,6 @@ pub fn spawn_inference_thread<S: AsRef<str>>(
             }
         })
         .with_context(|| {
-            let stream_name = stream_name.as_ref().to_string();
             format!("Failed to spawn inference thread for '{stream_name}'")
         })
 }

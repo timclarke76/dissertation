@@ -87,13 +87,11 @@ impl Settings {
     /// #Returns
     /// A `Result` containing the `Settings` instance if successful, or an
     /// error if the configuration could not be loaded or deserialized.
-    pub fn try_new<S: AsRef<str>>(
-        default_source: S,
+    pub fn try_new(
+        default_source: impl Into<String>,
         args: Args,
     ) -> Result<Self> {
-        let source = args
-            .settings
-            .unwrap_or_else(|| default_source.as_ref().to_string());
+        let source = args.settings.unwrap_or_else(|| default_source.into());
 
         let settings = Config::builder()
             .add_source(config::File::with_name(&source))

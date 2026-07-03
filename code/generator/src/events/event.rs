@@ -118,8 +118,8 @@ where
     /// A `Result` containing the new `Event` instance if successful, or an
     /// error if any of the parameters are invalid or if the random data pool or
     /// shared memory buffer could not be created.
-    pub fn try_new<S: AsRef<str>>(
-        name: S,
+    pub fn try_new(
+        name: impl Into<String>,
         seed: u64,
         frame_length: usize,
         pool_capacity_frames: usize,
@@ -128,7 +128,7 @@ where
         min: T,
         max: T,
     ) -> Result<Self> {
-        let name = name.as_ref().to_string();
+        let name = name.into();
 
         let frame_data_size_bytes = frame_length
             .checked_mul(std::mem::size_of::<T>())
