@@ -23,15 +23,13 @@ pub struct Queue<T> {
 }
 
 impl<T> Queue<T> {
-    /// Creates a new queue with the specified capacity.
-    /// #Args
+    /// Constructs a new queue with the specified capacity.
+    ///
     /// * `capacity` - The maximum number of items the queue can hold.
-    /// #Returns
-    /// A new instance of `Queue<T>` with the specified capacity.
+    ///
+    /// Returns a new instance of `Queue<T>` with the specified capacity.
     pub fn new(capacity: usize) -> Self {
         let mut data = Vec::with_capacity(capacity);
-
-        // Initialise the values to None.
         data.resize_with(capacity, || None);
 
         Self {
@@ -46,11 +44,11 @@ impl<T> Queue<T> {
 
     /// Attempts to push an item into the queue. If the queue is full, the item
     /// is rejected.
-    /// #Args
+    ///
     /// * `item` - The item to be pushed into the queue.
-    /// #Returns
-    /// A `Result` indicating whether the push was successful. If the queue is
-    /// full, the item is returned in the `Err`.
+    ///
+    /// Returns a `Result` indicating whether the push was successful. If the
+    /// queue is full, the item is returned in the `Err`.
     pub fn try_push(&mut self, item: T) -> Result<(), T> {
         if self.len == self.capacity {
             return Err(item);
@@ -64,7 +62,7 @@ impl<T> Queue<T> {
 
     /// Overwrites the oldest item in the queue (at the head position) with the
     /// new item.
-    /// #Args
+    ///
     /// * `item` - The item to be pushed into the queue, overwriting the
     ///   oldest item.
     pub fn overwrite_oldest(&mut self, item: T) {
@@ -77,9 +75,9 @@ impl<T> Queue<T> {
     }
 
     /// Returns the oldest item from the queue, or None if the queue is empty.
-    /// #Returns
-    /// * An `Option<T>` containing the oldest item if the queue is not empty,
-    /// or `None` if the queue is empty.
+    ///
+    /// Returns an `Option<T>` containing the oldest item if the queue is not
+    /// empty, or `None` if the queue is empty.
     pub fn pop(&mut self) -> Option<T> {
         if self.len == 0 {
             return None;
@@ -92,29 +90,29 @@ impl<T> Queue<T> {
         item
     }
 
-    /// Advances the index in a circular manner.
-    /// #Args
-    /// * `index` - The current index to be advanced.
-    /// #Returns
-    /// * The next index, wrapping around to 0 if it exceeds the capacity.
-    #[inline]
-    fn advance_index(&self, index: usize) -> usize {
-        (index + 1) % self.capacity
-    }
-
     /// Returns the current number of items in the queue.
-    /// #Returns
-    /// * The number of items currently in the queue.
+    ///
+    /// Returns the number of items currently in the queue.
     #[inline]
     pub fn len(&self) -> usize {
         self.len
     }
 
     /// Returns the maximum capacity of the queue.
-    /// #Returns
-    /// * The maximum number of items the queue can hold.
+    ///
+    /// Returns the maximum number of items the queue can hold.
     #[inline]
     pub fn capacity(&self) -> usize {
         self.capacity
+    }
+
+    /// Advances the index in a circular manner.
+    ///
+    /// * `index` - The current index to be advanced.
+    ///
+    /// Returns the next index, wrapping around to 0 if it exceeds the capacity.
+    #[inline]
+    fn advance_index(&self, index: usize) -> usize {
+        (index + 1) % self.capacity
     }
 }
