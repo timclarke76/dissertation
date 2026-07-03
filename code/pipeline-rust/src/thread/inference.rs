@@ -58,7 +58,7 @@ pub fn spawn_inference_thread<S: AsRef<str>>(
                 if let Some(mut frame) = item {
                     samples_collected += 1;
 
-                    if samples_collected > window {
+                    if samples_collected >= window {
                         frame.timestamps[ShmBuffer::PIPELINE_IN_TS] =
                             t_pipeline_in;
 

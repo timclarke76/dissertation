@@ -122,7 +122,7 @@ fn main() -> Result<()> {
                 inference_sender.clone(),
                 policy,
                 duration,
-                min_fps / queue.fps,
+                queue.fps / min_fps,
             );
             [bridge, inference]
         })
