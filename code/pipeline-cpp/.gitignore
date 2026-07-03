@@ -1,0 +1,12 @@
+_deps/
+CMakeFiles/
+html/
+*.csv
+*.csv#
+CMakeCache.txt
+CPackConfig.cmake
+CPackSourceConfig.cmake
+Makefile
+Session.vim
+cmake_install.cmake
+pipeline_cpp
