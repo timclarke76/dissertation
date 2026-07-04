@@ -41,18 +41,24 @@ pub fn spawn_bridge_thread(
                 let mut shm_buffer = ShmBuffer::try_new(shm_name, stream_id)
                     .expect("Failed to connect to {shm_name}");
 
-                let mut seq_num = 0;
                 let mut decimation_counter = 0;
 
                 loop {
-                    seq_num += 1;
-
-                    let mut frame = shm_buffer
+                    let frame = shm_buffer
                         .next_frame()
                         .expect("Failed to read next frame from shared memory");
-                    frame.seq_num = seq_num;
 
                     let mut q = queue.lock().unwrap();
+
+                    if frame.seq_num == u64::MAX {
+                        // The generator stream has ended, so push the final
+                        // frame to the queue and exit the loop.
+                        if let Err(rejected) = q.try_push(frame) {
+                            q.overwrite_oldest(rejected);
+                        }
+
+                        break;
+                    }
 
                     if let Policy::AdaptiveDecimation {
                         threshold,

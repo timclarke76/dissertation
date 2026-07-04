@@ -2,7 +2,7 @@ use std::{
     hint::spin_loop,
     sync::{Arc, Mutex, mpsc::SyncSender},
     thread::{self, JoinHandle},
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use anyhow::{Context, Result};
@@ -42,7 +42,6 @@ pub fn spawn_inference_thread(
         .name(format!("inference_{}", stream_name))
         .spawn(move || {
             let mut samples_collected = 0;
-            let start_time = Instant::now();
 
             loop {
                 let item = {
@@ -56,6 +55,15 @@ pub fn spawn_inference_thread(
                 );
 
                 if let Some(mut frame) = item {
+                    if frame.seq_num == u64::MAX {
+                        // The generator stream has ended, so we send the final
+                        // frame to the fusion thread and exit the loop.
+                        sender.send(frame).expect(
+                            "Failed to send exit signal frame to output queue",
+                        );
+                        break;
+                    }
+
                     samples_collected += 1;
 
                     if samples_collected >= window {
@@ -80,11 +88,6 @@ pub fn spawn_inference_thread(
                     // Yield the thread to avoid busy waiting when the queue is
                     // empty.
                     spin_loop();
-                }
-
-                if start_time.elapsed() > Duration::from_secs(10) {
-                    println!("Benchmark complete. Exiting.");
-                    std::process::exit(0);
                 }
             }
         })

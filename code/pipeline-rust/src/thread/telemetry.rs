@@ -28,6 +28,9 @@ pub struct TelemetryEpoch {
 
     /// The total number of bytes freed during the epoch.
     freed_bytes: usize,
+
+    /// A flag indicating whether the telemetry thread should terminate.
+    terminated: bool,
 }
 
 impl TelemetryEpoch {
@@ -97,6 +100,7 @@ impl TelemetryEpoch {
             allocated_bytes: 0,
             allocation_count: 0,
             freed_bytes: 0,
+            terminated: false,
         })
     }
 
@@ -270,7 +274,7 @@ impl TelemetryWriter {
     /// successfully recorded, or an error if the operation failed.
     pub fn record(&mut self, ts: [u64; 6]) -> Result<()> {
         if self.last_swap.elapsed() >= Self::SWAP_INTERVAL {
-            self.swap_buffers();
+            self.swap_buffers()?;
         }
 
         for idx in 0..(TelemetryEpoch::NUM_LATENCY_MEASURES - 1) {
@@ -292,7 +296,7 @@ impl TelemetryWriter {
     /// Swaps the active histogram buffer with the cleared buffer received from
     /// the background thread. The populated buffer is sent to the background
     /// thread for processing, and the timestamp of the last swap is updated.
-    fn swap_buffers(&mut self) {
+    fn swap_buffers(&mut self) -> Result<()> {
         // Try to receive the fresh epoch from the telemetry thread. If the
         // channel is empty, we skip the swap and continue recording into the
         // current epoch.
@@ -306,8 +310,17 @@ impl TelemetryWriter {
             // Send the completed epoch to the telemetry thread for processing.
             self.sender
                 .try_send(epoch)
-                .expect("Failed to send completed epoch to telemetry thread");
+                .expect("Failed to send completed epoch to telemetry thread")
         }
+
+        Ok(())
+    }
+
+    /// Signals the telemetry thread to terminate by setting the `terminated`
+    /// flag in the current epoch and sending it to the telemetry thread.
+    pub fn terminate(&mut self) -> Result<()> {
+        self.current_epoch.terminated = true;
+        self.swap_buffers()
     }
 }
 
@@ -365,6 +378,12 @@ pub fn spawn_telemetry_thread(
             let mut last_freed = 0;
 
             while let Ok(mut epoch) = receiver.recv() {
+                // If the `terminated` flag is set, we break out of the loop and
+                // exit the telemetry thread gracefully.
+                if epoch.terminated {
+                    break;
+                }
+
                 // Now the inference thread is no longer updating the completed
                 // epoch, we can save it.
 

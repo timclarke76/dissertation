@@ -59,7 +59,29 @@ pub fn spawn_fusion_thread(
             let mut latest_gyrometer_timestamps =
                 [0; ShmBuffer::NUM_TIMESTAMPS];
 
+            let mut eos_count = 0;
+
             while let Ok(mut frame) = receiver.recv() {
+                if frame.seq_num == u64::MAX {
+                    // A generator stream has ended. Terminate the corresponding
+                    // telemetry writer and increment the end-of-stream count.
+                    // If all streams have ended, exit the loop.
+
+                    telemetry_writers[frame.stream_id]
+                        .terminate()
+                        .expect("Failed to terminate telemetry writer");
+
+                    eos_count += 1;
+
+                    if eos_count == ShmBuffer::NUM_STREAMS {
+                        break;
+                    }
+
+                    // Wait for all streams to end before exiting the loop.
+                    // Don't process the EOS frame.
+                    continue;
+                }
+
                 match frame.stream_id {
                     ShmBuffer::ACCEL_STREAM_ID => {
                         // Only the most recent accelerometer timestamps are
