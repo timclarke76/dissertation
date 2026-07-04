@@ -219,6 +219,9 @@ impl Events {
             }
         }
 
+        curr_time_nanos =
+            now_nanos().context("Failed to get current time for report")?;
+
         let events = self
             .events
             .iter()
