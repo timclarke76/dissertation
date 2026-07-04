@@ -1,10 +1,11 @@
-#include "bridge.h"
-
+#include <cstdint>
 #include <format>
 #include <memory>
 #include <numeric>
 
 #include <os/os.h>
+
+#include "bridge.h"
 
 // clang-format off
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
@@ -19,13 +20,10 @@ spawn_bridge_thread(const std::string& shm_name,
 {
   auto thread = std::jthread([shm_name, stream_id, queue, policy]() {
     ShmBuffer shm_buffer(shm_name, stream_id);
-    uint64_t seq_num = 0;
     uint64_t decimation_counter = 0;
     ShmBuffer::Frame frame;
 
     for (;;) {
-      seq_num++;
-
       try {
         frame = shm_buffer.next_frame();
       } catch (const std::exception& e) {
@@ -33,8 +31,17 @@ spawn_bridge_thread(const std::string& shm_name,
           "Failed to read next frame from shared memory");
       }
 
-      frame.seq_num = seq_num;
       std::unique_lock<std::mutex> queue_lock(queue->mutex);
+
+      if (frame.seq_num == UINT64_MAX) {
+        // The generator stream has ended, so push the final
+        // frame to the queue and exit the loop.
+        if (!queue->push(frame)) {
+          queue->overwrite_oldest(frame);
+        }
+
+        break;
+      }
 
       if (std::holds_alternative<AdaptiveDecimation>(policy)) {
         // Dynamically downsamples the data stream (i.e. queueing only every nth

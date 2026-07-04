@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <cstring>
 #include <fcntl.h>
 #include <format>
@@ -78,6 +79,14 @@ ShmBuffer::next_frame()
       frame_idx_++;
 
       return frame;
+    }
+
+    if (header_->pipeline_stage.load(std::memory_order_acquire) ==
+        ShmBuffer::Header::FINISHED) {
+      // The producer has finished writing data to the shared memory buffer, and
+      // there are no more frames to read. Return a special frame with a
+      // sequence number of UINT64_max to signal the end of the stream.
+      return Frame{ stream_id_, UINT64_MAX, { 0, 0, 0, 0, 0, 0 } };
     }
 
     spin_loop();

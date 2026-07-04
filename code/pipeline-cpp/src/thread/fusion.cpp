@@ -39,8 +39,26 @@ spawn_fusion_thread(Receiver<ShmBuffer::Frame> receiver,
     uint64_t latest_accel_ts[ShmBuffer::NUM_TIMESTAMPS] = { 0 };
     uint64_t latest_gyro_ts[ShmBuffer::NUM_TIMESTAMPS] = { 0 };
 
+    size_t eos_count = 0;
+
     for (;;) {
       auto frame = receiver.receive();
+
+      if (frame.seq_num == UINT64_MAX) {
+        // A generator stream has ended. Terminate the corresponding
+        // telemetry writer and increment the end-of-stream count.
+        // If all streams have ended, exit the loop.
+        telemetry_writers[frame.stream_id].terminate();
+        eos_count++;
+
+        if (eos_count == ShmBuffer::NUM_STREAMS) {
+          break;
+        }
+
+        // Wait for all streams to end before exiting the loop.
+        // Don't process the EOS frame.
+        continue;
+      }
 
       switch (frame.stream_id) {
         case ShmBuffer::ACCEL_STREAM_ID:

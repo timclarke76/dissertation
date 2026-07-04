@@ -82,6 +82,9 @@ public:
 
     /// The total number of bytes freed during the epoch.
     size_t freed_bytes = 0;
+
+    /// A flag indicating whether the telemetry thread should terminate.
+    bool terminated = false;
   };
 
   /// \brief A CSV file writer for telemetry data.
@@ -143,6 +146,14 @@ public:
   /// start and end times of each stage of the inference pipeline, as well as
   /// the total latency.
   void record(uint64_t ts[Epoch::NUM_LATENCY_MEASURES]);
+
+  /// \brief Signals the telemetry thread to terminate by setting the terminate
+  /// flag in the current epoch and sending it to the telemetry thread.
+  void terminate()
+  {
+    current_epoch_.terminated = true;
+    swap_buffers();
+  }
 
 private:
   /// \brief Swaps the active histogram buffer with the cleared buffer received

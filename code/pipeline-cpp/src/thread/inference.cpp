@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include <os/os.h>
 #include <os/time.h>
 
@@ -15,7 +13,6 @@ spawn_inference_thread(const std::string& stream_name,
   auto thread =
     std::jthread([stream_name, sender, queue, time, window]() mutable {
       size_t samples_collected = 0;
-      const auto start_time = std::chrono::steady_clock::now();
 
       for (;;) {
         std::unique_lock<std::mutex> transaction_lock(queue->mutex);
@@ -23,6 +20,13 @@ spawn_inference_thread(const std::string& stream_name,
         transaction_lock.unlock();
 
         if (item.has_value()) {
+          if (item->seq_num == UINT64_MAX) {
+            // The generator stream has ended, so we send the final
+            // frame to the fusion thread and exit the loop.
+            sender.send(std::move(item.value()));
+            break;
+          }
+
           samples_collected++;
 
           if (samples_collected >= window) {
@@ -41,12 +45,6 @@ spawn_inference_thread(const std::string& stream_name,
           }
         } else {
           spin_loop();
-        }
-
-        if (std::chrono::steady_clock::now() - start_time >
-            std::chrono::seconds(10)) {
-          std::cout << "Benchmark complete. Exiting.\n";
-          return;
         }
       }
     });

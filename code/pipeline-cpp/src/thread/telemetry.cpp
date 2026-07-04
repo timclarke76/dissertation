@@ -129,6 +129,12 @@ spawn_telemetry_thread(const std::string_view& stream_name,
       for (;;) {
         auto epoch = receiver.receive();
 
+        // If the terminate flag is set, we break out of the loop and exit the
+        // telemetry thread gracefully.
+        if (epoch.terminated) {
+          break;
+        }
+
         // Now the inference thread is no longer updating the completed epoch,
         // we can save it.
 
