@@ -1,0 +1,32 @@
+[rgb_queue]
+name = "RGB"
+fps = 30
+capacity_frames = 3
+
+[rgb_policy]
+type = "AdaptiveDecimation"
+threshold = 2
+min_ratio = 2
+max_ratio = 10
+
+[accelerometer_queue]
+name = "Accelerometer"
+fps = 1600
+capacity_frames = 160
+
+[accelerometer_policy]
+type = "AdaptiveDecimation"
+threshold = 128 # 80% of capacity_frames
+min_ratio = 2
+max_ratio = 10
+
+[gyroscope_queue]
+name = "Gyroscope"
+fps = 2000
+capacity_frames = 200
+
+[gyroscope_policy]
+type = "AdaptiveDecimation"
+threshold = 160 # 80% of capacity_frames
+min_ratio = 2
+max_ratio = 10
