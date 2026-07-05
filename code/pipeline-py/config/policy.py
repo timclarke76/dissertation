@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Literal, Union
+from typing import Literal
 
 
 @dataclass
@@ -73,10 +73,10 @@ class AdaptiveDecimation:
 
 
 """Defines the policy for handling data when the consumer buffer is full."""
-Policy = Union[
-    BoundedQueue,
-    ExponentialBackoff,
-    DropOldest,
-    DropNewest,
-    AdaptiveDecimation,
-]
+Policy = (
+    BoundedQueue
+    | ExponentialBackoff
+    | DropOldest
+    | DropNewest
+    | AdaptiveDecimation
+)

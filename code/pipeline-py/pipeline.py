@@ -1,9 +1,19 @@
 from dataclasses import dataclass
 import datetime as dt
+from pathlib import Path
+import sys
+import threading
 from typing import Final
 
 from config import Args, Policy, QueueConfig, Settings
 from os_ import ShmBuffer
+from thread import spawn_bridge_thread
+from queue import Queue
+
+dir = str(Path(__file__).resolve().parent)
+
+if dir not in sys.path:
+    sys.path.append(dir)
 
 
 @dataclass(frozen=True)
@@ -40,21 +50,18 @@ def main():
 
     CHANNEL_SIZE: Final[int] = sum(cfg.queue.capacity_frames for cfg in CONFIGS)
     MIN_FPS: Final[int] = min(cfg.queue.fps for cfg in CONFIGS)
-    BUFFERS: Final[list[ShmBuffer]] = [
-        ShmBuffer(cfg.queue.name, cfg.stream_id) for cfg in CONFIGS
+
+    HANDLES: Final[list[Thread]] = [
+        spawn_bridge_thread(
+            cfg.queue.name,
+            cfg.stream_id,
+            Queue(cfg.queue.capacity_frames),
+            cfg.policy,
+        )
+        for cfg in CONFIGS
     ]
 
-    shm_buffer = BUFFERS[0]
-    while True:
-        frame = shm_buffer.next_frame()
-        print(
-            f"Stream ID: {frame.stream_id}, "
-            f"Sequence Number: {frame.seq_num}, "
-            f"Timestamps: {frame.timestamps}"
-        )
-        if frame.seq_num == ShmBuffer.POISON_PILL:
-            print("Received poison pill. Exiting.")
-            break
+    [handle.join() for handle in HANDLES]
 
 
 if __name__ == "__main__":

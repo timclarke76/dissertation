@@ -1,3 +1,6 @@
+import threading
+
+
 class Queue:
     """A simple queue with a fixed capacity. Rejects new items when full, but
     allows overwriting of the oldest item."""
@@ -11,12 +14,13 @@ class Queue:
         Returns:
             A new instance of Queue with the specified capacity."""
 
-        self.items = []
+        self.data = [None] * capacity
         self.capacity = capacity
         self.len = 0
         self.head = 0
         self.tail = 0
         self.dropped_frames = 0
+        self.lock = threading.Lock()
 
     def try_push(self, item: any) -> bool:
         """Attempts to push an item into the queue. If the queue is full, the
@@ -63,22 +67,6 @@ class Queue:
         self.head = self._advance_index(self.head)
         self.len -= 1
         return item
-
-    def len(self):
-        """Returns the current number of items in the queue.
-
-        Returns:
-           The number of items currently in the queue."""
-
-        return self.len
-
-    def capacity(self):
-        """Returns the maximum capacity of the queue.
-
-        Returns:
-            The maximum number of items the queue can hold."""
-
-        return self.capacity
 
     def _advance_index(self, index: int) -> int:
         """Advances the index in a circular manner.
