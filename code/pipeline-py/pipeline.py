@@ -7,7 +7,7 @@ from typing import Final
 
 from include.config import Args, Policy, QueueConfig, Settings
 from include.os import ShmBuffer, make_channel
-from include.thread import spawn_bridge_thread
+from include.thread import spawn_bridge_thread, spawn_inference_thread
 from include import Queue
 
 dir = str(Path(__file__).resolve().parent)
@@ -22,6 +22,45 @@ class StreamConfig:
     stream_id: int
     policy: Policy
     duration: dt.timedelta
+
+
+def create_bridge_and_inference_threads(
+    stream_name: str,
+    stream_id: int,
+    queue_capacity: int,
+    inference_sender: Sender,
+    policy: Policy,
+    inference_time: int,
+    inference_window: int,
+) -> tuple[threading.Thread, threading.Thread]:
+    """Creates a bridge thread and an inference thread for a given shared memory
+    name, queue capacity, and backpressure policy.
+
+    Args:
+        stream_name: The name of the stream to be used for shared memory and
+        telemetry.
+        stream_id: The stream ID associated with the bridge thread.
+        queue_capacity: The maximum number of frames that can be held in the
+        queue.
+        inference_sender: A `SyncSender<ShmFrame>` used to send processed frames
+        to the fusion thread.
+        policy: The backpressure policy to apply when the queue is full.
+        inference_time: The simulated time taken to process each frame in the
+        inference thread.
+        inference_window: The number of frames to process in each inference
+        window.
+
+    Returns:
+        A tuple containing the spawned bridge and inference threads."""
+
+    queue = Queue(queue_capacity)
+
+    bridge = spawn_bridge_thread(stream_name, stream_id, queue, policy)
+    inference = spawn_inference_thread(
+        stream_name, queue, inference_sender, inference_time, inference_window
+    )
+
+    return bridge, inference
 
 
 def main():
@@ -48,21 +87,35 @@ def main():
         ),
     ]
 
+    # Calculate the total size of the channel between the inference threads and
+    # the fusion thread as the sum of the capacities of all queues. This ensures
+    # that the channel can hold all frames from the inference threads without
+    # blocking.
     CHANNEL_SIZE: Final[int] = sum(cfg.queue.capacity_frames for cfg in CONFIGS)
+
     MIN_FPS: Final[int] = min(cfg.queue.fps for cfg in CONFIGS)
+
     (inference_sender, fusion_receiver) = make_channel(CHANNEL_SIZE)
 
     HANDLES: Final[list[Thread]] = [
-        spawn_bridge_thread(
+        thread
+        for cfg in CONFIGS
+        for thread in create_bridge_and_inference_threads(
             cfg.queue.name,
             cfg.stream_id,
-            Queue(cfg.queue.capacity_frames),
+            cfg.queue.capacity_frames,
+            inference_sender,
             cfg.policy,
+            cfg.duration.total_seconds(),
+            # FIXME: I think this is too big for every implementation
+            cfg.queue.fps / MIN_FPS,
         )
-        for cfg in CONFIGS
     ]
 
-    [handle.join() for handle in HANDLES]
+    # TODO: Add fusion thread
+
+    for handle in HANDLES:
+        handle.join()
 
 
 if __name__ == "__main__":
