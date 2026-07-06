@@ -1,10 +1,10 @@
 import threading
 import time
 
-from queue import Queue
-from os_ import ShmBuffer, saturating_sub
-from config import Policy
-from config import *
+from include.queue import Queue
+from include.os import ShmBuffer, saturating_sub
+from include.config import Policy
+from include.config import *
 
 
 def spawn_bridge_thread(

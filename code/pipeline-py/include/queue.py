@@ -1,7 +1,10 @@
 import threading
+from typing import TypeVar, Generic, Optional
+
+T = TypeVar('T')
 
 
-class Queue:
+class Queue(Generic[T]):
     """A simple queue with a fixed capacity. Rejects new items when full, but
     allows overwriting of the oldest item."""
 
@@ -22,7 +25,7 @@ class Queue:
         self.dropped_frames = 0
         self.lock = threading.Lock()
 
-    def try_push(self, item: any) -> bool:
+    def try_push(self, item: T) -> bool:
         """Attempts to push an item into the queue. If the queue is full, the
         item is rejected.
 
@@ -40,7 +43,7 @@ class Queue:
         self.len += 1
         return True
 
-    def overwrite_oldest(self, item: any):
+    def overwrite_oldest(self, item: T) -> None:
         """Overwrites the oldest item in the queue (at the head position) with
         the new item.
 
@@ -52,13 +55,13 @@ class Queue:
         self.head = self._advance_index(self.head)
         self.tail = self._advance_index(self.tail)
 
-    def pop(self):
+    def pop(self) -> Optional[T]:
         """Returns the oldest item from the queue, or None if the queue is
         empty.
 
         Returns:
-            The oldest item if the queue is not empty, or None if the queue is
-            empty."""
+            An optional containing the oldest item in the queue, or None if the
+            queue is empty."""
 
         if self.len == 0:
             return None

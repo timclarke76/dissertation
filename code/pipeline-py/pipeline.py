@@ -5,10 +5,10 @@ import sys
 import threading
 from typing import Final
 
-from config import Args, Policy, QueueConfig, Settings
-from os_ import ShmBuffer
-from thread import spawn_bridge_thread
-from queue import Queue
+from include.config import Args, Policy, QueueConfig, Settings
+from include.os import ShmBuffer, make_channel
+from include.thread import spawn_bridge_thread
+from include import Queue
 
 dir = str(Path(__file__).resolve().parent)
 
@@ -50,6 +50,7 @@ def main():
 
     CHANNEL_SIZE: Final[int] = sum(cfg.queue.capacity_frames for cfg in CONFIGS)
     MIN_FPS: Final[int] = min(cfg.queue.fps for cfg in CONFIGS)
+    (inference_sender, fusion_receiver) = make_channel(CHANNEL_SIZE)
 
     HANDLES: Final[list[Thread]] = [
         spawn_bridge_thread(
