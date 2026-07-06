@@ -146,7 +146,9 @@ def spawn_bridge_thread(
                             queue.dropped_frames += 1
 
     try:
-        thread = threading.Thread(target=bridge_thread, daemon=True)
+        thread = threading.Thread(
+            target=bridge_thread, name=f"bridge_{shm_name}", daemon=True
+        )
         thread.start()
     except Exception as e:
         e.add_note(f"Failed to spawn bridge thread for '{shm_name}': {e}")
