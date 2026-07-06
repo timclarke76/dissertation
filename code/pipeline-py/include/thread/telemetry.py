@@ -1,6 +1,8 @@
+import csv
 from dataclasses import dataclass
 import threading
 import time
+from typing import Final
 
 from hdrh.histogram import HdrHistogram
 
@@ -181,6 +183,45 @@ class TelemetryWriter:
         self.swap_buffers()
 
 
+class Csv:
+    filename: str
+
+    def __init__(self, filename: str):
+        self.filename = filename
+
+        with open(filename, 'w') as f:
+            LABELS: Final[list[str]] = [
+                "unbounded",
+                "idiomatic",
+                "data",
+                "inference",
+                "fusion",
+                "total",
+            ]
+            SUFFIXES: Final[list[str]] = ["p50", "p99", "p99_9", "max"]
+            HEADINGS: Final[list[str]] = [
+                f"{label}_{suffix}" for label in LABELS for suffix in SUFFIXES
+            ]
+
+            csv.writer(f).writerow(HEADINGS)
+
+    def write_record(self, epoch: TelemetryEpoch):
+        with open(self.filename, 'a') as f:
+            record: list[float] = []
+
+            for i in range(TelemetryEpoch.NUM_LATENCY_MEASURES):
+                histogram = epoch.histograms[i]
+                record.append(histogram.get_value_at_percentile(50))
+                record.append(histogram.get_value_at_percentile(99))
+                record.append(histogram.get_value_at_percentile(99.9))
+                record.append(histogram.get_max_value())
+
+            record.append(epoch.allocated_bytes)
+            record.append(epoch.allocation_count)
+            record.append(epoch.freed_bytes)
+
+            csv.writer(f).writerow(record)
+
 def spawn_telemetry_thread(
     stream_name: str,
     sender: Sender[TelemetryEpoch],
@@ -190,31 +231,62 @@ def spawn_telemetry_thread(
         epoch = TelemetryEpoch()
         sender.send(epoch)
 
+    # Telemetry is written to a CSV file for later analysis.
+    csv_filename = f"telemetry_{stream_name}.csv"
+
+    try:
+        csv = Csv(csv_filename)
+    except Exception as e:
+        e.add_note(
+            "Failed to create CSV file for "
+            f"telemetry file '{csv_filename}': {e}")
+        raise
+
     def telemetry_thread():
+        last_allocated_bytes = 0
+        last_allocation_count = 0
+        last_freed_bytes = 0
+
         while True:
             epoch = receiver.receive()
 
             if epoch.terminated:
                 break
 
-            print(f"Telemetry for stream '{stream_name}':")
-            print(f"Allocated bytes: {epoch.allocated_bytes}")
-            print(f"Allocation count: {epoch.allocation_count}")
-            print(f"Freed bytes: {epoch.freed_bytes}")
+            current_allocated_bytes = 0
+            epoch.allocated_bytes = saturating_sub(
+                current_allocated_bytes, last_allocated_bytes
+            )
+            last_allocated_bytes = current_allocated_bytes
 
-            for i in range(TelemetryEpoch.NUM_LATENCY_MEASURES):
-                histogram = epoch.histograms[i]
-                print(
-                    f"Latency measure {i}: "
-                    f"p50={histogram.get_value_at_percentile(50):.2f} ns, "
-                    f"p90={histogram.get_value_at_percentile(90):.2f} ns, "
-                    f"p99={histogram.get_value_at_percentile(99):.2f} ns, "
-                    f"p99.9={histogram.get_value_at_percentile(99.9):.2f} ns, "
-                    f"max={histogram.get_max_value()} ns"
+            current_allocation_count = 0
+            epoch.allocation_count = saturating_sub(
+                current_allocation_count, last_allocation_count
+            )
+            last_allocation_count = current_allocation_count
+
+            current_freed_bytes = 0
+            epoch.freed_bytes = saturating_sub(
+                current_freed_bytes, last_freed_bytes
+            )
+            last_freed_bytes = current_freed_bytes
+
+            try:
+                csv.write_record(epoch)
+            except Exception as e:
+                e.add_note(
+                    f"Failed to write telemetry record to CSV file "
+                    f"'{csv_filename}': {e}"
                 )
+                raise
 
             epoch.reset()
-            sender.send(epoch)
+
+            try:
+                sender.send(epoch)
+            except Exception as e:
+                e.add_note("Failed to send clean telemetry epoch")
+                raise
 
     try:
         thread = threading.Thread(

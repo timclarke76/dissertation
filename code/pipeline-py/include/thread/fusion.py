@@ -127,7 +127,7 @@ def spawn_fusion_thread(
                 try:
                     # Copy the fusion timestamps and record the gyrometer
                     # telemetry.
-                    telemetry_writers[ShmBuffer.ACCEL_STREAM_ID].record(
+                    telemetry_writers[ShmBuffer.GYRO_STREAM_ID].record(
                         latest_gyrometer_timestamps
                     )
                 except Exception as e:

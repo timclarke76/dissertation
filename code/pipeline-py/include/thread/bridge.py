@@ -145,6 +145,8 @@ def spawn_bridge_thread(
                         with queue.lock:
                             queue.dropped_frames += 1
 
+        shm_buffer.close()
+
     try:
         thread = threading.Thread(
             target=bridge_thread, name=f"bridge_{shm_name}", daemon=True

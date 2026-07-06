@@ -187,6 +187,7 @@ class ShmBuffer:
 
     def close(self):
         """Closes the shared memory buffer."""
+        self.header = None
         self.shm_ptr.close()
 
     def next_frame(self) -> ShmFrame:
