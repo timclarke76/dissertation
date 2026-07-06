@@ -7,7 +7,8 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
-    "ruff (>=0.15.20,<0.16.0)"
+    "ruff (>=0.15.20,<0.16.0)",
+    "hdrhistogram (>=0.10.7,<0.11.0)"
 ]
 
 

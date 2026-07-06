@@ -7,7 +7,11 @@ from typing import Final
 
 from include.config import Args, Policy, QueueConfig, Settings
 from include.os import ShmBuffer, make_channel
-from include.thread import spawn_bridge_thread, spawn_inference_thread
+from include.thread import (
+    spawn_bridge_thread,
+    spawn_fusion_thread,
+    spawn_inference_thread,
+)
 from include import Queue
 
 dir = str(Path(__file__).resolve().parent)
@@ -112,7 +116,11 @@ def main():
         )
     ]
 
-    # TODO: Add fusion thread
+    fusion_thread = spawn_fusion_thread(
+        fusion_receiver, [cfg.queue.name for cfg in CONFIGS]
+    )
+
+    HANDLES.append(fusion_thread)
 
     for handle in HANDLES:
         handle.join()
