@@ -553,21 +553,28 @@ necessary to determine their suitability for Edge-AI pipelines.
 #wc[
 === Hardware Stack
 
-The NVIDIA Jetson Orin Nano Super was utilised as the target Edge-AI platform.
-It is a high-performance heterogeneous computing platform that is designed for
+The NVIDIA Jetson Orin Nano (8GB Edition) was utilised as the target Edge-AI
+platform. It is a high-performance heterogeneous computing platform designed for
 Edge-AI development in embedded systems, allowing complex AI workloads and
-multi-stream pipelines to be run efficiently. The developer kit includes a
-carrier board with I/O interfaces (e.g. USB, Ethernet, DisplayPort), a MicroSD
-card slot for booting, and the Jetson Orin Nano module itself which includes the
-following features @jetson-orin-nano:
-- 6-core Arm Cortex-A78AE 64-bit CPU for general-purpose concurrent processing
+multi-stream pipelines to be run efficiently.
+
+The developer kit includes a carrier board with I/O interfaces (e.g. USB,
+Ethernet, DisplayPort), a MicroSD card slot for booting, and the Jetson Orin
+Nano module itself. This provides the following specifications
+@jetson-orin-nano:
+- 6-core Arm Cortex-A78AE 64-bit CPU (clocked to 1.7 GHz) for general-purpose
+  concurrent processing
 - up to 67 TOPS (Tera Operations Per Second) of AI performance
 - 8 GB of 128-bit LPDDR5 memory with a bandwidth of 102 GB/s
 - 1024 CUDA cores for general-purpose GPU computing
 - 32 Tensor cores for AI acceleration
 
+The Jetson was flashed with NVIDIA’s JetPack 6.2.2 SDK @jetpack-6-2-2 to enable
+_Super Mode_ and allow uncapped _SUPER MAXN_ power mode that enables the highest
+number of cores and clock frequency across the SoC.
+
 A Waveshare IMX219-160 Camera Module @imx219-160 was used to deliver the RGB
-video stream, configured to capture at #ct[1920×1080 RGB frames at \30 FPS], and
+video stream, configured to capture at 1920×1080 RGB frames at \30 FPS, and
 connected via MIPI CSI-2 (Mobile Industry Processor Interface Camera Serial
 Interface \2). The camera captures images with a field of view (FOV) of
 160#sym.degree, making it suitable for capturing a wide area for human activity
