@@ -908,7 +908,7 @@ _Coordinated Omission_ occurs when a stalled system fails to record the true
 extent of tail-latency delays by omitting the time that the event truly occurred
 @howNotToMeasureLatency. By decoupling the load generator from the pipelines and
 ensuring that it pushes to an unbounded buffer, it is never blocked when the
-System Under Test (SUT) is stalled, thus ensuring that `t_generated` allows
+System Under Test (SUT) is stalled, thus ensuring that `generated_ts` allows
 latency delays to be accurately captured.
 
 These timestamps provide five key latency measurements: _Unbounded Queue Wait_
