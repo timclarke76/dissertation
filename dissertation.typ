@@ -1008,11 +1008,11 @@ when run. Using `tracemalloc` from the standard library would introduce
 additional overhead and confound the results, as it introduces tracing for every
 memory allocation event. Instead, the GC's built-in `callbacks` hook was
 utilised to capture the start and end time of each GC event (using
-`CLOCK_MONOTONIC_RAW`) to calculate the duration of each pause.
+`CLOCK_MONOTONIC`) to calculate the duration of each pause.
 
-To prevent memory allocation within the callback function, a double-buffering
-HDR Histogram approach was used, similar to the latency measurements, where the
-callback function writes the GC pause durations to an active histogram without
+To prevent memory allocation within the callback function, a triple-buffering
+approach was used, similar to the latency measurements, where the
+callback function writes the GC pause durations to an active `Epoch` without
 blocking. The background telemetry thread then extracts the GC pause percentiles
 and maximums at the same time as the latency measurements, allowing correlation
 between GC pause durations and runtime model events.
