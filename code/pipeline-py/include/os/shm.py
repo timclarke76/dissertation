@@ -2,6 +2,7 @@ import ctypes
 import struct
 import time
 from multiprocessing import shared_memory
+from multiprocessing.resource_tracker import unregister
 
 
 class ShmHeader(ctypes.Structure):
@@ -161,6 +162,7 @@ class ShmBuffer:
 
         try:
             self.shm_ptr = shared_memory.SharedMemory(name=name)
+            unregister(self.shm_ptr._name, 'shared_memory')
         except FileNotFoundError:
             raise RuntimeError(f"Failed to open shared memory '{name}'.")
 
