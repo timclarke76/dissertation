@@ -34,20 +34,21 @@ public:
     /// The index of the histogram for idiomatic queue wait latency.
     static constexpr size_t IDIOMATIC_QUEUE_WAIT = 1;
 
-    /// The index of the histogram for data preparation latency.
-    static constexpr size_t DATA_PREPARATION = 2;
-
     /// The index of the histogram for inference latency.
-    static constexpr size_t INFERENCE = 3;
+    static constexpr size_t INFERENCE_EXEC = 2;
+
+    // The index of the histogram for multi-producer single-consumer (MPSC)
+    // queue wait latency.
+    static constexpr size_t MPSC_WAIT = 3;
 
     /// The index of the histogram for fusion latency.
-    static constexpr size_t FUSION = 4;
+    static constexpr size_t FUSION_EXEC = 4;
 
     /// The index of the histogram for total latency.
-    static constexpr size_t TOTAL = 5;
+    static constexpr size_t TOTAL_LATENCY = 5;
 
     /// The number of latency measures tracked in an epoch.
-    static constexpr size_t NUM_LATENCY_MEASURES = TOTAL + 1;
+    static constexpr size_t NUM_LATENCY_MEASURES = 6;
 
     /// \brief Constructs a new Epoch instance with default-initialized
     /// histograms and zeroed allocation statistics.

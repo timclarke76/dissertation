@@ -24,8 +24,12 @@ TelemetryWriter::Csv::Csv(const std::string_view& filename)
 {
   std::vector<std::string> header;
 
-  for (auto label :
-    { "unbounded", "idiomatic", "data", "inference", "fusion", "total" }) {
+  for (auto label : { "unbounded_wait",
+         "idiomatic_wait",
+         "inference_exec",
+         "mpsc_wait",
+         "fusion_exec",
+         "total_latency" }) {
     header.push_back(std::format("{}_p50", label));
     header.push_back(std::format("{}_p99", label));
     header.push_back(std::format("{}_p99_9", label));
@@ -82,8 +86,8 @@ TelemetryWriter::record(uint64_t ts[Epoch::NUM_LATENCY_MEASURES])
   }
 
   const auto total_nanos =
-    saturating_sub(ts[Epoch::TOTAL], ts[Epoch::UNBOUNDED_QUEUE_WAIT]);
-  current_epoch_.latency_nanos[Epoch::NUM_LATENCY_MEASURES - 1].record(
+    saturating_sub(ts[Epoch::TOTAL_LATENCY], ts[Epoch::UNBOUNDED_QUEUE_WAIT]);
+  current_epoch_.latency_nanos[Epoch::TOTAL_LATENCY].record(
     std::max<uint64_t>(1, total_nanos));
 }
 

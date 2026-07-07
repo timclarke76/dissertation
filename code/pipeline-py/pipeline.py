@@ -6,7 +6,8 @@ import threading
 from typing import Final
 
 from include.config import Args, Policy, QueueConfig, Settings
-from include.os import ShmBuffer, make_channel
+from include.os import ShmBuffer, make_channel, gc
+import include.os.gc
 from include.thread import (
     spawn_bridge_thread,
     spawn_fusion_thread,
@@ -112,7 +113,7 @@ def main():
             cfg.policy,
             cfg.duration.total_seconds(),
             # FIXME: I think this is too big for every implementation
-            cfg.queue.fps / MIN_FPS,
+            int(cfg.queue.fps / MIN_FPS),
         )
     ]
 

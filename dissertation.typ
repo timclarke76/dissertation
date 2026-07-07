@@ -840,19 +840,19 @@ ingestion rate.
 
 ==== Latency
 
-To measure latency of the pipelines, the `CLOCK_MONOTONIC_RAW` clock was used to
-capture timestamps at key points as the data events flowed through the pipeline.
-This provides high-resolution timing information that is not affected by system
-time changes or adjustments. The following six timestamps, as visualised in
+To measure latency of the pipelines, the `CLOCK_MONOTONIC` clock was used to
+capture high-resolution timestamps at key points as the data events flowed through the pipeline.
+NTP synchronisation was disabled to prevent the system clock from being adjusted.
+The following six timestamps, as visualised in
 @fig:latency_timeline, were captured for each event:
 
-+ `t_generated` when the generator pushes to the unbounded buffer
-+ `t_bridged` when the bridge pushes to the idiomatic buffer
-+ `t_pipeline_in` when the pipeline pulls the event from the idiomatic buffer
-+ `t_pipeline_out` when the pipeline pushes data to the ONNX Runtime for
++ `generated_ts` when the generator pushes to the unbounded buffer
++ `bridged_ts` when the bridge pushes to the idiomatic buffer
++ `pipeline_in_ts` when the pipeline pulls the event from the idiomatic buffer
++ `pipeline_out_ts` when the pipeline pushes data to the ONNX Runtime for
   inference
-+ `t_fusion_in` when inference completes and the pipeline begins late fusion
-+ `t_fusion_out` when late fusion completes and the pipeline produces the final
++ `fusion_in_ts` when inference completes and the pipeline begins late fusion
++ `fusion_out_ts` when late fusion completes and the pipeline produces the final
   output
 
 #figure(
@@ -872,24 +872,24 @@ time changes or adjustments. The following six timestamps, as visualised in
       node-fill: pale_cream,
       node-corner-radius: 1.5pt,
       node-inset: 5pt,
-      spacing: 28pt,
+      spacing: 25pt,
 
       edge((0,0), (5,0), "-", stroke: 1pt + charcoal),
 
-      n(0, <generated>, [`t_generated`]),
-      n(1, <bridged>, [`t_bridged`]),
-      n(2, <pipeline-in>, [`t_pipeline_in`]),
-      n(3, <pipeline-out>, [`t_pipeline_out`]),
-      n(4, <fusion-in>, [`t_fusion_in`]),
-      n(5, <fusion-out>, [`t_fusion_out`]),
+      n(0, <generated>, [`generated_ts`]),
+      n(1, <bridged>, [`bridged_ts`]),
+      n(2, <pipeline-in>, [`pipeline_in_ts`]),
+      n(3, <pipeline-out>, [`pipeline_out_ts`]),
+      n(4, <fusion-in>, [`fusion_in_ts`]),
+      n(5, <fusion-out>, [`fusion_out_ts`]),
 
       be(<generated>, <bridged>, [Unbounded\ Queue Wait]),
       te(<bridged>, <pipeline-in>, [Idiomatic\ Queue Wait]),
-      be(<pipeline-in>, <pipeline-out>, [Data Preparation]),
-      te(<pipeline-out>, <fusion-in>, [Inference]),
-      be(<fusion-in>, <fusion-out>, [Fusion]),
+      be(<pipeline-in>, <pipeline-out>, [Inference\ Execution]),
+      te(<pipeline-out>, <fusion-in>, [MPSC Wait]),
+      be(<fusion-in>, <fusion-out>, [Fusion\ Execution]),
 
-      e(<generated>, <fusion-out>, [Total System Latency], -65pt, right),
+      e(<generated>, <fusion-out>, [Total Latency], -65pt, right),
     )
   ],
 
@@ -905,11 +905,11 @@ System Under Test (SUT) is stalled, thus ensuring that `t_generated` allows
 latency delays to be accurately captured.
 
 These timestamps provide five key latency measurements: _Unbounded Queue Wait_
-($"t_bridged" - "t_generated"$), _Idiomatic Queue Wait_ ($"t_pipeline_in" -
-"t_bridged"$), _Data Preparation_ ($"t_pipeline_out" - "t_pipeline_in"$),
-_Inference_ ($"t_fusion_in" - "t_pipeline_out"$), and _Fusion_ ($"t_fusion_out"
-- "t_fusion_in"$). Additionally, _Total System Latency_ ($"t_fusion_out" -
-"t_generated"$) was calculated to capture the end-to-end processing time.
+($"bridged_ts" - "generated_ts"$), _Idiomatic Queue Wait_ ($"pipeline_in_ts" -
+"bridged_ts"$), _Inference Execution_ ($"pipeline_out_ts" - "pipeline_in_ts"$),
+_MPSC Wait_ ($"fusion_in_ts" - "pipeline_out_ts"$), and _Fusion Execution_ ($"fusion_out_ts"
+- "fusion_in_ts"$). Additionally, _Total Latency_ ($"fusion_out_ts" -
+"generated_ts"$) was calculated to capture the end-to-end processing time.
 
 These measurements provide the necessary granularity to measure each runtime
 model's latency, and to identify bottlenecks and trade-offs under load and

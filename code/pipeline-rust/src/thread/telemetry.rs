@@ -41,23 +41,24 @@ impl TelemetryEpoch {
     #[allow(unused)]
     pub const IDIOMATIC_QUEUE_WAIT: usize = 1;
 
-    /// The index of the histogram for data preparation latency.
-    #[allow(unused)]
-    pub const DATA_PREPARATION: usize = 2;
-
     /// The index of the histogram for inference latency.
     #[allow(unused)]
-    pub const INFERENCE: usize = 3;
+    pub const INFERENCE_EXEC: usize = 2;
+
+    /// The index of the histogram for multi-producer single-consumer (MPSC)
+    /// queue wait latency.
+    #[allow(unused)]
+    pub const MPSC_WAIT: usize = 3;
 
     /// The index of the histogram for fusion latency.
     #[allow(unused)]
-    pub const FUSION: usize = 4;
+    pub const FUSION_EXEC: usize = 4;
 
     /// The index of the histogram for total latency.
-    pub const TOTAL: usize = 5;
+    pub const TOTAL_LATENCY: usize = 5;
 
     /// The number of latency measures tracked in an epoch.
-    pub const NUM_LATENCY_MEASURES: usize = Self::TOTAL + 1;
+    pub const NUM_LATENCY_MEASURES: usize = 6;
 
     /// Creates a new `TelemetryEpoch` with six HdrHistogram instances for
     /// recording latency measurements in nanoseconds. Each histogram is
@@ -75,27 +76,27 @@ impl TelemetryEpoch {
             "Failed to create HdrHistogram for idiomatic queue wait latency",
         )?;
 
-        let data_preparation = Self::create_histogram().context(
-            "Failed to create HdrHistogram for data preparation latency",
+        let inference_exec = Self::create_histogram().context(
+            "Failed to create HdrHistogram for inference exec latency",
         )?;
 
-        let inference = Self::create_histogram()
-            .context("Failed to create HdrHistogram for inference latency")?;
+        let mpsc_wait = Self::create_histogram()
+            .context("Failed to create HdrHistogram for MPSC wait latency")?;
 
-        let fusion = Self::create_histogram()
-            .context("Failed to create HdrHistogram for fusion latency")?;
+        let fusion_exec = Self::create_histogram()
+            .context("Failed to create HdrHistogram for fusion exec latency")?;
 
-        let total = Self::create_histogram()
+        let total_latency = Self::create_histogram()
             .context("Failed to create HdrHistogram for total latency")?;
 
         Ok(Self {
             latency_nanos: [
                 unbounded_queue_wait,
                 idiomatic_queue_wait,
-                data_preparation,
-                inference,
-                fusion,
-                total,
+                inference_exec,
+                mpsc_wait,
+                fusion_exec,
+                total_latency,
             ],
             allocated_bytes: 0,
             allocation_count: 0,
@@ -156,12 +157,12 @@ impl Csv {
         let mut record = Vec::new();
 
         for label in [
-            "unbounded",
-            "idiomatic",
-            "data",
-            "inference",
-            "fusion",
-            "total",
+            "unbounded_wait",
+            "idiomatic_wait",
+            "inference_exec",
+            "mpsc_wait",
+            "fusion_exec",
+            "total_latency",
         ] {
             record.push(format!("{}_p50", label));
             record.push(format!("{}_p99", label));
@@ -284,9 +285,9 @@ impl TelemetryWriter {
                 .context("Failed to record latency")?;
         }
 
-        let total_nanos = ts[TelemetryEpoch::TOTAL]
+        let total_nanos = ts[TelemetryEpoch::TOTAL_LATENCY]
             .saturating_sub(ts[TelemetryEpoch::UNBOUNDED_QUEUE_WAIT]);
-        self.current_epoch.latency_nanos[TelemetryEpoch::TOTAL]
+        self.current_epoch.latency_nanos[TelemetryEpoch::TOTAL_LATENCY]
             .record(total_nanos)
             .context("Failed to record total latency")?;
 
@@ -361,7 +362,7 @@ pub fn spawn_telemetry_thread(
             .with_context(|| format!("Failed to send telemetry epoch {i}"))?;
     }
 
-    // Telemtry is written to a CSV file for later analysis.
+    // Telemetry is written to a CSV file for later analysis.
     let csv_filename = format!("telemetry_{}.csv", stream_name);
     let mut csv = Csv::try_new(&csv_filename).with_context(|| {
         format!(

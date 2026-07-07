@@ -1,5 +1,6 @@
 import csv
 from dataclasses import dataclass
+import sys
 import threading
 import time
 from typing import Final
@@ -7,6 +8,7 @@ from typing import Final
 from hdrh.histogram import HdrHistogram
 
 from include.os import Sender, Receiver, saturating_sub
+import include.os.gc as gc
 
 
 class TelemetryEpoch:
@@ -20,16 +22,17 @@ class TelemetryEpoch:
     IDIOMATIC_QUEUE_WAIT: int = 1
     """The index of the histogram for idiomatic queue wait latency."""
 
-    DATA_PREPARATION: int = 2
-    """The index of the histogram for data preparation latency."""
-
-    INFERENCE: int = 3
+    INFERENCE_EXEC: int = 2
     """The index of the histogram for inference latency."""
 
-    FUSION: int = 4
+    MPSC_WAIT: int = 3
+    """The index of the histogram for multi-producer single-consumer (MPSC)
+    queue wait latency."""
+
+    FUSION_EXEC: int = 4
     """The index of the histogram for fusion latency."""
 
-    TOTAL: int = 5
+    TOTAL_LATENCY: int = 5
     """The index of the histogram for total latency."""
 
     NUM_LATENCY_MEASURES: int = 6
@@ -39,14 +42,11 @@ class TelemetryEpoch:
     """The histograms for recording latency measurements in nanoseconds for each
     stage of the inference pipeline, as well as the total latency."""
 
-    allocated_bytes: int = 0
-    """The total number of bytes allocated during the epoch."""
+    gc_pause_ns: int = 0
+    """The total time spent in garbage collection pauses during the epoch."""
 
-    allocation_count: int = 0
-    """The total number of allocations made during the epoch."""
-
-    freed_bytes: int = 0
-    """The total number of bytes freed during the epoch."""
+    gc_blocks: int = 0
+    """The total number of allocation blocks created during the epoch."""
 
     terminated: bool = False
     """A flag indicating whether the telemetry thread should terminate."""
@@ -72,9 +72,8 @@ class TelemetryEpoch:
         for histogram in self.histograms:
             histogram.reset()
 
-        self.allocated_bytes = 0
-        self.allocation_count = 0
-        self.freed_bytes = 0
+        self.gc_pause_ns = 0
+        self.gc_blocks = 0
 
 
 class TelemetryWriter:
@@ -146,13 +145,14 @@ class TelemetryWriter:
                 raise
 
         total_nanos = saturating_sub(
-            ts[TelemetryEpoch.TOTAL], ts[TelemetryEpoch.UNBOUNDED_QUEUE_WAIT]
+            ts[TelemetryEpoch.TOTAL_LATENCY],
+            ts[TelemetryEpoch.UNBOUNDED_QUEUE_WAIT],
         )
 
         try:
-            self.current_epoch.histograms[TelemetryEpoch.TOTAL].record_value(
-                total_nanos
-            )
+            self.current_epoch.histograms[
+                TelemetryEpoch.TOTAL_LATENCY
+            ].record_value(total_nanos)
         except Exception as e:
             e.add_note(
                 f"Failed to record total latency value {total_nanos} ns: {e}"
@@ -189,24 +189,28 @@ class Csv:
     def __init__(self, filename: str):
         self.filename = filename
 
-        with open(filename, 'w') as f:
+        with open(filename, 'w', newline='') as f:
             LABELS: Final[list[str]] = [
-                "unbounded",
-                "idiomatic",
-                "data",
-                "inference",
-                "fusion",
-                "total",
+                'unbounded_wait',
+                'idiomatic_wait',
+                'inference_exec',
+                'mpsc_wait',
+                'fusion_exec',
+                'total_latency',
             ]
-            SUFFIXES: Final[list[str]] = ["p50", "p99", "p99_9", "max"]
-            HEADINGS: Final[list[str]] = [
-                f"{label}_{suffix}" for label in LABELS for suffix in SUFFIXES
+            SUFFIXES: Final[list[str]] = ['p50', 'p99', 'p99_9', 'max']
+
+            headings: list[str] = [
+                f'{label}_{suffix}' for label in LABELS for suffix in SUFFIXES
             ]
 
-            csv.writer(f).writerow(HEADINGS)
+            headings.append('gc_pause_ns')
+            headings.append('gc_blocks')
+
+            csv.writer(f).writerow(headings)
 
     def write_record(self, epoch: TelemetryEpoch):
-        with open(self.filename, 'a') as f:
+        with open(self.filename, 'a', newline='') as f:
             record: list[float] = []
 
             for i in range(TelemetryEpoch.NUM_LATENCY_MEASURES):
@@ -216,18 +220,18 @@ class Csv:
                 record.append(histogram.get_value_at_percentile(99.9))
                 record.append(histogram.get_max_value())
 
-            record.append(epoch.allocated_bytes)
-            record.append(epoch.allocation_count)
-            record.append(epoch.freed_bytes)
+            record.append(epoch.gc_pause_ns)
+            record.append(epoch.gc_blocks)
 
             csv.writer(f).writerow(record)
+
 
 def spawn_telemetry_thread(
     stream_name: str,
     sender: Sender[TelemetryEpoch],
     receiver: Receiver[TelemetryEpoch],
 ) -> threading.Thread:
-    for i in range(2):
+    for i in range(3):
         epoch = TelemetryEpoch()
         sender.send(epoch)
 
@@ -239,13 +243,13 @@ def spawn_telemetry_thread(
     except Exception as e:
         e.add_note(
             "Failed to create CSV file for "
-            f"telemetry file '{csv_filename}': {e}")
+            f"telemetry file '{csv_filename}': {e}"
+        )
         raise
 
     def telemetry_thread():
-        last_allocated_bytes = 0
-        last_allocation_count = 0
-        last_freed_bytes = 0
+        last_gc_pause_ns = 0
+        last_gc_blocks = 0
 
         while True:
             epoch = receiver.receive()
@@ -253,23 +257,15 @@ def spawn_telemetry_thread(
             if epoch.terminated:
                 break
 
-            current_allocated_bytes = 0
-            epoch.allocated_bytes = saturating_sub(
-                current_allocated_bytes, last_allocated_bytes
+            current_gc_pause_ns = gc.pause_ns
+            epoch.gc_pause_ns = saturating_sub(
+                current_gc_pause_ns, last_gc_pause_ns
             )
-            last_allocated_bytes = current_allocated_bytes
+            last_gc_pause_ns = current_gc_pause_ns
 
-            current_allocation_count = 0
-            epoch.allocation_count = saturating_sub(
-                current_allocation_count, last_allocation_count
-            )
-            last_allocation_count = current_allocation_count
-
-            current_freed_bytes = 0
-            epoch.freed_bytes = saturating_sub(
-                current_freed_bytes, last_freed_bytes
-            )
-            last_freed_bytes = current_freed_bytes
+            current_gc_blocks = sys.getallocatedblocks()
+            epoch.gc_blocks = saturating_sub(current_gc_blocks, last_gc_blocks)
+            last_gc_blocks = current_gc_blocks
 
             try:
                 csv.write_record(epoch)
