@@ -1108,6 +1108,18 @@ number (`UINT64_MAX` or `u64::MAX`) was injected into the bounded queue, which
 initiated a graceful shutdown of the pipeline by all threads after any pending
 events were processed.
 
+=== Late Fusion
+
+A Multi-Producer Single-Consumer (MPSC) pattern was used to drive the late
+fusion, where the inference threads all pushed their results to a single fusion
+thread for processing, and the fusion execution was tied to the 30Hz RGB stream.
+Anchoring on the slowest, most computationally expensive stream prevented
+redundant fusion executions and prevented the fusion thread from being
+bottlenecked by the faster IMU streams. Consequently, the IMU streams were both
+downsampled using fixed window sizes to match the 30Hz RGB stream, ensuring that
+the IMU inference was only executed and the results injected into the MPSC
+channel when the window was full.
+
 ==== Thermal and Power Throttling
 
 The Jetson Orin Nano utilises reactive software thermal management (Dynamic
