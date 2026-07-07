@@ -922,23 +922,26 @@ structures (e.g. vectors or lists).
 
 To retain temporal information about how latency changes over time and
 correlates with runtime model behaviour and backpressure events, a
-double-buffering approach was used. Using HdrHistogram's `WriterReaderPhaser`
-class ensured the pipeline (the _writer_) thread could write measurements to an
-active histogram without blocking (i.e. is wait-free @herlihy1991wait).
-Concurrently, a lightweight background telemetry thread (the _reader_)
-periodically rotated the buffers, extracting the throughput alongside the
-$"p50"$, $"p95"$, $"p99"$, $"p99.9"$, $"p99.99"$, and maximum latency values
-from the newly inactive histogram into a pre-allocated fixed-size array at
-#ct[fixed intervals], without any blocking of the pipeline thread.
+triple-buffering approach was used. The pipeline thread (the _writer_) populated
+an active `Epoch` object containing the latency histograms, memory counters, and
+dropped frames counter. At one-second intervals, a clean `Epoch` was pulled from
+a channel using wait-free message passing, and the populated `Epoch` was pushed
+to another channel. Concurrently, a lightweight background telemetry thread (the
+_reader_) pulled the populated `Epoch` messages from the second channel and
+saved the counters and the $"p50"$, $"p95"$, $"p99"$, $"p99.9"$, $"p99.99"$, and
+maximum latency values into a CSV file, then reset the `Epoch` and pushed it
+back to the first channel for reuse. A third `Epoch` was kept idle in the first
+channel ready to be swapped in as the new active buffer, preventing any blocking
+of the pipeline thread if the telemetry thread is delayed (e.g. by I/O stalls).
 
 #figure(
-  pad(top: 0.5em)[
+  pad(top: 1.5em)[
     #set text(size: 8pt)
 
     #let n(x, y, name, t, f, s) = node((x,y), name: name,
       align(center)[#t], fill: f, shape: s)
     #let r(x, y, name, t) = n(x, y, name, t, pale_green, rect)
-    #let c(x, y, name, t) = n(x, y, name, t, pale_blue, cylinder)
+    #let c(x, y, name, t) = n(x, y, name, t, pale_blue, rect)
     #let e(p1, p2, t, ls) = edge(p1, p2, "-|>", mark-scale: 175%,
       label: align(center)[#t], label-side: ls)
 
@@ -951,19 +954,20 @@ from the newly inactive histogram into a pre-allocated fixed-size array at
       r(0, 0, <writer>, [Pipeline Thread\ (Writer)]),
       r(1, 0, <reader>, [Telemetry Thread\ (Reader)]),
 
-      c(0, 1, <active>, [Active\ HDR Histogram]),
-      c(1, 1, <inactive>, [Inactive\ HDR Histogram]),
+      c(0, 1, <active>, [Active\ Epoch Buffer]),
+      c(1.05, 1.05, <idle>, [Idle & Idle\ Epoch Buffers]),
+      c(1, 1, <inactive>, [Idle & Inactive\ Epoch Buffers]),
 
-      e(<writer>, <active>, [Record Latency\ (Wait-Free)], center),
-      e(<reader>, <inactive>, [Extract Telemetry\ (Locks Reader Only)], center),
+      e(<writer>, <active>, [Record Metrics\ (Wait-Free)], center),
+      e(<reader>, <inactive>, [Extract Telemetry\ (CSV I/O)], center),
 
       edge(<active>, <inactive>, "<|--|>", mark-scale: 175%,
-        label: align(center)[Atomic Swap\ (1 Hz Interval)], label-side: right)
+        label: align(center)[Channel Swap\ (1 Hz Interval)], label-side: right)
     )
   ],
 
-  caption: [Double-buffering approach to atomically capture the telemetry
-    without\ blocking the pipeline thread.]
+  caption: [Triple-buffering approach to cleanly capture the telemetry epochs \
+    without blocking the pipeline thread during I/O stalls.]
 ) <fig:double_buffering>
 
 ==== Memory Churn (C++ and Rust)
