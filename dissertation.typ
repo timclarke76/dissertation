@@ -978,24 +978,16 @@ using the `#[global_allocator]` attribute.
 
 The telemetry thread concurrently captured the memory allocation metrics during
 the same intervals as the latency measurements, allowing for correlation between
-memory churn under load and backpressure events.
-
-Read-tears occur when the telemetry thread reads the allocation metrics out of
-sync with the pipeline's updates, which would significantly skew results when
-handling large memory allocations, such as the RGB data stream.
-
-To prevent this, 128-bit atomic operations (`std::atomic` in C++, and
-`AtomicU128` in Rust) were utilised. These operations are guaranteed to be
-executed as a single, indivisible hardware instruction, which is lock-free on
-the Jetson Orin Nano's Cortex-A78AE processor via the ARMv8.2-A architecture's
-`FEAT_LSE` (Large System Extensions) feature which was introduced in ARMv8.1
-@arm8_1. The allocation count and total bytes allocated were packed into a
-single 16-byte aligned structure to be read atomically by the telemetry thread.
-
-To ensure this hardware-level atomicity was enabled, the
-#box[`-march=armv8.2-a+lse`] flag was added to the compilation of the C++
-implementation, and #box[`-C target-cpu=cortex-a78`] for the Rust
-implementation.
+memory churn under load and backpressure events. Three atomic operations
+(`std::atomic<size_t>` in C++, and `AtomicUsize` in Rust) were used to capture
+the total number of allocations, total bytes allocated, and total bytes freed.
+Relaxed memory ordering was used to prevent the "observer effect" from
+confounding the results by introducing additional latency. Though this may
+introduce nanosecond-level "read skew" when the telemetry thread reads the
+counters (i.e. the independent metrics are read slightly out of sync with each
+other), the telemetry thread only reads these metrics once a second, which
+renders this comparatively insignificant temporal drift statistically
+irrelevant.
 
 ==== GC Pressure (Python)
 
