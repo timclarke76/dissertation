@@ -49,7 +49,7 @@ class ShmFrame:
 
     # Using __slots__ instead of the default __dict__ reduces memory usage and
     # improces attribute access speed.
-    __slots__ = ['stream_id', 'seq_num', 'timestamps']
+    __slots__ = ['stream_id', 'seq_num', 'timestamps', 'dropped_frames']
 
     def __init__(self, stream_id: int, seq_num: int, timestamps: list[int]):
         """Constructs a new ShmBuffer instance and connects to the shared memory
@@ -76,9 +76,29 @@ class ShmFrame:
             * FUSION_OUT: when late fusion completes and the pipeline produces
               the final output
         """
+        # The stream ID associated with this frame. Used to identify the source
+        # of the frame.
         self.stream_id = stream_id
+
+        # The sequence number of the frame.
         self.seq_num = seq_num
+
+        # The six timestamps associated with the frame, in nanoseconds:
+        # * GENERATED: when the generator pushes to the unbounded buffer
+        # * BRIDGED: when the bridge pushes to the idiomatic buffer
+        # * PIPELINE_IN: when the pipeline pulls the event from the idiomatic
+        #   buffer
+        # * PIPELINE_OUT: when the pipeline pushes data to the ONNX Runtime for
+        #   inference
+        # * FUSION_IN: when inference completes and the pipeline begins late
+        #   fusion
+        # * FUSION_OUT: when late fusion completes and the pipeline produces the
+        #   final output
         self.timestamps = timestamps
+
+        # The number of frames that have been dropped due to the bounded queue
+        # being full.
+        self.dropped_frames = 0
 
 
 class ShmBuffer:

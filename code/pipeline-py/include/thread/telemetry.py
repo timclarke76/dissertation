@@ -42,6 +42,9 @@ class TelemetryEpoch:
     """The histograms for recording latency measurements in nanoseconds for each
     stage of the inference pipeline, as well as the total latency."""
 
+    dropped_frames: int = 0
+    """The total number of frames dropped during the epoch."""
+
     gc_pause_ns: int = 0
     """The total time spent in garbage collection pauses during the epoch."""
 
@@ -97,6 +100,10 @@ class TelemetryWriter:
     """The timestamp of the last buffer swap, used to determine when to next
     swap the buffers."""
 
+    last_dropped_frames: int
+    """The number of frames dropped since the last call to record, used to
+    calculate the number of dropped frames for the current epoch."""
+
     current_epoch: TelemetryEpoch
     """The currently active telemetry epoch for recording latency
     measurements."""
@@ -116,9 +123,10 @@ class TelemetryWriter:
         self.sender = sender
         self.receiver = receiver
         self.last_swap = time.perf_counter_ns()
+        self.last_dropped_frames = 0
         self.current_epoch = receiver.receive()
 
-    def record(self, ts: list[int]) -> None:
+    def record(self, ts: list[int], dropped_frames: int) -> None:
         """Records latency measurements into the currently active telemetry
         epoch. If at least one second has elapsed since the last buffer swap,
         the active buffer is swapped with a fresh buffer received from the
@@ -127,7 +135,8 @@ class TelemetryWriter:
         Args:
             ts: An array of six timestamps in nanoseconds, representing the
             start and end times of each stage of the inference pipeline, as well
-            as the total latency."""
+            as the total latency.
+            dropped_frames: The total number of frames dropped."""
 
         if time.perf_counter_ns() - self.last_swap >= self.SWAP_INTERVAL:
             self.swap_buffers()
@@ -158,6 +167,10 @@ class TelemetryWriter:
                 f"Failed to record total latency value {total_nanos} ns: {e}"
             )
             raise
+
+        newly_dropped = saturating_sub(dropped_frames, self.last_dropped_frames)
+        self.current_epoch.dropped_frames += newly_dropped
+        self.last_dropped_frames = dropped_frames
 
     def swap_buffers(self):
         """Swaps the active histogram buffer with the cleared buffer received
@@ -204,6 +217,7 @@ class Csv:
                 f'{label}_{suffix}' for label in LABELS for suffix in SUFFIXES
             ]
 
+            headings.append('dropped_frames')
             headings.append('gc_pause_ns')
             headings.append('gc_blocks')
 
@@ -220,6 +234,7 @@ class Csv:
                 record.append(histogram.get_value_at_percentile(99.9))
                 record.append(histogram.get_max_value())
 
+            record.append(epoch.dropped_frames)
             record.append(epoch.gc_pause_ns)
             record.append(epoch.gc_blocks)
 
@@ -254,8 +269,13 @@ def spawn_telemetry_thread(
         while True:
             epoch = receiver.receive()
 
+            # If the `terminated` flag is set, we break out of the loop and exit
+            # the telemetry thread gracefully.
             if epoch.terminated:
                 break
+
+            # Now the inference thread is no longer updating the completed
+            # epoch, we can save it.
 
             current_gc_pause_ns = gc.pause_ns
             epoch.gc_pause_ns = saturating_sub(

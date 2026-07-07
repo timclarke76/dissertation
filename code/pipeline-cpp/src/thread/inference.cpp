@@ -17,9 +17,12 @@ spawn_inference_thread(const std::string& stream_name,
       for (;;) {
         std::unique_lock<std::mutex> transaction_lock(queue->mutex);
         auto item = queue->pop();
+        auto dropped_frames = queue->dropped_frames;
         transaction_lock.unlock();
 
         if (item.has_value()) {
+          item->dropped_frames = dropped_frames;
+
           if (item->seq_num == UINT64_MAX) {
             // The generator stream has ended, so we send the final
             // frame to the fusion thread and exit the loop.

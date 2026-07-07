@@ -44,9 +44,9 @@ pub fn spawn_inference_thread(
             let mut samples_collected = 0;
 
             loop {
-                let item = {
+                let (item, dropped_frames) = {
                     let mut q = queue.lock().unwrap();
-                    q.pop()
+                    (q.pop(), q.dropped_frames)
                 };
 
                 let t_pipeline_in = now_nanos().expect(
@@ -55,6 +55,8 @@ pub fn spawn_inference_thread(
                 );
 
                 if let Some(mut frame) = item {
+                    frame.dropped_frames = dropped_frames;
+
                     if frame.seq_num == u64::MAX {
                         // The generator stream has ended, so we send the final
                         // frame to the fusion thread and exit the loop.

@@ -35,10 +35,13 @@ def spawn_inference_thread(
         while True:
             with queue.lock:
                 frame = queue.pop()
+                dropped_frames = queue.dropped_frames
 
             t_pipeline_in = time.perf_counter_ns()
 
             if frame != None:
+                frame.dropped_frames = dropped_frames
+
                 if frame.seq_num == ShmBuffer.POISON_PILL:
                     # The generator stream has ended, so we send the final
                     # frame to the fusion thread and exit the loop.

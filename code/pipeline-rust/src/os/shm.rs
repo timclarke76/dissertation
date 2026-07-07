@@ -89,6 +89,10 @@ pub struct ShmFrame {
     /// * FUSION_OUT: when late fusion completes and the pipeline produces the
     ///   final output
     pub timestamps: [u64; 6],
+
+    /// The number of frames that have been dropped due to the bounded queue
+    /// being full.
+    pub dropped_frames: u64,
 }
 
 /// Connects to a circular shared memory buffer and reads its frames.
@@ -286,6 +290,7 @@ impl ShmBuffer {
                     stream_id: self.stream_id,
                     seq_num: self.frame_idx + 1,
                     timestamps: [t_generated, t_bridged, 0, 0, 0, 0],
+                    dropped_frames: 0,
                 });
             }
 
@@ -302,6 +307,7 @@ impl ShmBuffer {
                     stream_id: self.stream_id,
                     seq_num: u64::MAX,
                     timestamps: [0; ShmBuffer::NUM_TIMESTAMPS],
+                    dropped_frames: 0,
                 });
             }
 

@@ -56,8 +56,10 @@ pub fn spawn_fusion_thread(
             // timestamps for fusion telemetry.
             let mut latest_accelerometer_timestamps =
                 [0; ShmBuffer::NUM_TIMESTAMPS];
+            let mut latest_accelerometer_dropped_frames = 0;
             let mut latest_gyrometer_timestamps =
                 [0; ShmBuffer::NUM_TIMESTAMPS];
+            let mut latest_gyrometer_dropped_frames = 0;
 
             let mut eos_count = 0;
 
@@ -87,12 +89,15 @@ pub fn spawn_fusion_thread(
                         // Only the most recent accelerometer timestamps are
                         // needed for fusion, so we store them here.
                         latest_accelerometer_timestamps = frame.timestamps;
+                        latest_accelerometer_dropped_frames =
+                            frame.dropped_frames;
                     }
 
                     ShmBuffer::GYRO_STREAM_ID => {
                         // Only the most recent gyrometer timestamps are
                         // needed for fusion, so we store them here.
                         latest_gyrometer_timestamps = frame.timestamps;
+                        latest_gyrometer_dropped_frames = frame.dropped_frames;
                     }
 
                     ShmBuffer::RGB_STREAM_ID => {
@@ -110,7 +115,7 @@ pub fn spawn_fusion_thread(
 
                         // Record the RGB telemetry.
                         telemetry_writers[ShmBuffer::RGB_STREAM_ID]
-                            .record(frame.timestamps)
+                            .record(frame.timestamps, frame.dropped_frames)
                             .expect("Failed to record RGB telemetry");
 
                         // Copy the fusion timestamps and record the
@@ -122,7 +127,10 @@ pub fn spawn_fusion_thread(
                             [ShmBuffer::FUSION_OUT_TS] =
                             frame.timestamps[ShmBuffer::FUSION_OUT_TS];
                         telemetry_writers[ShmBuffer::ACCEL_STREAM_ID]
-                            .record(latest_accelerometer_timestamps)
+                            .record(
+                                latest_accelerometer_timestamps,
+                                latest_accelerometer_dropped_frames,
+                            )
                             .expect("Failed to record accelerometer telemetry");
 
                         // Copy the fusion timestamps and record the gyrometer
@@ -132,7 +140,10 @@ pub fn spawn_fusion_thread(
                         latest_gyrometer_timestamps[ShmBuffer::FUSION_OUT_TS] =
                             frame.timestamps[ShmBuffer::FUSION_OUT_TS];
                         telemetry_writers[ShmBuffer::GYRO_STREAM_ID]
-                            .record(latest_gyrometer_timestamps)
+                            .record(
+                                latest_gyrometer_timestamps,
+                                latest_gyrometer_dropped_frames,
+                            )
                             .expect("Failed to record gyroscope telemetry");
                     }
 

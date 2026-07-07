@@ -75,6 +75,9 @@ public:
     /// each stage of the inference pipeline, as well as the total latency.
     Histogram latency_nanos[NUM_LATENCY_MEASURES];
 
+    /// The total number of frames dropped during the epoch.
+    uint64_t dropped_frames = 0;
+
     /// The total number of bytes allocated during the epoch.
     size_t allocated_bytes = 0;
 
@@ -146,7 +149,9 @@ public:
   /// \param ts An array of six timestamps in nanoseconds, representing the
   /// start and end times of each stage of the inference pipeline, as well as
   /// the total latency.
-  void record(uint64_t ts[Epoch::NUM_LATENCY_MEASURES]);
+  /// \param dropped_frames The total number of frames dropped.
+  void record(uint64_t ts[Epoch::NUM_LATENCY_MEASURES],
+    const uint64_t dropped_frames);
 
   /// \brief Signals the telemetry thread to terminate by setting the terminate
   /// flag in the current epoch and sending it to the telemetry thread.
@@ -175,6 +180,10 @@ private:
   /// The timestamp of the last buffer swap, used to determine when to next swap
   /// the buffers.
   std::chrono::steady_clock::time_point last_swap_;
+
+  /// The number of frames dropped since the call to record, used to calculate
+  /// the number of dropped frames for the current epoch.
+  uint64_t last_dropped_frames_ = 0;
 
   /// The currently active telemetry epoch for recording latency measurements.
   Epoch current_epoch_;
