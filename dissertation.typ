@@ -1090,6 +1090,22 @@ In addition, the C++ and Rust implementations used `mallinfo2()` to capture the
 process that is currently free, providing insight into the amount of fragmented
 memory that is allocated but not currently in use.
 
+=== System-Wide Memory Tracking
+
+In C++, the global `operator new` and `operator delete` were overridden; in
+Rust, a custom `#[global_allocator]` was implemented; and in Python,
+`gc.callbacks()` and `sys.getallocatedblocks()` were utilised. Consequently, all
+memory allocation metrics were captured at a global level, rather than on a
+per-thread or per-sensor basis.
+
+Because the three concurrent telemetry threads operated on independent 1-second
+epochs, the memory allocation metrics were slightly desynchronised, resulting in
+minor recording variations between the sensor logs. For this reason, only the
+RGB telemetry log was used to analyse these metrics. While this introduces a
+small desynchronisation between the memory allocation metrics and the IMU
+latency measurements, the 1-second epoch is sufficiently long to ensure that the
+nanosecond-level desynchronisation is statistically irrelevant.
+
 === Event Synchronisation
 
 To ensure that identical event streams were processed by each implementation,
