@@ -1090,6 +1090,24 @@ In addition, the C++ and Rust implementations used `mallinfo2()` to capture the
 process that is currently free, providing insight into the amount of fragmented
 memory that is allocated but not currently in use.
 
+=== Event Synchronisation
+
+To ensure that identical event streams were processed by each implementation,
+without introducing startup jitter or dropping initial frames, an atomic
+variable, `pipeline_stage`, was integrated into each shared memory buffer
+header. This variable was set to a value of $1$ (`READY`) by the pipeline
+bridges once they were fully initialised and ready to receive data. The load
+generator spin-waited until all three pipelines were ready before starting to
+push data.
+
+The generator updated the `pipeline_stage` variables to $2$ (`FINISHED`) as each
+event stream was completed. Each pipeline bridge processed all remaining valid
+events from the shared memory buffer, and then used a _poison pill_ technique to
+signal the end of the stream. A special frame containing a maximum sequence
+number (`UINT64_MAX` or `u64::MAX`) was injected into the bounded queue, which
+initiated a graceful shutdown of the pipeline by all threads after any pending
+events were processed.
+
 ==== Thermal and Power Throttling
 
 The Jetson Orin Nano utilises reactive software thermal management (Dynamic
