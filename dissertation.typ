@@ -1080,10 +1080,7 @@ To ensure a fair comparison, all three implementations use the Linux interface
 `/proc/self/statm` to capture the Resident Set Size (RSS) from the background
 telemetry thread. The RSS provides the total amount of memory currently
 allocated to the process, including fragmented memory and that allocated by
-third-party libraries (e.g. ONNX Runtime). A warm-up period of #ct[TODO]
-synthetic events was used at the start of each test to allow the memory usage to
-stabilise before the metrics were captured, preventing the initial allocation
-and lazy initialisation from skewing the results.
+third-party libraries (e.g. ONNX Runtime).
 
 In addition, the C++ and Rust implementations used `mallinfo2()` to capture the
 `fordblks` field, which provides the total size of memory allocated by the
