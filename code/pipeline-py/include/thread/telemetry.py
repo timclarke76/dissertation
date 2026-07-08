@@ -1,5 +1,6 @@
 import csv
 from dataclasses import dataclass
+import resource
 import sys
 import threading
 import time
@@ -50,6 +51,9 @@ class TelemetryEpoch:
 
     gc_blocks: int = 0
     """The total number of allocation blocks created during the epoch."""
+
+    rss_bytes: int = 0
+    """The total number of allocated RSS bytes during the epoch."""
 
     terminated: bool = False
     """A flag indicating whether the telemetry thread should terminate."""
@@ -220,6 +224,7 @@ class Csv:
             headings.append('dropped_frames')
             headings.append('gc_pause_ns')
             headings.append('gc_blocks')
+            headings.append('rss_bytes')
 
             csv.writer(f).writerow(headings)
 
@@ -237,6 +242,7 @@ class Csv:
             record.append(epoch.dropped_frames)
             record.append(epoch.gc_pause_ns)
             record.append(epoch.gc_blocks)
+            record.append(epoch.rss_bytes)
 
             csv.writer(f).writerow(record)
 
@@ -263,6 +269,8 @@ def spawn_telemetry_thread(
         raise
 
     def telemetry_thread():
+        PAGE_SIZE: Final[int] = resource.getpagesize()
+
         last_gc_pause_ns = 0
         last_gc_blocks = 0
 
@@ -286,6 +294,16 @@ def spawn_telemetry_thread(
             current_gc_blocks = sys.getallocatedblocks()
             epoch.gc_blocks = saturating_sub(current_gc_blocks, last_gc_blocks)
             last_gc_blocks = current_gc_blocks
+
+            try:
+                with open('/proc/self/statm', 'r') as f:
+                    rss_pages = int(f.read().split()[1])
+                    epoch.rss_bytes = rss_pages * PAGE_SIZE
+            except Exception:
+                e.add_note(
+                    "Failed to read RSS bytes from /proc/self/statm: {e}"
+                )
+                raise
 
             try:
                 csv.write_record(epoch)

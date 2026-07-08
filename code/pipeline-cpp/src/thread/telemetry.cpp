@@ -1,4 +1,7 @@
 #include <format>
+#include <fstream>
+#include <malloc.h>
+#include <unistd.h>
 #include <vector>
 
 #include <os/allocator.h>
@@ -40,6 +43,8 @@ TelemetryWriter::Csv::Csv(const std::string_view& filename)
   header.push_back("allocated_bytes");
   header.push_back("allocation_count");
   header.push_back("freed_bytes");
+  header.push_back("rss_bytes");
+  header.push_back("fordblks_bytes");
 
   writer_.write_row(header);
   stream_.flush();
@@ -70,6 +75,8 @@ TelemetryWriter::Csv::write_epoch(const Epoch& epoch)
   row.push_back(std::to_string(epoch.allocated_bytes));
   row.push_back(std::to_string(epoch.allocation_count));
   row.push_back(std::to_string(epoch.freed_bytes));
+  row.push_back(std::to_string(epoch.rss_bytes));
+  row.push_back(std::to_string(epoch.fordblks_bytes));
 
   writer_.write_row(row);
   stream_.flush();
@@ -131,6 +138,7 @@ spawn_telemetry_thread(const std::string_view& stream_name,
 
   auto thread = std::jthread{
     [stream_name, sender, receiver = std::move(receiver)]() mutable {
+      const long PAGE_SIZE = sysconf(_SC_PAGESIZE);
       uint64_t last_allocated_bytes = 0;
       uint64_t last_allocation_count = 0;
       uint64_t last_freed_bytes = 0;
@@ -167,6 +175,23 @@ spawn_telemetry_thread(const std::string_view& stream_name,
         epoch.freed_bytes =
           saturating_sub(currently_freed_bytes, last_freed_bytes);
         last_freed_bytes = currently_freed_bytes;
+
+        std::ifstream statm("/proc/self/statm");
+
+        if (!statm.is_open()) {
+          throw std::runtime_error("Failed to open /proc/self/statm");
+        }
+
+        try {
+          long size = 0, resident = 0;
+          statm >> size >> resident;
+          epoch.rss_bytes = resident * PAGE_SIZE;
+        } catch (const std::exception& e) {
+          throw std::runtime_error(
+            std::format("Failed to read /proc/self/statm: {}", e.what()));
+        }
+
+        epoch.fordblks_bytes = mallinfo2().fordblks;
 
         csv.write_epoch(epoch);
         epoch.reset();

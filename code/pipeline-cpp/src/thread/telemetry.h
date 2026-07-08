@@ -87,6 +87,12 @@ public:
     /// The total number of bytes freed during the epoch.
     size_t freed_bytes = 0;
 
+    /// The total number of allocated RSS bytes during the epoch.
+    size_t rss_bytes = 0;
+
+    /// The total number of allocated fordblks bytes during the epoch.
+    size_t fordblks_bytes = 0;
+
     /// A flag indicating whether the telemetry thread should terminate.
     bool terminated = false;
   };

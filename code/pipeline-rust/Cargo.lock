@@ -602,6 +602,7 @@ dependencies = [
  "config",
  "csv",
  "hdrhistogram",
+ "libc",
  "nix",
  "serde",
 ]

@@ -32,6 +32,12 @@ pub struct TelemetryEpoch {
     /// The total number of bytes freed during the epoch.
     freed_bytes: usize,
 
+    /// The total number of allocated RSS bytes during the epoch.
+    pub rss_bytes: usize,
+
+    /// The total number of allocated fordblks bytes during the epoch.
+    pub fordblks_bytes: usize,
+
     /// A flag indicating whether the telemetry thread should terminate.
     terminated: bool,
 }
@@ -105,6 +111,8 @@ impl TelemetryEpoch {
             allocated_bytes: 0,
             allocation_count: 0,
             freed_bytes: 0,
+            rss_bytes: 0,
+            fordblks_bytes: 0,
             terminated: false,
         })
     }
@@ -178,6 +186,8 @@ impl Csv {
         record.push("allocated_bytes".to_string());
         record.push("allocation_count".to_string());
         record.push("freed_bytes".to_string());
+        record.push("rss_bytes".to_string());
+        record.push("fordblks_bytes".to_string());
 
         writer
             .write_record(&record)
@@ -207,6 +217,8 @@ impl Csv {
         record.push(epoch.allocated_bytes.to_string());
         record.push(epoch.allocation_count.to_string());
         record.push(epoch.freed_bytes.to_string());
+        record.push(epoch.rss_bytes.to_string());
+        record.push(epoch.fordblks_bytes.to_string());
 
         self.writer
             .write_record(record)
@@ -391,6 +403,8 @@ pub fn spawn_telemetry_thread(
     thread::Builder::new()
         .name(format!("telemetry_{}", stream_name))
         .spawn(move || {
+            let page_size =
+                unsafe { libc::sysconf(libc::_SC_PAGESIZE) as usize };
             let mut last_allocated_bytes = 0;
             let mut last_allocation_count = 0;
             let mut last_freed = 0;
@@ -421,6 +435,19 @@ pub fn spawn_telemetry_thread(
                 epoch.freed_bytes =
                     current_freed_bytes.saturating_sub(last_freed);
                 last_freed = current_freed_bytes;
+
+                let statm = std::fs::read_to_string("/proc/self/statm")
+                    .expect("Failed to read /proc/self/statm");
+                let rss_pages = statm.split_whitespace().nth(1).expect(
+                    "Failed to parse resident pages from /proc/self/statm",
+                );
+                let rss_pages = rss_pages.parse::<usize>().expect(
+                    "Failed to parse resident pages from /proc/self/statm",
+                );
+                epoch.rss_bytes = rss_pages * page_size;
+
+                epoch.fordblks_bytes =
+                    unsafe { libc::mallinfo2().fordblks as usize };
 
                 csv.write_record(&epoch)
                     .expect("Failed to write telemetry record to CSV");
