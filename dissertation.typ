@@ -1261,19 +1261,122 @@ of the engineering cost of language selection.
 ]
 
 = Implementation
-
-#wc[
 === Model Fusion
 
 #todo[
-- Two AI models.
-- Late fusion.
 - Zero On Hold (ZOH) for IMU data.
 - Sensor data interpolation not used to simulate data between sensor updates,
   removing number precision as a confounder.
 ]
+
+]
+#page(flipped: true)[
+#figure(
+  pad(top: 0em)[
+    #set text(size: 8pt)
+
+    #let rgb_col = rgb("#FFF4B3")
+    #let rgb_grad = gradient.linear(dir: ltr, rgb_col, white)
+    #let rgb_grad_inverse = gradient.linear(dir: ltr, white, rgb_col)
+
+    #let accel_col = rgb("FCE7F3")
+    #let accel_grad = gradient.linear(dir: ltr, accel_col, white)
+    #let accel_grad_inverse = gradient.linear(dir: ltr, white, accel_col)
+
+    #let gyro_col = rgb("#C8BCE0")
+    #let gyro_grad = gradient.linear(dir: ltr, gyro_col, white)
+    #let gyro_grad_inverse = gradient.linear(dir: ltr, white, gyro_col)
+
+    #let start(y, t, f) = {
+      node(enclose: ((0.3, y), (4.75, y)), fill: f, stroke: none, layer: -1,
+        corner-radius: 4pt, height: 30pt)
+      node((0.3, y), rotate(-90deg)[#set text(size: 11pt); *#t*], stroke: none,
+        height: 30pt)
+    }
+
+    #let end(y, t, f) = {
+      node(enclose: ((7.5, y), (8.7, y)), fill: f, stroke: none, layer: -1,
+        corner-radius: 4pt)
+      node((8.7, y), rotate(-90deg)[#set text(size: 11pt); *#t*], stroke: none,
+        height: 30pt)
+    }
+
+    #let n(x, y, name, t, f, s) = node((x,y), name: name, align(center)[#t],
+      fill: f, shape: s)
+    #let r(x, y, name, t) = n(x, y, name, t, pale_green, rect)
+    #let c(x, y, name, t) = n(x, y, name, t, pale_blue, cylinder)
+    #let e(p1, p2, t, ..args) = edge(p1, p2, "-|>", mark-scale: 175%,
+      label: align(center)[#t], label-side: left, label-sep: 0.2em, ..args)
+    #let de(p1, p2, t, ..args) = e(p1, p2, t, stroke: (dash: "dashed"), ..args)
+
+    #diagram(
+      node-stroke: 0.5pt + charcoal,
+      node-corner-radius: 2pt,
+      node-inset: 6pt,
+      spacing: (45pt, 30pt),
+
+      c(5, 0, <mpsc>, [MPSC\ Channel]),
+      r(6, 0, <fusion>, [Late-Fusion\ Thread]),
+      r(7, 0, <telemetry>, [Telemetry\ Thread]),
+      e(<mpsc>, <fusion>, [Receive]),
+      e(<fusion>, <telemetry>, [Record]),
+
+      node((2.5, -1.8), fill: white, [_Backpressure Applied_]),
+      node(enclose: ((2.2, -1.4), (2.8, 1.6)), stroke: (dash: "dashed"),
+        corner-radius: 4pt, layer: 0),
+
+      node((6, -1.8), fill: white, [_Fusion \@ 30 Hz_], layer: -1),
+      node(enclose: ((4.2, -1.4), (7.8, 1.6)), stroke: (dash: "dashed"),
+        corner-radius: 4pt, layer: 0),
+
+      start(-1, [RGB], rgb_grad),
+      c(1, -1, <rgb-shm>, [`/dev/shm`\ Ring]),
+      r(2, -1, <rgb-bridge>, [Bridge\ Thread]),
+      c(3, -1, <rgb-bq>, [Bounded\ Queue]),
+      r(4, -1, <rgb-inf>, [Inference\ Thread]),
+      c(8, -1, <rgb-csv>, [Telemetry\ CSV]),
+      e(<rgb-shm>, <rgb-bridge>, [Spin]),
+      e(<rgb-bridge>, <rgb-bq>, [Push]),
+      e(<rgb-bq>, <rgb-inf>, [Pop]),
+      de(<rgb-inf>, <mpsc>, [Send]),
+      e(<telemetry>, <rgb-csv>, [Save]),
+      end(-1, [RGB], rgb_grad_inverse),
+
+      start(0, [Accel], accel_grad),
+      c(1, 0, <accel-shm>, [`/dev/shm`\ Ring]),
+      r(2, 0, <accel-bridge>, [Bridge\ Thread]),
+      c(3, 0, <accel-bq>, [Bounded\ Queue]),
+      r(4, 0, <accel-inf>, [Inference\ Thread]),
+      c(8, 0, <accel-csv>, [Telemetry\ CSV]),
+      e(<accel-shm>, <accel-bridge>, [Spin]),
+      e(<accel-bridge>, <accel-bq>, [Push]),
+      e(<accel-bq>, <accel-inf>, [Pop]),
+      de(<accel-inf>, <mpsc>, [Send]),
+      e(<telemetry>, <accel-csv>, [Save]),
+      end(0, [Accel], accel_grad_inverse),
+
+      start(1, [Gyro], gyro_grad),
+      c(1, 1, <gyro-shm>, [`/dev/shm`\ Ring]),
+      r(2, 1, <gyro-bridge>, [Bridge\ Thread]),
+      c(3, 1, <gyro-bq>, [Bounded\ Queue]),
+      r(4, 1, <gyro-inf>, [Inference\ Thread]),
+      c(8, 1, <gyro-csv>, [Telemetry\ CSV]),
+      e(<gyro-shm>, <gyro-bridge>, [Spin]),
+      e(<gyro-bridge>, <gyro-bq>, [Push]),
+      e(<gyro-bq>, <gyro-inf>, [Pop]),
+      de(<gyro-inf>, <mpsc>, [Send], label-side: right),
+      e(<telemetry>, <gyro-csv>, [Save], label-side: right),
+      end(1, [Gyro], gyro_grad_inverse),
+    )
+  ],
+
+  caption: [End-to-end flow demonstrating data ingestion, backpressure
+    application, MPSC synchronisation, late-fusion, and telemetry capture.]
+) <fig:pipeline_topology>
 ]
 
+#columns(2, gutter: 16pt)[
+#wc[
 = Results
 
 = Discussion
@@ -1285,4 +1388,5 @@ Total words: #total-words
 #colbreak()
 #set par(justify: false)
 #bibliography("refs.bib", title: "References", style: "ieee")
+]
 ]
