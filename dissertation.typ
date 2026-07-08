@@ -649,7 +649,9 @@ consumption by the HAR pipelines: (1) an RGB video stream to simulate the
 camera, (2) a 3-axis inertial measurement stream to simulate the accelerometer,
 and (3) a 3-axis inertial measurement stream to simulate the gyroscope. Using
 shared memory allowed for low-latency communication, and allowed the generator
-to write data at a consistent rate without being blocked by the pipeline.
+to write data at a consistent rate. The shared memory buffers were implemented
+as fixed capacity ring buffers, allowing the generator to write data
+without being blocked by the pipeline.
 
 The generated image data was random noise. Each image was created as an array of
 RGB pixel values with dimensions of 1920x1080 to match the sensor data, and each
@@ -714,7 +716,7 @@ change the path of execution.
       node-stroke: 0.5pt + charcoal,
       node-corner-radius: 2pt,
       node-inset: 6pt,
-      spacing: (45pt, 12pt),
+      spacing: (40pt, 12pt),
 
       node((3,0), align(center)[*HAR Pipeline*], stroke: none),
       node(
@@ -724,7 +726,7 @@ change the path of execution.
       ),
 
       r(0, <generator>, [Load Generator\ (Rust)]),
-      c(1, <unbounded>, [Unbounded Buffer\ (Shared Memory)]),
+      c(1, <unbounded>, [Unbounded Ring Buffer\ (Shared Memory)]),
       r(2, <bridge>, [Language Bridge\ (C++/Rust/Py)]),
       c(3, <bounded>, [Bounded Buffer\ (Idiomatic)]),
       r(4, <inference>, [AI Inference\ (TensorRT)]),
@@ -853,7 +855,7 @@ NTP synchronisation was disabled to prevent the system clock from being adjusted
 The following six timestamps, as visualised in
 @fig:latency_timeline, were captured for each event:
 
-+ `generated_ts` when the generator pushes to the unbounded buffer
++ `generated_ts` when the generator pushes to the unbounded ring buffer
 + `bridged_ts` when the bridge pushes to the idiomatic buffer
 + `pipeline_in_ts` when the pipeline pulls the event from the idiomatic buffer
 + `pipeline_out_ts` when the pipeline pushes data to the ONNX Runtime for
@@ -907,7 +909,7 @@ The following six timestamps, as visualised in
 _Coordinated Omission_ occurs when a stalled system fails to record the true
 extent of tail-latency delays by omitting the time that the event truly occurred
 @howNotToMeasureLatency. By decoupling the load generator from the pipelines and
-ensuring that it pushes to an unbounded buffer, it is never blocked when the
+ensuring that it pushes to an unbounded ring buffer, it is never blocked when the
 System Under Test (SUT) is stalled, thus ensuring that `generated_ts` allows
 latency delays to be accurately captured.
 
