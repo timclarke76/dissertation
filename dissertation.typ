@@ -1,5 +1,5 @@
 #import "@preview/fletcher:0.5.8" as fletcher: diagram, node, edge
-#import fletcher.shapes: cylinder, rect
+#import fletcher.shapes: cylinder, diamond, pill, rect
 #import "@preview/wordometer:0.1.5": word-count, total-words
 
 #show: word-count
@@ -17,6 +17,7 @@
 
 #let red = rgb("F8D7DA")
 #let dark_red = rgb("#E56C76")
+#let light_red = rgb("#fce7f3")
 #let blue = rgb("CCE5FF")
 #let light_blue = rgb("#DBEDFF")
 #let pale_blue = rgb("#EBF4FF")
@@ -1261,15 +1262,62 @@ of the engineering cost of language selection.
 ]
 
 = Implementation
-=== Model Fusion
 
 #todo[
 - Zero On Hold (ZOH) for IMU data.
 - Sensor data interpolation not used to simulate data between sensor updates,
   removing number precision as a confounder.
 ]
-
 ]
+
+#figure(
+  pad(top: 0.5em)[
+    #set text(size: 8pt)
+    
+    #let p(x, y, name, t) = node((x,y), name: name, align(center)[#t],
+      shape: rect, fill: light_blue, corner-radius: 2pt, inset: 6pt)
+    #let d(x, y, name, t) = node((x,y), name: name, align(center)[#t],
+      shape: diamond, fill: light_red, inset: 8pt)
+    #let io(x, y, name, t) = node((x,y), name: name, align(center)[#t],
+      shape: pill, fill: rgb("f3e8ff"), inset: 8pt)
+    #let e(p1, p2, ..args) = edge(p1, p2, "-|>", ..args)
+    #let yes(p1, p2, ..args) = e(p1, p2, [Yes], label-side: left, ..args)
+    #let no(p1, p2, ..args) = e(p1, p2, [No], label-side: right, ..args)
+
+    #diagram(
+      node-stroke: 0.5pt + charcoal,
+      spacing: (45pt, 30pt),
+
+      io(2, 0, <start>, [Read frame from\ unbounded ring buffer]),
+      p(1, 1, <reset>, [Reset counter]),
+      d(2, 1, <len>, [Is queue length\ $>=$ threshold?]),
+      p(2, 2, <ratio>, [Scale `ratio` based\ on danger zone depth]),
+      p(2, 3, <inc>, [Increment `counter`]),
+      p(1, 4, <push>, [Attempt Push to\ Bounded Queue]),
+      d(2, 4, <mod>, [Is `counter` divisible\ by `ratio`?]),
+      p(3, 4, <drop>, [Drop Frame]),
+      d(1, 5, <success>, [Was the push\ successful?]),
+
+      e(<start>, <len>),
+      no(<len>, <reset>),
+      yes(<len>, <ratio>),
+      e(<ratio>, <inc>),
+      e(<inc>, <mod>),
+      yes(<mod>, <push>, label-side: right),
+      no(<mod>, <drop>, label-side: left),
+      e(<reset>, <push>),
+      e(<push>, <success>),
+
+      edge(<success>, (0, 5), (0, 0), <start>, "-|>", [Yes], label-side: left),
+      edge(<success>, (3, 5), <drop>, "-|>", [No], label-side: right),
+      edge(<drop>, (3, 0), <start>, "-|>"),
+    )
+  ],
+  caption: [Flowchart detailing the Adaptive Decimation backpressure policy. The
+    algorithm dynamically\ scales load-shedding based on queue saturation while
+    preserving temporal continuity.]
+) <fig:adaptive_decimation>
+
 #page(flipped: true)[
 #figure(
   pad(top: 0em)[
