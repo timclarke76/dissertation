@@ -1295,7 +1295,7 @@ of the engineering cost of language selection.
     }
 
     #let end(y, t, f) = {
-      node(enclose: ((7.5, y), (8.7, y)), fill: f, stroke: none, layer: -1,
+      node(enclose: ((6.5, y), (8.7, y)), fill: f, stroke: none, layer: -1,
         corner-radius: 4pt)
       node((8.7, y), rotate(-90deg)[#set text(size: 11pt); *#t*], stroke: none,
         height: 30pt)
@@ -1317,16 +1317,14 @@ of the engineering cost of language selection.
 
       c(5, 0, <mpsc>, [MPSC\ Channel]),
       r(6, 0, <fusion>, [Late-Fusion\ Thread]),
-      r(7, 0, <telemetry>, [Telemetry\ Thread]),
       e(<mpsc>, <fusion>, [Receive]),
-      e(<fusion>, <telemetry>, [Record]),
 
-      node((2.5, -1.8), fill: white, [_Backpressure Applied_]),
+      node((2.5, -1.75), fill: white, [_Backpressure Applied_]),
       node(enclose: ((2.2, -1.4), (2.8, 1.6)), stroke: (dash: "dashed"),
         corner-radius: 4pt, layer: 0),
 
-      node((6, -1.8), fill: white, [_Fusion \@ 30 Hz_], layer: -1),
-      node(enclose: ((4.2, -1.4), (7.8, 1.6)), stroke: (dash: "dashed"),
+      node((5.5, -1.75), fill: white, [_Fusion \@ 30 Hz_], layer: -1),
+      node(enclose: ((4.2, -1.4), (6.8, 1.6)), stroke: (dash: "dashed"),
         corner-radius: 4pt, layer: 0),
 
       start(-1, [RGB], rgb_grad),
@@ -1334,12 +1332,14 @@ of the engineering cost of language selection.
       r(2, -1, <rgb-bridge>, [Bridge\ Thread]),
       c(3, -1, <rgb-bq>, [Bounded\ Queue]),
       r(4, -1, <rgb-inf>, [Inference\ Thread]),
+      r(7, -1, <rgb-tel>, [Telemetry\ Thread]),
       c(8, -1, <rgb-csv>, [Telemetry\ CSV]),
       e(<rgb-shm>, <rgb-bridge>, [Spin]),
       e(<rgb-bridge>, <rgb-bq>, [Push]),
       e(<rgb-bq>, <rgb-inf>, [Pop]),
       de(<rgb-inf>, <mpsc>, [Send]),
-      e(<telemetry>, <rgb-csv>, [Save]),
+      e(<fusion>, <rgb-tel>, [Record]),
+      e(<rgb-tel>, <rgb-csv>, [Save]),
       end(-1, [RGB], rgb_grad_inverse),
 
       start(0, [Accel], accel_grad),
@@ -1347,12 +1347,14 @@ of the engineering cost of language selection.
       r(2, 0, <accel-bridge>, [Bridge\ Thread]),
       c(3, 0, <accel-bq>, [Bounded\ Queue]),
       r(4, 0, <accel-inf>, [Inference\ Thread]),
+      r(7, 0, <accel-tel>, [Telemetry\ Thread]),
       c(8, 0, <accel-csv>, [Telemetry\ CSV]),
       e(<accel-shm>, <accel-bridge>, [Spin]),
       e(<accel-bridge>, <accel-bq>, [Push]),
       e(<accel-bq>, <accel-inf>, [Pop]),
       de(<accel-inf>, <mpsc>, [Send]),
-      e(<telemetry>, <accel-csv>, [Save]),
+      e(<fusion>, <accel-tel>, [Record]),
+      e(<accel-tel>, <accel-csv>, [Save]),
       end(0, [Accel], accel_grad_inverse),
 
       start(1, [Gyro], gyro_grad),
@@ -1360,12 +1362,14 @@ of the engineering cost of language selection.
       r(2, 1, <gyro-bridge>, [Bridge\ Thread]),
       c(3, 1, <gyro-bq>, [Bounded\ Queue]),
       r(4, 1, <gyro-inf>, [Inference\ Thread]),
+      r(7, 1, <gyro-tel>, [Telemetry\ Thread]),
       c(8, 1, <gyro-csv>, [Telemetry\ CSV]),
       e(<gyro-shm>, <gyro-bridge>, [Spin]),
       e(<gyro-bridge>, <gyro-bq>, [Push]),
       e(<gyro-bq>, <gyro-inf>, [Pop]),
       de(<gyro-inf>, <mpsc>, [Send], label-side: right),
-      e(<telemetry>, <gyro-csv>, [Save], label-side: right),
+      e(<fusion>, <gyro-tel>, [Record], label-side: right),
+      e(<gyro-tel>, <gyro-csv>, [Save]),
       end(1, [Gyro], gyro_grad_inverse),
     )
   ],
