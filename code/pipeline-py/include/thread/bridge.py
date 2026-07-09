@@ -80,7 +80,7 @@ def spawn_bridge_thread(
                             numerator = depth * (
                                 policy.max_ratio - policy.min_ratio
                             )
-                            ratio = policy.min_ratio + (numerator / zone_size)
+                            ratio = policy.min_ratio + (numerator // zone_size)
                         else:
                             # Threshold is at or above capacity, so we use the
                             # maximum ratio.
