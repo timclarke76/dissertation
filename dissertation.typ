@@ -1408,6 +1408,57 @@ zone the queue length is. A counter is incremented for every frame, and events
 are only pushed to the bounded queue when this counter is wholly divisible by
 the ratio. If the push is not successful then the frame is dropped.
 
+#figure(
+  pad(top: 0.5em)[
+    #set text(size: 7pt)
+    
+    #let p(x, y, name, t) = node((x,y), name: name, align(center)[#t],
+      shape: rect, fill: light_blue, corner-radius: 2pt, inset: 6pt)
+    #let d(x, y, name, t) = node((x,y), name: name, align(center)[#t],
+      shape: diamond, fill: light_red, inset: 6pt)
+    #let io(x, y, name, t) = node((x,y), name: name, align(center)[#t],
+      shape: pill, fill: rgb("f3e8ff"), inset: 6pt)
+    #let e(p1, p2, ..args) = edge(p1, p2, "-|>", ..args)
+    #let yes(p1, p2, ..args) = e(p1, p2, [Yes], label-side: left, ..args)
+    #let no(p1, p2, ..args) = e(p1, p2, [No], label-side: right, ..args)
+
+    #diagram(
+      node-stroke: 0.5pt + charcoal,
+      spacing: (30pt, 30pt),
+
+      io(2, 0, <start>, [Read frame from\ unbounded ring buffer]),
+      p(1, 1, <reset>, [Reset counter]),
+      d(2, 1, <len>, [Queue length\ $>=$ threshold?]),
+      p(2, 2, <ratio>, [Scale `ratio` based\ on danger zone depth]),
+      p(2, 3, <inc>, [Increment `counter`]),
+      p(3, 3, <drop>, [Drop\ frame]),
+      p(1, 4, <push>, [Push to\ Bounded\ Queue]),
+      d(2, 4, <mod>, [`counter` divisible\ by `ratio`?]),
+      d(1, 5, <success>, [Push\ successful?]),
+
+      e(<start>, <len>),
+      no(<len>, <reset>),
+      yes(<len>, <ratio>),
+      e(<ratio>, <inc>),
+      e(<inc>, <mod>),
+      yes(<mod>, <push>, label-side: right),
+      // no(<mod>, <drop>, label-side: left),
+      e(<reset>, <push>),
+      e(<push>, <success>),
+
+      edge(<mod>, (3, 4), <drop>, "-|>", [No], label-side: left, label-pos: 0.2),
+      edge(<success>, (3, 5), <drop>, "-|>", [No], label-side: left, label-pos:
+      0.03),
+      edge(<drop>, (3, 0), <start>, "-|>"),
+      edge(<success>, (0, 5), (0, 0), <start>, "-|>", [Yes], label-side: right,
+      label-pos: 0.2)
+    )
+  ],
+  caption: [Flowchart detailing the Adaptive Decimation backpressure policy.\ The
+    algorithm dynamically scales load-shedding based on queue saturation\ while
+    preserving temporal continuity.]
+) <fig:adaptive_decimation>
+
 When implementing this algorithm across the three language runtime models, a
 subtle, yet potentially catastrophic, difference was found between the
 statically typed languages (C++20 and Rust) and the dynamically typed Python 3.
@@ -1425,54 +1476,6 @@ operator (`//`).
   removing number precision as a confounder.
 ]
 ]
-
-#figure(
-  pad(top: 0.5em)[
-    #set text(size: 8pt)
-    
-    #let p(x, y, name, t) = node((x,y), name: name, align(center)[#t],
-      shape: rect, fill: light_blue, corner-radius: 2pt, inset: 6pt)
-    #let d(x, y, name, t) = node((x,y), name: name, align(center)[#t],
-      shape: diamond, fill: light_red, inset: 8pt)
-    #let io(x, y, name, t) = node((x,y), name: name, align(center)[#t],
-      shape: pill, fill: rgb("f3e8ff"), inset: 8pt)
-    #let e(p1, p2, ..args) = edge(p1, p2, "-|>", ..args)
-    #let yes(p1, p2, ..args) = e(p1, p2, [Yes], label-side: left, ..args)
-    #let no(p1, p2, ..args) = e(p1, p2, [No], label-side: right, ..args)
-
-    #diagram(
-      node-stroke: 0.5pt + charcoal,
-      spacing: (45pt, 30pt),
-
-      io(2, 0, <start>, [Read frame from\ unbounded ring buffer]),
-      p(1, 1, <reset>, [Reset counter]),
-      d(2, 1, <len>, [Is queue length\ $>=$ threshold?]),
-      p(2, 2, <ratio>, [Scale `ratio` based\ on danger zone depth]),
-      p(2, 3, <inc>, [Increment `counter`]),
-      p(1, 4, <push>, [Attempt Push to\ Bounded Queue]),
-      d(2, 4, <mod>, [Is `counter` divisible\ by `ratio`?]),
-      p(3, 4, <drop>, [Drop Frame]),
-      d(1, 5, <success>, [Was the push\ successful?]),
-
-      e(<start>, <len>),
-      no(<len>, <reset>),
-      yes(<len>, <ratio>),
-      e(<ratio>, <inc>),
-      e(<inc>, <mod>),
-      yes(<mod>, <push>, label-side: right),
-      no(<mod>, <drop>, label-side: left),
-      e(<reset>, <push>),
-      e(<push>, <success>),
-
-      edge(<success>, (0, 5), (0, 0), <start>, "-|>", [Yes], label-side: left),
-      edge(<success>, (3, 5), <drop>, "-|>", [No], label-side: right),
-      edge(<drop>, (3, 0), <start>, "-|>"),
-    )
-  ],
-  caption: [Flowchart detailing the Adaptive Decimation backpressure policy. The
-    algorithm dynamically\ scales load-shedding based on queue saturation while
-    preserving temporal continuity.]
-) <fig:adaptive_decimation>
 
 #columns(2, gutter: 16pt)[
 #wc[
