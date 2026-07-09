@@ -2,7 +2,6 @@ core = 4
 priority = 80
 load = 1.0
 min_sleep_nanos = 50_000
-# runtime_seconds = 5
 output = "generator.json"
 
 [[events]]
