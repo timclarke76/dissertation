@@ -9,8 +9,6 @@ class ShmHeader(ctypes.Structure):
     """Represents the header of the shared memory buffer. Aligned to 64
     bytes."""
 
-    _pack_ = 1
-
     # fmt: off
     _fields_ = [
         # A magic number used to identify the shared memory buffer.
