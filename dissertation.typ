@@ -1375,7 +1375,8 @@ inference results from all three streams into one prediction.
   caption: [End-to-end flow demonstrating data ingestion, backpressure
     application, MPSC synchronisation, late-fusion, and telemetry capture. The
     red dashed region denotes the backpressure application boundary, while the
-    blue dashed region highlights the late-fusion execution anchored to 30 Hz.
+    blue dashed region highlights the late-fusion execution anchored to the 30
+    Hz RGB stream.
   ]
 ) <fig:end_to_end>
 
