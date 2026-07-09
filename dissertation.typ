@@ -1391,6 +1391,79 @@ channel and anchors execution of its ONNX model to the 30 Hz RGB stream, before
 finally passing the frames to the individual *Telemetry Threads* for persistence
 of the telemetry metrics.
 
+== The Inter-Process Communication (IPC) Boundary
+
+Shared memory (`/dev/shm`) was employed for the unbounded ring buffer, allowing
+IPC between the external process and the pipeline implementations. As shown in
+@fig:ipc_memory_layout, the buffer's header was sized to 64 bytes with
+additional padding to match the size of the Jetson Orin Nano's Cortex-A78AE L1
+CPU cache line @a78RefManual, allowing it to remain in a single, isolated cache
+line without the risk of false sharing when the adjacent raw frame data was
+modified by the producer. In C++20 and Rust, this alignment was achieved using
+simple compiler directives (`alignas(64)` and `#[repr(C, align(64))]`,
+respectively). However, Python 3 required manual memory mapping via
+`ctypes.Structure` inheritance to define the byte widths of the fields
+(`c_uint32`, `c_uint64`).
+
+#figure(
+  pad(top: 0.5em)[
+    #let bsq = box(width: 4pt, height: 4pt, fill: rgb("60A5FA"),
+      radius: 0.5pt, stroke: 0.25pt + charcoal)
+
+    #let draw_bytes(b) = {
+      let cols = if b >= 8 { 8 } else { b }
+
+      grid(
+        columns: cols,
+        gutter: 2.0pt,
+        ..(bsq,) * b
+      )
+    }
+
+    #let mem(y, h, t, b) = node(
+      (0, y), 
+      box(width: 100%, height: 100%)[
+        #place(top + left)[#t #text(size: 7pt, fill: charcoal)[(#b bytes)]]
+        #place(bottom + right)[#draw_bytes(b)]
+      ], 
+      shape: rect, 
+      height: h,
+      width: 120pt, 
+      fill: luma(252),
+      stroke: 0.5pt + charcoal,
+      corner-radius: 0pt
+    )
+
+    #diagram(
+      node-stroke: 0.5pt + charcoal,
+      spacing: (0pt, 0pt),
+
+      mem(0, 20pt, [`magic`], 4),
+      mem(1, 20pt, [`version`], 4),
+      mem(2, 20pt, [`frame_size`], 4),
+      mem(3, 20pt, [`capacity`], 4),
+      mem(4, 30pt, [`seq_num`], 8),
+      mem(5, 30pt, [`stage`], 8),
+      mem(6, 45pt, [`padding`], 32),
+    )
+  ],
+
+  caption: [64-byte aligned IPC memory header layout. Padding ensures the atomic
+    fields consume exactly one CPU cache line, preventing false sharing.
+    #v(1.5em)]
+) <fig:ipc_memory_layout>
+
+Mapping the shared memory data to the process's virtual memory address space
+provided zero-copy efficiency at the IPC boundary. While this was automatically
+handled in Python 3 when instantiating the
+`multiprocessing.shared_memory.SharedMemory` class, C++20 and Rust both required
+manual invocations of the `mmap` native UNIX system function. However, whereas
+the raw memory pointers in the compiled languages could be cast directly to the
+required structure with no overhead, Python 3 transparently converts the raw
+bytes into native Python objects when accessing the fields of the
+`ctypes.Structure` @pythonCtypes. This adds CPU overhead that is not present in
+the compiled languages.
+
 == Adaptive Decimation Backpressure Policy
 
 When the bounded queue is full, the Bridge Thread uses a configured backpressure
