@@ -1263,6 +1263,29 @@ of the engineering cost of language selection.
 
 = Implementation
 
+== System Architecture Overview
+
+To evaluate the language runtime models of C++20, Rust, and Python, an identical
+multi-threaded HAR pipeline was implemented across all three languages. As shown
+in the end-to-end diagram in @fig:end_to_end, individual threads are responsible
+for each discrete stage (bridge, inference, late-fusion, and telemetry).
+Further, a separate chain of threads is spawned for each unbounded ring buffer
+(RGB, accelerometer, and gyroscope), with the exception of the late-fusion
+thread, which uses the Multi-Producer Single-Consumer (MPSC) pattern to fuse the
+inference results from all three streams into one prediction.
+
+Each spawned thread chain begins at the *Bridge Thread*, which spin-waits on an
+unbounded shared memory (`/dev/shm`) ring buffer populated by an external
+process, defining the Inter-Process Communication (IPC) boundary. The Bridge
+Thread attempts to add ingested events into a bounded queue, applying the
+configured backpressure policy (e.g., Adaptive Decimation, Drop Oldest) to shed
+load if the queue is full. The *Inference Thread* pulls events from the bounded
+queue to create temporal event windows, execute the ONNX model, and push the
+result to the MPSC channel. The *Late-Fusion Thread* consumes from the MPSC
+channel and anchors execution of its ONNX model to the 30Hz RGB stream, before
+finally passing the frames to the individual *Telemetry Threads* for persistence
+of the telemetry metrics.
+
 #todo[
 - Zero On Hold (ZOH) for IMU data.
 - Sensor data interpolation not used to simulate data between sensor updates,
