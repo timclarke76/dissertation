@@ -1391,6 +1391,34 @@ channel and anchors execution of its ONNX model to the 30 Hz RGB stream, before
 finally passing the frames to the individual *Telemetry Threads* for persistence
 of the telemetry metrics.
 
+== Adaptive Decimation Backpressure Policy
+
+When the bounded queue is full, the Bridge Thread uses a configured backpressure
+policy (see @sec-backpressure). One policy available to the bridge, Adaptive
+Decimation, sheds load at a dynamic rate, while trying to retain temporal
+continuity, by downsampling the stream at an increasing rate as the queue enters
+a configured "danger zone" (e.g. 80% of queue capacity) _before_ the queue is
+full.
+
+As shown in @fig:adaptive_decimation, after reading a frame from the unbounded
+ring buffer, the Bridge Thread determines if the length of the bounded queue is
+within the danger zone. If so, a decimation ratio value is calculated based on a
+linear scale between the minimum and maximum ratios, and how far into the danger
+zone the queue length is. A counter is incremented for every frame, and events
+are only pushed to the bounded queue when this counter is wholly divisible by
+the ratio. If the push is not successful then the frame is dropped.
+
+When implementing this algorithm across the three language runtime models, a
+subtle, yet potentially catastrophic, difference was found between the
+statically typed languages (C++20 and Rust) and the dynamically typed Python 3.
+When calculating the ratio, the statically typed languages naturally truncated
+the result of the division to an integer. However, in Python 3, standard
+division (`/`) returns a floating-point value, which caused virtually all frames
+to be incorrectly dropped when performing the modulo operation. This subtle
+difference highlighted the risk of dynamic typing, and resolving this required
+the addition of a second forward-slash character to apply the floor-division
+operator (`//`).
+
 #todo[
 - Zero On Hold (ZOH) for IMU data.
 - Sensor data interpolation not used to simulate data between sensor updates,
