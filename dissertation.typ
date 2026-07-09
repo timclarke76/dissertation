@@ -1448,8 +1448,8 @@ respectively). However, Python 3 required manual memory mapping via
     )
   ],
 
-  caption: [64-byte aligned IPC memory header layout. Padding ensures the atomic
-    fields consume exactly one CPU cache line, preventing false sharing.
+  caption: [64-byte aligned IPC memory header layout. Padding ensures\ the
+    atomic fields consume exactly one CPU cache line, preventing false sharing.
     #v(1.5em)]
 ) <fig:ipc_memory_layout>
 
