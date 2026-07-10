@@ -54,7 +54,7 @@ private:
     /// synchronise between the generator and the pipeline. Initialised to zero,
     /// it is incremented to one when the pipeline is ready to receive data, and
     /// incremented to two when the generator has finished writing data.
-    std::atomic<uint32_t> pipeline_stage;
+    std::atomic<uint64_t> pipeline_stage;
   };
 
 public:
