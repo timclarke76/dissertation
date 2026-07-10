@@ -73,14 +73,21 @@ class TelemetryEpoch:
             e.add_note("Failed to create HdrHistogram for epoch: {e}")
             raise
 
+        self.dropped_frames = 0
+        self.gc_pause_ns = 0
+        self.gc_blocks = 0
+        self.rss_bytes = 0
+
     def reset(self):
         """Resets the histograms and allocation statistics for the epoch."""
 
         for histogram in self.histograms:
             histogram.reset()
 
+        self.dropped_frames = 0
         self.gc_pause_ns = 0
         self.gc_blocks = 0
+        self.rss_bytes = 0
 
 
 class TelemetryWriter:

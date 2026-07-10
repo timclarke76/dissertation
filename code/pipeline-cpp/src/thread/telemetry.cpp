@@ -16,9 +16,12 @@ TelemetryWriter::Epoch::reset()
     latency_nanos[i].reset();
   }
 
+  dropped_frames = 0;
   allocated_bytes = 0;
   allocation_count = 0;
   freed_bytes = 0;
+  rss_bytes = 0;
+  fordblks_bytes = 0;
 }
 
 TelemetryWriter::Csv::Csv(const std::string_view& filename)

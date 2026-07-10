@@ -123,9 +123,12 @@ impl TelemetryEpoch {
             histogram.reset();
         }
 
+        self.dropped_frames = 0;
         self.allocated_bytes = 0;
         self.allocation_count = 0;
         self.freed_bytes = 0;
+        self.rss_bytes = 0;
+        self.fordblks_bytes = 0;
     }
 
     /// Creates a new HdrHistogram instance for recording latency measurements
