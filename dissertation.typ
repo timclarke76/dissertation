@@ -884,6 +884,31 @@ modifications to the implementation.
 ]
 
 #wc[
+=== Memory Ordering
+
+Traditional mutexes force a thread to yield to the system kernel. This
+introduces latency and context-switching jitter, which may cause the generator
+and pipelines to violate their timing constraints at the Inter-Process
+Communication (IPC) boundary. To avoid this, wait-free spin-loops were used,
+which required the use of atomic _memory ordering_.
+
+The load generator updates the unbounded ring buffer's `seq_num` to inform the
+pipeline that a new data frame has been written, and the pipeline spin-loops and
+reads the new data as soon as it sees the `seq_num` updated. Without memory
+ordering, the CPU may choose to update these apparently unrelated variables
+"_out of order_" from what the code specifies. This would be catastrophic, as
+the pipeline may read the "new data" before it is committed. To prevent this,
+the `seq_num` was declared as an atomic variable, and release memory ordering
+was used when the generator updated it, informing the CPU that all previous
+writes to any variable must be committed before the `seq_num` is updated.
+Conversely, when the pipeline reads the `seq_num`, it uses acquire memory
+ordering to inform the CPU that it must not speculatively read any other
+variables before the `seq_num` is read. This simple "fence" guarantees that the
+memory ordering is correct, and that the apparently unrelated `seq_num` and
+frame data are read in the correct order.
+]
+
+#wc[
 === Profiling and Metrics
 
 ==== Latency
