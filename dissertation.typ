@@ -562,13 +562,14 @@ multi-stream pipelines to be run efficiently.
 The developer kit includes a carrier board with I/O interfaces (e.g. USB,
 Ethernet, DisplayPort), a MicroSD card slot for booting, and the Jetson Orin
 Nano module itself. This provides the following specifications
-@jetson-orin-nano:
+@jetson-orin-nano @a78RefManual:
 - 6-core Arm Cortex-A78AE 64-bit CPU (clocked to 1.7 GHz) for general-purpose
   concurrent processing
 - up to 67 TOPS (Tera Operations Per Second) of AI performance
 - 8 GB of 128-bit LPDDR5 memory with a bandwidth of 102 GB/s
 - 1024 CUDA cores for general-purpose GPU computing
 - 32 Tensor cores for AI acceleration
+- L1 and L2 caches with 64-byte cache lines
 
 The Jetson was flashed with NVIDIA’s JetPack 6.2.2 SDK @jetpack-6-2-2 to enable
 _Super Mode_ and allow uncapped _SUPER MAXN_ power mode that enables the highest
@@ -843,6 +844,43 @@ This isolated the memory and scheduling behaviours of the runtime models,
 removing execution speed as a confounding variable, and ensured that all five
 backpressure policies within a given language were evaluated under an identical
 ingestion rate.
+]
+
+#wc[
+=== False Sharing
+
+Modern CPU architectures contain multiple caches for each core to significantly
+reduce memory access latency. These are designated by a level (e.g. L1, L2) to
+indicate how far away they are physically from the CPU core, and typically
+increase in size and latency as their level increases. Each cache is split into
+multiple _cache lines_, where the data is stored and can be written or read
+significantly faster than from main memory. However, because the low-level cache
+lines are not shared between cores, if a process on one core updates data in a
+cache line, then processes on other cores that need to read that data must
+update their own cache lines by fetching the refreshed data from higher-level
+shared caches or main memory.
+
+_False sharing_ occurs when an update to data held in a cache line causes other
+cores to invalidate their own cache lines, even if the data being read is
+otherwise unrelated to the data being written. For example, if a 32-byte
+structure is stored in RAM at address range 0x1000--0x1020, a CPU with 64-byte
+cache lines will store 64 bytes of data in its cache line covering the address
+range 0xA000--0xA040, even though the last 32 bytes are unrelated to the
+original structure. If those adjacent 32 bytes are updated, it will trigger a
+refresh of the entire 64-byte cache line, invalidating the first 32 bytes and
+forcing a read penalty.
+
+Because the shared memory buffers are held in contiguous memory, false sharing
+needed to be mitigated to prevent cache line invalidation of the header when
+adjacent data frames were updated. This was achieved by using language-specific
+techniques to pad the header to exactly 64 bytes in size and align its starting
+address to a 64-byte boundary, ensuring it would be cached in isolation.
+
+While the shared memory buffers are bound to one-second cycles, and consequently
+false sharing would occur only once per second if 64-byte alignment were not
+enforced, ensuring cache isolation of the header reflects best engineering
+practice and prevents potential system degradation caused by future
+modifications to the implementation.
 ]
 
 #wc[
