@@ -1650,6 +1650,20 @@ constant locking and unlocking introduces context-switching (which in turn
 introduces latency and jitter), and thrashes the GIL, degrading performance of
 other threads as they are starved of execution time.
 
+=== Bounded Queue Locking
+
+The bounded buffer queue is shared between the bridge and inference threads ---
+the former pushes data into the queue, and the latter pops data from it. This
+required the use of a mutex lock to enforce memory safety and to guarantee
+mutual exclusion. In C++20 and Python \3, the locks were implemented as member
+variables of the `Queue` class (`std::mutex` and `threading.Lock`,
+respectively). While C++20 uses Resource Acquisition Is Initialisation (RAII),
+and Python \3 uses a context manager to set up and tear down the mutex
+automatically, neither offers enforced linking of the lock to the queue.
+Conversely, Rust's `std::sync::Arc<Mutex<T>>` combines compiler-enforced RAII
+and data ownership, guaranteeing that the queue cannot be accessed without first
+acquiring the lock guard.
+
 #todo[
 - Zero On Hold (ZOH) for IMU data.
 - Sensor data interpolation not used to simulate data between sensor updates,
