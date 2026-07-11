@@ -1607,6 +1607,26 @@ difference highlighted the risk of dynamic typing, and resolving this required
 the addition of a second forward-slash character to apply the floor-division
 operator (`//`).
 
+== Wait-Free Ingestion
+
+To avoid introducing latency and context-switching overhead, it was necessary to
+spin-loop while waiting for new frames at the IPC boundary, without yielding to
+the system kernel through the use of OS-level mutexes or sleep instructions. In
+C++20, a small preprocessor macro was implemented to execute the ARM64 `yield`
+assembly instruction, while `std::hint::spin_loop()` was used in Rust. These
+_micro-architecture_ hints instruct the CPU to temporarily pause _speculative
+execution_ (when the CPU predicts the next instruction and executes it ahead of
+time, before the previous instruction has completed) and to throttle the CPU for
+a few clock cycles, reducing power usage and generated heat.
+
+Conversely, there is no micro-architectural hint available in Python \3 to yield
+to the CPU. Instead, an empty `pass` loop was utilised. Though the Python \3
+loop remained functionally identical to the compiled languages, it does not
+reduce power usage or heat generation. In addition, because the thread is
+spinning in a tight loop, it aggressively holds the Global Interpreter Lock (GIL
+--- a mutex that ensures only one Python thread executes at a time), starving
+the other threads of execution time and creating an architectural bottleneck.
+
 #todo[
 - Zero On Hold (ZOH) for IMU data.
 - Sensor data interpolation not used to simulate data between sensor updates,
