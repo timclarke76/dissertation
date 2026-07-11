@@ -1591,9 +1591,9 @@ the ratio. If the push is not successful then the frame is dropped.
       label-pos: 0.2)
     )
   ],
-  caption: [Flowchart detailing the Adaptive Decimation backpressure policy.\ The
-    algorithm dynamically scales load-shedding based on queue saturation\ while
-    preserving temporal continuity.]
+  caption: [Flowchart detailing the Adaptive Decimation backpressure policy.\
+    The algorithm dynamically scales load-shedding based on queue saturation\
+    while preserving temporal continuity.]
 ) <fig:adaptive_decimation>
 
 When implementing this algorithm across the three language runtime models, a
@@ -1627,14 +1627,35 @@ spinning in a tight loop, it aggressively holds the Global Interpreter Lock (GIL
 --- a mutex that ensures only one Python thread executes at a time), starving
 the other threads of execution time and creating an architectural bottleneck.
 
+== Channels
+
+Channels were required to enable communication between the inference and
+late-fusion threads, and the late-fusion and telemetry threads. The former uses
+a Multi-Producer Single-Consumer (MPSC) channel --- multiple producers (the
+inference threads) push data into the channel to be pulled by one consumer (the
+late-fusion thread). The latter uses a Single-Producer Single-Consumer (SPSC)
+channel --- one producer (the late-fusion thread) pushes data into the channel,
+to be pulled by one consumer (the telemetry thread).
+
+Rust provides a memory-safe bounded channel via `std::sync::mpsc`. However,
+C++20 required a third-party library (moodycamel::BlockingConcurrentQueue).
+Because this implementation is unbounded and dynamically allocates memory to
+grow, a `std::counting_semaphore` was utilised to enforce a maximum capacity,
+satisfying the zero-allocation pipeline requirement.
+
+The Python \3 channel implementation utilised the standard library's
+`queue.Queue`. This class uses mutexes to lock the queue, preventing thread
+contention each time an attempt is made to push or pull from the channel. This
+constant locking and unlocking introduces context-switching (which in turn
+introduces latency and jitter), and thrashes the GIL, degrading performance of
+other threads as they are starved of execution time.
+
 #todo[
 - Zero On Hold (ZOH) for IMU data.
 - Sensor data interpolation not used to simulate data between sensor updates,
   removing number precision as a confounder.
 ]
-]
 
-#columns(2, gutter: 16pt)[
 #wc[
 = Results
 
