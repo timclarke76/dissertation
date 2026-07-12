@@ -14,6 +14,7 @@
 )
 
 #show "C++": box[C++]
+#show "C++20": box[C++20]
 
 #let red = rgb("F8D7DA")
 #let dark_red = rgb("#E56C76")
@@ -103,10 +104,11 @@ comparisons.
 
 This dissertation addresses the gap by providing empirical evidence and an
 evaluation of pipelines deployed on resource-constrained hardware, with a focus
-on the trade-offs among C++, Rust, and Python implementations of a tri-stream
-Human Activity Recognition (HAR) pipeline on industry-standard Edge-AI hardware.
-It focuses on three confounders: (1) language runtime models, (2) backpressure
-policies under various loads, and (3) thermal/power throttling.
+on the trade-offs among #todo[Confirm versions] C++20 (version 16.1.1), Rust
+(version 1.93.0, edition \2024), and Python (version 3.14.6) implementations of
+a tri-stream Human Activity Recognition (HAR) pipeline on industry-standard
+Edge-AI hardware. It focuses on three confounders: (1) language runtime models,
+(2) backpressure policies under various loads, and (3) thermal/power throttling.
 ]
 
 == Research Questions and Objectives
@@ -1328,7 +1330,7 @@ of the engineering cost of language selection.
 
 == System Architecture Overview
 
-To evaluate the language runtime models of C++20, Rust, and Python, an identical
+To evaluate the language runtime models of C++, Rust, and Python, an identical
 multi-threaded HAR pipeline was implemented across all three languages. As shown
 in the end-to-end diagram in @fig:end_to_end, individual threads are responsible
 for each discrete stage (bridge, inference, late-fusion, and telemetry).
@@ -1463,9 +1465,9 @@ IPC between the external process and the pipeline implementations. As shown in
 additional padding to match the size of the Jetson Orin Nano's Cortex-A78AE L1
 CPU cache line @a78RefManual, allowing it to remain in a single, isolated cache
 line without the risk of false sharing when the adjacent raw frame data was
-modified by the producer. In C++20 and Rust, this alignment was achieved using
+modified by the producer. In C++ and Rust, this alignment was achieved using
 simple compiler directives (`alignas(64)` and `#[repr(C, align(64))]`,
-respectively). However, Python 3 required manual memory mapping via
+respectively). However, Python required manual memory mapping via
 `ctypes.Structure` inheritance to define the byte widths of the fields
 (`c_uint32`, `c_uint64`).
 
@@ -1519,11 +1521,11 @@ respectively). However, Python 3 required manual memory mapping via
 
 Mapping the shared memory data to the process's virtual memory address space
 provided zero-copy efficiency at the IPC boundary. While this was automatically
-handled in Python 3 when instantiating the
-`multiprocessing.shared_memory.SharedMemory` class, C++20 and Rust both required
+handled in Python when instantiating the
+`multiprocessing.shared_memory.SharedMemory` class, C++ and Rust both required
 manual invocations of the `mmap` native UNIX system function. However, whereas
 the raw memory pointers in the compiled languages could be cast directly to the
-required structure with no overhead, Python 3 transparently converts the raw
+required structure with no overhead, Python transparently converts the raw
 bytes into native Python objects when accessing the fields of the
 `ctypes.Structure` @pythonCtypes. This adds CPU overhead that is not present in
 the compiled languages.
@@ -1598,9 +1600,9 @@ the ratio. If the push is not successful then the frame is dropped.
 
 When implementing this algorithm across the three language runtime models, a
 subtle, yet potentially catastrophic, difference was found between the
-statically typed languages (C++20 and Rust) and the dynamically typed Python 3.
+statically typed languages (C++ and Rust) and the dynamically typed Python.
 When calculating the ratio, the statically typed languages naturally truncated
-the result of the division to an integer. However, in Python 3, standard
+the result of the division to an integer. However, in Python, standard
 division (`/`) returns a floating-point value, which caused virtually all frames
 to be incorrectly dropped when performing the modulo operation. This subtle
 difference highlighted the risk of dynamic typing, and resolving this required
@@ -1612,15 +1614,15 @@ operator (`//`).
 To avoid introducing latency and context-switching overhead, it was necessary to
 spin-loop while waiting for new frames at the IPC boundary, without yielding to
 the system kernel through the use of OS-level mutexes or sleep instructions. In
-C++20, a small preprocessor macro was implemented to execute the ARM64 `yield`
+C++, a small preprocessor macro was implemented to execute the ARM64 `yield`
 assembly instruction, while `std::hint::spin_loop()` was used in Rust. These
 _micro-architecture_ hints instruct the CPU to temporarily pause _speculative
 execution_ (when the CPU predicts the next instruction and executes it ahead of
 time, before the previous instruction has completed) and to throttle the CPU for
 a few clock cycles, reducing power usage and generated heat.
 
-Conversely, there is no micro-architectural hint available in Python \3 to yield
-to the CPU. Instead, an empty `pass` loop was utilised. Though the Python \3
+Conversely, there is no micro-architectural hint available in Python to yield
+to the CPU. Instead, an empty `pass` loop was utilised. Though the Python
 loop remained functionally identical to the compiled languages, it does not
 reduce power usage or heat generation. In addition, because the thread is
 spinning in a tight loop, it aggressively holds the Global Interpreter Lock (GIL
@@ -1638,12 +1640,12 @@ channel --- one producer (the late-fusion thread) pushes data into the channel,
 to be pulled by one consumer (the telemetry thread).
 
 Rust provides a memory-safe bounded channel via `std::sync::mpsc`. However,
-C++20 required a third-party library (moodycamel::BlockingConcurrentQueue).
+C++ required a third-party library (moodycamel::BlockingConcurrentQueue).
 Because this implementation is unbounded and dynamically allocates memory to
 grow, a `std::counting_semaphore` was utilised to enforce a maximum capacity,
 satisfying the zero-allocation pipeline requirement.
 
-The Python \3 channel implementation utilised the standard library's
+The Python channel implementation utilised the standard library's
 `queue.Queue`. This class uses mutexes to lock the queue, preventing thread
 contention each time an attempt is made to push or pull from the channel. This
 constant locking and unlocking introduces context-switching (which in turn
@@ -1655,10 +1657,10 @@ other threads as they are starved of execution time.
 The bounded buffer queue is shared between the bridge and inference threads ---
 the former pushes data into the queue, and the latter pops data from it. This
 required the use of a mutex lock to enforce memory safety and to guarantee
-mutual exclusion. In C++20 and Python \3, the locks were implemented as member
+mutual exclusion. In C++ and Python, the locks were implemented as member
 variables of the `Queue` class (`std::mutex` and `threading.Lock`,
-respectively). While C++20 uses Resource Acquisition Is Initialisation (RAII),
-and Python \3 uses a context manager to set up and tear down the mutex
+respectively). While C++ uses Resource Acquisition Is Initialisation (RAII),
+and Python uses a context manager to set up and tear down the mutex
 automatically, neither offers enforced linking of the lock to the queue.
 Conversely, Rust's `std::sync::Arc<Mutex<T>>` combines compiler-enforced RAII
 and data ownership, guaranteeing that the queue cannot be accessed without first
