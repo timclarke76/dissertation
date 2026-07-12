@@ -471,7 +471,7 @@ memory exhaustion and system instability if not managed effectively.
 However, because the pipeline cannot request the sensors to slow down their rate
 of transmission, traditional backpressure mechanisms are impossible. Instead,
 _load shedding_ policies are necessary. Policies such as dropping data (e.g.
-dropping the oldest, newest, or every $n$-th events) are commonly used to manage
+dropping the oldest, newest, or every $n$-th frames) are commonly used to manage
 backpressure, but introduce an accuracy trade-off as data is lost.
 ]
 ]
@@ -785,7 +785,7 @@ saturation when the consumer buffer is full:
 
 *Policies that drop data while preserving temporal continuity:*
   - *Adaptive decimation:* Dynamically downsamples the data stream (i.e.
-    queueing only every _nth_ event) to reduce pressure on the consumer buffer
+    queueing only every _nth_ frame) to reduce pressure on the consumer buffer
     while preserving the temporal continuity of the data.
 
 Bounded queue and exponential backoff are both flow control policies, and
@@ -815,24 +815,24 @@ continuity and may impact prediction accuracy.
         [],
         stack(dir: ltr, spacing: 6pt, n(1), n(2), n(3), n(4), n(5), n(6)),
 
-        [*Incoming Stream:* \ _(Events 1 to 6)_],
+        [*Incoming Stream:* \ _(Frames 1 to 6)_],
         stack(dir: ltr, spacing: 6pt, k(), k(), k(), k(), k(), k()),
 
-        [*Drop-Newest:* \ _(Queue full at 4 events)_],
+        [*Drop-Newest:* \ _(Queue full at 4 frames)_],
         stack(dir: ltr, spacing: 6pt, k(), k(), k(), k(), d(), d()),
 
-        [*Drop-Oldest:* \ _(Queue full at 4 events)_],
+        [*Drop-Oldest:* \ _(Queue full at 4 frames)_],
         stack(dir: ltr, spacing: 6pt, d(), d(), k(), k(), k(), k()),
 
-        [*Adaptive Decimation:* \ _(Queueing every 2nd event)_],
+        [*Adaptive Decimation:* \ _(Queueing every 2nd frame)_],
         stack(dir: ltr, spacing: 6pt, k(), d(), k(), d(), k(), d()),
       )
     ]
   ],
 
-  caption: [Load shedding policies on a stream of sensor events. Green
-    check-marked (#sym.checkmark) blocks represent preserved data, red
-    cross-marked (#sym.crossmark) blocks represent dropped data. #v(1em)],
+  caption: [Load shedding policies on a stream of frames. Green check-marked
+    (#sym.checkmark) blocks represent preserved data, red cross-marked
+    (#sym.crossmark) blocks represent dropped data. #v(1em)],
 ) <fig:load_shedding>
 
 To ensure the runtime models were evaluated under sustained stress, the
@@ -905,7 +905,7 @@ Conversely, when the pipeline reads the `seq_num`, it uses acquire memory
 ordering to inform the CPU that it must not speculatively read any other
 variables before the `seq_num` is read. This simple "fence" guarantees that the
 memory ordering is correct, and that the apparently unrelated `seq_num` and
-frame data are read in the correct order.
+data frame are read in the correct order.
 ]
 
 #wc[
@@ -914,14 +914,14 @@ frame data are read in the correct order.
 ==== Latency
 
 To measure latency of the pipelines, the `CLOCK_MONOTONIC` clock was used to
-capture high-resolution timestamps at key points as the data events flowed through the pipeline.
-NTP synchronisation was disabled to prevent the system clock from being adjusted.
-The following six timestamps, as visualised in
+capture high-resolution timestamps at key points as the frames flowed through
+the pipeline. NTP synchronisation was disabled to prevent the system clock from
+being adjusted. The following six timestamps, as visualised in
 @fig:latency_timeline, were captured for each event:
 
 + `generated_ts` when the generator pushes to the unbounded ring buffer
 + `bridged_ts` when the bridge pushes to the idiomatic buffer
-+ `pipeline_in_ts` when the pipeline pulls the event from the idiomatic buffer
++ `pipeline_in_ts` when the pipeline pulls the frame from the idiomatic buffer
 + `pipeline_out_ts` when the pipeline pushes data to the ONNX Runtime for
   inference
 + `fusion_in_ts` when inference completes and the pipeline begins late fusion
@@ -966,8 +966,8 @@ The following six timestamps, as visualised in
     )
   ],
 
-  caption: [Timeline of the six timestamps captured for each event as it flows
-    through the pipeline. #v(1em)]
+  caption: [Timeline of the six timestamps captured for each event as the frame
+    flows through the pipeline. #v(1em)]
 ) <fig:latency_timeline>
 
 _Coordinated Omission_ occurs when a stalled system fails to record the true
@@ -1172,7 +1172,7 @@ nanosecond-level desynchronisation is statistically irrelevant.
 === Event Synchronisation
 
 To ensure that identical event streams were processed by each implementation,
-without introducing startup jitter or dropping initial frames, an atomic
+without introducing startup jitter or missing initial events, an atomic
 variable, `pipeline_stage`, was integrated into each shared memory buffer
 header. This variable was set to a value of $1$ (`READY`) by the pipeline
 bridges once they were fully initialised and ready to receive data. The load
@@ -1181,11 +1181,11 @@ push data.
 
 The generator updated the `pipeline_stage` variables to $2$ (`FINISHED`) as each
 event stream was completed. Each pipeline bridge processed all remaining valid
-events from the shared memory buffer, and then used a _poison pill_ technique to
+frames from the shared memory buffer, and then used a _poison pill_ technique to
 signal the end of the stream. A special frame containing a maximum sequence
 number (`UINT64_MAX` or `u64::MAX`) was injected into the bounded queue, which
 initiated a graceful shutdown of the pipeline by all threads after any pending
-events were processed.
+frames were processed.
 
 === Late Fusion
 
@@ -1446,9 +1446,9 @@ inference results from all three streams into one prediction.
 Each spawned thread chain begins at the *Bridge Thread*, which spin-waits on an
 unbounded shared memory (`/dev/shm`) ring buffer populated by an external
 process, defining the Inter-Process Communication (IPC) boundary. The Bridge
-Thread attempts to add ingested events into a bounded queue, applying the
+Thread attempts to add ingested frames into a bounded queue, applying the
 configured backpressure policy (e.g., Adaptive Decimation, Drop Oldest) to shed
-load if the queue is full. The *Inference Thread* pulls events from the bounded
+load if the queue is full. The *Inference Thread* pulls frames from the bounded
 queue to create temporal event windows, execute the ONNX model, and push the
 result to the MPSC channel. The *Late-Fusion Thread* consumes from the MPSC
 channel and anchors execution of its ONNX model to the 30 Hz RGB stream, before
@@ -1541,7 +1541,7 @@ As shown in @fig:adaptive_decimation, after reading a frame from the unbounded
 ring buffer, the Bridge Thread determines if the length of the bounded queue is
 within the danger zone. If so, a decimation ratio value is calculated based on a
 linear scale between the minimum and maximum ratios, and how far into the danger
-zone the queue length is. A counter is incremented for every frame, and events
+zone the queue length is. A counter is incremented for every frame, and frames
 are only pushed to the bounded queue when this counter is wholly divisible by
 the ratio. If the push is not successful then the frame is dropped.
 
