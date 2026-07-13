@@ -1716,6 +1716,21 @@ preventing an accumulation of unnecessary parsing overhead. Furthermore the
 cargo build tool caches a project dependency graph of to avoid re-parsing or
 re-compiling unchanged files.
 
+== Error Handling
+
+Rust's `Result` type forces developers to explicitly handle failure states at
+compile time. The `?` propagation operator offers a concise mechanism to push
+errors up the call stack without complicating the primary logic flow. These
+language paradigms dramatically simplify the error-handling code, and allow the
+adoption of boilerplate-reducing third-party crates (e.g. `anyhow`) to add error
+handling and contextual information in one expression.
+
+In contrast, both the C++ and Python implementations rely on developer
+discipline to write verbose error handling code to explicitly handle exceptions
+(`try`/`catch` and `try`/`except`) and legacy error codes, risking the
+occurrence of unhandled errors (decreasing system stability), and a lack of
+contextual information when debugging (increasing system maintenance overhead).
+
 = Conclusion
 
 Total words: #total-words
