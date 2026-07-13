@@ -1698,6 +1698,24 @@ acquiring the lock guard.
 
 = Discussion
 
+== Compilation Times
+
+Despite Rust's stricter compile-time checks and safety guarantees (e.g.
+ownership, the borrow checker, and strict variable usage), compilation times
+were significantly faster than experienced with C++. The latter implementation
+relies on several template classes --- both standard (e.g. `std::shared_ptr`,
+`std::vector`) and pipeline specific (the channel `Sender`/`Receiver` and the
+`Queue`). By language design, C++ templates must be defined in header files, and
+because C++ relies on a pre-processor source file inclusion model (`#include`),
+these headers are copied into every Translation Unit (TU) that references them,
+forcing the compiler to repeatedly parse the same templates across multiple TUs.
+
+Conversely, Rust's compiler does not rely on source file inclusion, and instead
+parses each crate only once (regardless of how many modules reference it),
+preventing an accumulation of unnecessary parsing overhead. Furthermore the
+cargo build tool caches a project dependency graph of to avoid re-parsing or
+re-compiling unchanged files.
+
 = Conclusion
 
 Total words: #total-words
