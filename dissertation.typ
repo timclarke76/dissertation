@@ -910,10 +910,19 @@ memory ordering is correct, and that the apparently unrelated `seq_num` and
 data frame are read in the correct order.
 ]
 
-#wc[
-=== Profiling and Metrics
+== Zero-Allocation
 
-==== Latency
+To reduce memory churn and the latency jitter that may be introduced by
+high-frequency dynamic memory allocation --- as well as GC pauses in Python ---
+a zero-allocation approach was used. This was achieved by ensuring all necessary
+memory (e.g. the bounded queue) was pre-allocated during initialisation, and
+lightweight data structures (e.g. the telemetry `Epoch`) were continuously
+reused rather than reallocated.
+
+#wc[
+== Profiling and Metrics
+
+=== Latency
 
 To measure latency of the pipelines, the `CLOCK_MONOTONIC` clock was used to
 capture high-resolution timestamps at key points as the frames flowed through
