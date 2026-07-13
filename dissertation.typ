@@ -1731,6 +1731,30 @@ discipline to write verbose error handling code to explicitly handle exceptions
 occurrence of unhandled errors (decreasing system stability), and a lack of
 contextual information when debugging (increasing system maintenance overhead).
 
+== Language Ergonomics
+
+The implementation of the three pipelines revealed significant differences in
+language ergonomics and the resulting cognitive load. Both Rust and Python
+provide simple mechanisms for transforming data collections and evaluating
+enumeration types (such as Rust's `match` operator), requiring minimal
+boilerplate code and improving code readability.
+
+While C++ has evolved over successive versions to offer similar functionality
+via the standard library (e.g. `std::ranges` and `std::transform` for
+collections, or `std::variant` and `std::visit` for enumerations), utilising
+these features was counterproductive. For example, introducing transformations
+to data collections introduced verbosity and code complexity. Consequently,
+traditional `for` loops were used instead to maintain code readability, and to
+reduce maintenance overhead.
+
+Similarly, pattern matching in C++ required the use of `std::visit`, which
+introduced syntactic complexity that made the code difficult to read. The code
+formatter struggled to parse the code coherently, requiring
+`// clang-format off` directives to maintain legibility. This demonstrates that
+the complexity of C++'s legacy architecture and backward compatibility can deter
+the adoption of attempts to introduce modern approaches to software development,
+forcing developers to revert to a more traditional style of programming.
+
 = Conclusion
 
 Total words: #total-words
