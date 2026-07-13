@@ -551,10 +551,8 @@ necessary to determine their suitability for Edge-AI pipelines.
 #wc[
 = Methodology
 
-== Hardware and Software Environment
-
 #wc[
-=== Hardware Stack
+== Hardware Stack
 
 The NVIDIA Jetson Orin Nano (8GB Edition) was utilised as the target Edge-AI
 platform. It is a high-performance heterogeneous computing platform designed for
@@ -600,7 +598,7 @@ measurements.
 ]
 
 #wc[
-=== Software Stack
+== Software Stack
 
 The Jetson was flashed with NVIDIA's JetPack \6.2.2 SDK @jetpack-6-2-2, which
 includes Jetson Linux 36.5 (featuring the Linux Kernel 5.15 and an Ubuntu
@@ -639,7 +637,7 @@ implementations: C++20 with GCC #ct[version], Rust #ct[version], and Python
 ]
 
 #wc[
-=== Deterministic Load Generator
+== Deterministic Load Generator
 
 To reliably compare the performance of the three implementations, a separate
 synthetic load generator, shown in @fig:architecture, was developed to create
@@ -748,7 +746,7 @@ change the path of execution.
 ]
 
 #wc[
-=== Backpressure Policies <sec-backpressure>
+== Backpressure Policies <sec-backpressure>
 
 Bounded backpressure policies are implemented in each language-specific runtime
 model. In a typical backpressure implementation, when a _consumer_ is saturated
@@ -886,7 +884,7 @@ modifications to the implementation.
 ]
 
 #wc[
-=== Memory Ordering
+== Memory Ordering
 
 Traditional mutexes force a thread to yield to the system kernel. This
 introduces latency and context-switching jitter, which may cause the generator
@@ -1054,7 +1052,7 @@ of the pipeline thread if the telemetry thread is delayed (e.g. by I/O stalls).
     without blocking the pipeline thread during I/O stalls.]
 ) <fig:double_buffering>
 
-==== Memory Churn (C++ and Rust)
+=== Memory Churn (C++ and Rust)
 
 To measure the rate of memory churn in C++ and Rust (RQ3), the global memory
 allocation and deallocation functions were overridden to capture memory
@@ -1077,7 +1075,7 @@ other), the telemetry thread only reads these metrics once a second, which
 renders this comparatively insignificant temporal drift statistically
 irrelevant.
 
-==== GC Pressure (Python)
+=== GC Pressure (Python)
 
 Python uses a Garbage Collector (GC) to manage memory, which can introduce
 non-deterministic tail-latency GC pauses (also known as "stop-the-world" events)
@@ -1102,7 +1100,7 @@ deallocated immediately using Python's main reference counting mechanism, but it
 does provide the data to correlate deep Generation 2 collection events with
 tail-latency pauses.
 
-==== Memory Fragmentation
+=== Memory Fragmentation
 
 Repeated allocation and deallocation of memory can lead to fragmentation, where
 free memory is only available in small non-contiguous blocks. As shown in
@@ -1288,9 +1286,9 @@ development lifecycle overhead.
 ]
 
 #wc[
-=== Methodological Limitations
+== Methodological Limitations
 
-==== Memory Churn Asymmetry
+=== Memory Churn Asymmetry
 
 An asymmetry exists in the measurement of memory churn across the three
 implementations. When overriding `operator new` and `operator delete` in C++,
@@ -1310,7 +1308,7 @@ asymmetry is a limitation when comparing memory churn across all three runtime
 models, the methodology mitigates this by using the RSS as a baseline that
 captures all memory demand regardless of its origin.
 
-==== Temporal Alignment of Telemetry
+=== Temporal Alignment of Telemetry
 
 Because `tegrastats` was executed as a separate process, it's sampling intervals
 were not fully synchronised with the pipeline implementations. Therefore UNIX
@@ -1323,7 +1321,7 @@ throttling state changes occur over seconds rather than milliseconds, this
 sub-second uncertainty is accepted as a necessary limitation not expected to
 significantly confound the results.
 
-==== Static Complexity Analysis
+=== Static Complexity Analysis
 
 Regarding the code verbosity and complexity analysis, metrics such as LoC and CC
 only consider the static source code, and do not consider the learning curve or
