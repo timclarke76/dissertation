@@ -1308,6 +1308,20 @@ asymmetry is a limitation when comparing memory churn across all three runtime
 models, the methodology mitigates this by using the RSS as a baseline that
 captures all memory demand regardless of its origin.
 
+=== Temporal Alignment of Late-Fusion
+
+The inference window capture-count introduces a possible temporal misalignment
+between the IMU and RGB streams. Because the inference threads construct the
+temporal windows by counting the frames, rather than by using timestamp deltas,
+aggressive load-shedding effectively stretches the window, potentially causing
+misalignment during late-fusion.
+
+This would need to be mitigated in a production environment by using a timestamp
+delta to bound the temporal window. However, for this report's evaluation, the
+inference counter is retained to prevent a fluctuating workload of the
+late-fusion thread, which would make it impossible to compare the true overhead
+of the runtime models under identical load conditions.
+
 === Temporal Alignment of Telemetry
 
 Because `tegrastats` was executed as a separate process, it's sampling intervals
