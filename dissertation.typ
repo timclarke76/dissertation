@@ -1733,7 +1733,10 @@ contextual information when debugging (increasing system maintenance overhead).
 
 == Language Ergonomics
 
-The implementation of the three pipelines revealed significant differences in
+While static analysis tools such as Lizard provide a quantitative evaluation for
+Lines of Code (LoC) and Cyclomatic Complexity (CC), they do not consider the
+qualitative experience of the developer when writing and maintaining code. The
+implementation of the three pipelines revealed significant differences in
 language ergonomics and the resulting cognitive load. Both Rust and Python
 provide simple mechanisms for transforming data collections and evaluating
 enumeration types (such as Rust's `match` operator), requiring minimal
