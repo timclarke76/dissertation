@@ -1758,6 +1758,27 @@ the complexity of C++'s legacy architecture and backward compatibility can deter
 the adoption of attempts to introduce modern approaches to software development,
 forcing developers to revert to a more traditional style of programming.
 
+== Ecosystem Maturity and Deployment
+
+The C++ ecosystem is a highly cohesive, mature development environment. Its
+foundation libraries have remained stable for years, with a strong adherence to
+backwards compatibility offering long-term stability and reducing long-term
+maintenance overhead.
+
+While Rust's `cargo` build tool offers easy-to-use package management, the
+maturity of the ecosystem is still evolving. In contrast to C++, many of Rust's
+foundation libraries (e.g. `libc`, `nix`) remain in "zerover" (0.x.y)
+pre-release states. This results in a cognitive burden caused by API changes,
+deprecated or incomplete documentation, and conflicting online resources.
+
+Python's large ecosystem accelerates initial prototyping, but introduces
+friction during deployment. While C++ and Rust compile down to stand-alone
+executable files which can be easily deployed to the target hardware, Python's
+interpreted nature demands deployment of the Python interpreter itself, the
+source files, and an identical virtual environment. This results in Python
+deployment being heavier, more complex, and more fragile than the statically
+compiled counterparts.
+
 = Conclusion
 
 Total words: #total-words
