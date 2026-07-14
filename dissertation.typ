@@ -1779,6 +1779,31 @@ source files, and an identical virtual environment. This results in Python
 deployment being heavier, more complex, and more fragile than the statically
 compiled counterparts.
 
+== Concurrency and Memory Safety
+
+A clear contrast was experienced between the manual memory management of C++ and
+the compiler-enforced memory safety of Rust. Spawning threads using
+`std::jthread` in C++ relies on lambda expressions, which allows variables to be
+captured by reference (e.g. `[&receiver]`). While concise and convenient for
+developers, this creates a dangling reference if the spawned thread uses the
+captured variable after the variable's enclosing scope has ended. Because the
+C++ compiler does not check for memory safety issues, this error is not flagged
+to the developer. Therefore, avoiding such errors relies on developer discipline
+and vigilance, which becomes an increasingly difficult burden as the size and
+complexity of the codebase grows.
+
+Conversely, Rust's ownership model and borrow checker guarantees memory safety.
+In the aforementioned example, the Rust compiler would refuse to allow
+references that may not outlive the spawned thread. Instead, Rust forces the
+developer to transfer ownership using the `move` keyword and atomic reference
+counting (e.g. `Arc<Mutex<T>>`).
+
+Though Rust's ownership model is a steep learning curve for developers new to
+the language --- similar to that experienced when transitioning from a
+functional paradigm to an object-oriented one --- it eliminates memory-safety
+bugs that are notoriously difficult to resolve, shifting the burden from
+developer vigilance to compiler analysis.
+
 = Conclusion
 
 Total words: #total-words
