@@ -247,6 +247,11 @@ impl ShmBuffer {
             };
 
             if seq_num > self.frame_idx {
+                let t_bridged = now_nanos().context(
+                    "Failed to get current time in \
+                        nanoseconds for t_bridged",
+                )?;
+
                 if seq_num - self.frame_idx > self.capacity_frames {
                     // The producer has lapped the consumer, which means that
                     // frames have been overwritten before they could be read.
@@ -273,11 +278,6 @@ impl ShmBuffer {
                         self.frame_size_bytes,
                     )
                 };
-
-                let t_bridged = now_nanos().context(
-                    "Failed to get current time in \
-                        nanoseconds for t_bridged",
-                )?;
 
                 let t_generated = data[0..8]
                     .try_into()

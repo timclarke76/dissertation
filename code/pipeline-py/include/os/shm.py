@@ -237,6 +237,8 @@ class ShmBuffer:
             seq_num = self.header.seq_num
 
             if seq_num > self.frame_idx:
+                t_bridged = time.perf_counter_ns()
+
                 if seq_num - self.frame_idx > self.capacity_frames:
                     # The producer has lapped the consumer, which means that
                     # frames have been overwritten before they could be read.
@@ -254,8 +256,6 @@ class ShmBuffer:
                 data_offset = self.data_offset + (
                     circular_idx * self.frame_size_bytes
                 )
-
-                t_bridged = time.perf_counter_ns()
 
                 # Extract the 8-byte generated timestamp (little endian)
                 t_generated = struct.unpack_from(

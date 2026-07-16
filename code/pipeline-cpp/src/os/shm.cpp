@@ -51,6 +51,8 @@ ShmBuffer::next_frame()
     const uint64_t seq_num = header_->seq_num.load(std::memory_order_acquire);
 
     if (seq_num > frame_idx_) {
+      const auto t_bridged = current_time_nanos();
+
       if (seq_num - frame_idx_ > header_->capacity_frames) {
         // The producer has lapped the consumer, which means that frames have
         // been overwritten before they could be read. Print a warning to stderr
@@ -71,7 +73,7 @@ ShmBuffer::next_frame()
       const auto data = this->data_ptr_ + data_offset;
 
       Frame frame = {
-        stream_id_, frame_idx_ + 1, { 0, current_time_nanos(), 0, 0, 0, 0 }
+        stream_id_, frame_idx_ + 1, { 0, t_bridged, 0, 0, 0, 0 }
       };
 
       std::memcpy(&frame.timestamps[0], data, sizeof(uint64_t));
