@@ -12,7 +12,7 @@ class Settings
 {
 public:
   /// \brief Represents the configuration for an event queue.
-  struct QueueConfig
+  struct EventQueueConfig
   {
     /// The name of the queue.
     std::string name;
@@ -26,26 +26,62 @@ public:
 
 public:
   /// \brief Creates a new Settings instance by loading configuration from a
-  /// TOML file specified by the `args` argument, and applying command-line
+  /// TOML file specified by the args argument, and applying command-line
   /// arguments.
   ///
   /// If a setting is provided in the command-line arguments, it will override
   /// the corresponding value from the configuration file.
   ///
-  /// \param args The command-line arguments that supplies the settings
-  /// filename, and may override configuration settings.
-  ///
-  /// \return A Result containing the Settings instance if successful, or an
-  /// error if the configuration could not be loaded or deserialized.
+  /// \param args The command-line arguments that may override configuration
+  /// settings.
   Settings(const Args& args);
+
+  /// \brief Returns the configuration for the RGB event queue.
+  ///
+  /// \return The EventQueueConfig for the RGB event queue.
+  const EventQueueConfig& get_rgb_queue_config() const
+  {
+    return rgb_queue_config;
+  }
+
+  /// \brief Returns the policy for handling RGB events.
+  ///
+  /// \return The Policy for handling RGB events.
+  const Policy& get_rgb_policy() const { return rgb_policy; }
+
+  /// \brief Returns the configuration for the accelerometer event queue.
+  ///
+  /// \return The EventQueueConfig for the accelerometer event queue.
+  const EventQueueConfig& get_accel_queue_config() const
+  {
+    return accel_queue_config;
+  }
+
+  /// \brief Returns the policy for handling accelerometer events.
+  ///
+  /// \return The Policy for handling accelerometer events.
+  const Policy& get_accel_policy() const { return accel_policy; }
+
+  /// \brief Returns the configuration for the gyroscope event queue.
+  ///
+  /// \return The EventQueueConfig for the gyroscope event queue.
+  const EventQueueConfig& get_gyro_queue_config() const
+  {
+    return gyro_queue_config;
+  }
+
+  /// \brief Returns the policy for handling gyroscope events.
+  ///
+  /// \return The Policy for handling gyroscope events.
+  const Policy& get_gyro_policy() const { return gyro_policy; }
 
 private:
   /// \brief Parses the event queue configuration from a TOML table.
   ///
   /// \param tbl The TOML table containing the event queue configuration.
   /// \param config_name The name of the configuration to parse.
-  /// \return A QueueConfig instance containing the parsed configuration.
-  static QueueConfig parse_event_queue_config(const toml::table& tbl,
+  /// \return An EventQueueConfig instance containing the parsed configuration.
+  static EventQueueConfig parse_event_queue_config(const toml::table& tbl,
     const std::string& config_name);
 
   /// \brief Parses the policy configuration from a TOML table.
@@ -56,22 +92,22 @@ private:
   static Policy parse_policy(const toml::table& tbl,
     const std::string& policy_name);
 
-public:
+private:
   /// Configuration for the RGB event queue.
-  QueueConfig rgb_queue_config;
+  EventQueueConfig rgb_queue_config;
 
   /// Policy for handling RGB events.
   Policy rgb_policy;
 
   /// Configuration for the accelerometer event queue.
-  QueueConfig accel_queue_config;
+  EventQueueConfig accel_queue_config;
 
   /// Policy for handling accelerometer events.
-  Policy accelerometer_policy;
+  Policy accel_policy;
 
   /// Configuration for the gyroscope event queue.
-  QueueConfig gyro_queue_config;
+  EventQueueConfig gyro_queue_config;
 
   /// Policy for handling gyroscope events.
-  Policy gyroscope_policy;
+  Policy gyro_policy;
 };

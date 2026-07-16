@@ -75,21 +75,21 @@ fn main() -> Result<()> {
 
     let configs = [
         (
-            &settings.rgb_queue,
+            &settings.rgb_queue_config,
             ShmBuffer::RGB_STREAM_ID,
             settings.rgb_policy,
             Duration::from_millis(33),
         ),
         (
-            &settings.accelerometer_queue,
+            &settings.accel_queue_config,
             ShmBuffer::ACCEL_STREAM_ID,
-            settings.accelerometer_policy,
+            settings.accel_policy,
             Duration::from_micros(500),
         ),
         (
-            &settings.gyroscope_queue,
+            &settings.gyro_queue_config,
             ShmBuffer::GYRO_STREAM_ID,
-            settings.gyroscope_policy,
+            settings.gyro_policy,
             Duration::from_micros(400),
         ),
     ];
@@ -131,9 +131,9 @@ fn main() -> Result<()> {
     let fusion_handle = spawn_fusion_thread(
         fusion_receiver,
         vec![
-            settings.rgb_queue.name.clone(),
-            settings.accelerometer_queue.name.clone(),
-            settings.gyroscope_queue.name.clone(),
+            settings.rgb_queue_config.name.clone(),
+            settings.accel_queue_config.name.clone(),
+            settings.gyro_queue_config.name.clone(),
         ],
     )?;
 

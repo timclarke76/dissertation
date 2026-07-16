@@ -5,7 +5,7 @@ import sys
 import threading
 from typing import Final
 
-from include.config import Args, Policy, QueueConfig, Settings
+from include.config import Args, EventQueueConfig, Policy, Settings
 from include.os import ShmBuffer, make_channel, gc
 import include.os.gc
 from include.thread import (
@@ -23,7 +23,7 @@ if dir not in sys.path:
 
 @dataclass(frozen=True)
 class StreamConfig:
-    queue: QueueConfig
+    queue: EventQueueConfig
     stream_id: int
     policy: Policy
     duration: dt.timedelta
@@ -73,21 +73,21 @@ def main():
 
     CONFIGS: Final[list[StreamConfig]] = [
         StreamConfig(
-            queue=SETTINGS.rgb_queue,
+            queue=SETTINGS.rgb_queue_config,
             stream_id=ShmBuffer.RGB_STREAM_ID,
             policy=SETTINGS.rgb_policy,
             duration=dt.timedelta(milliseconds=33),
         ),
         StreamConfig(
-            queue=SETTINGS.accelerometer_queue,
+            queue=SETTINGS.accel_queue_config,
             stream_id=ShmBuffer.ACCEL_STREAM_ID,
-            policy=SETTINGS.accelerometer_policy,
+            policy=SETTINGS.accel_policy,
             duration=dt.timedelta(microseconds=500),
         ),
         StreamConfig(
-            queue=SETTINGS.gyroscope_queue,
+            queue=SETTINGS.gyro_queue_config,
             stream_id=ShmBuffer.GYRO_STREAM_ID,
-            policy=SETTINGS.gyroscope_policy,
+            policy=SETTINGS.gyro_policy,
             duration=dt.timedelta(microseconds=400),
         ),
     ]

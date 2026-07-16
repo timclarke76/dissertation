@@ -21,22 +21,22 @@ pub struct EventQueueConfig {
 #[derive(Deserialize)]
 pub struct Settings {
     /// Configuration for the RGB event queue.
-    pub rgb_queue: EventQueueConfig,
+    pub rgb_queue_config: EventQueueConfig,
 
     /// Policy for handling RGB events.
     pub rgb_policy: Policy,
 
     /// Configuration for the accelerometer event queue.
-    pub accelerometer_queue: EventQueueConfig,
+    pub accel_queue_config: EventQueueConfig,
 
     /// Policy for handling accelerometer events.
-    pub accelerometer_policy: Policy,
+    pub accel_policy: Policy,
 
     /// Configuration for the gyroscope event queue.
-    pub gyroscope_queue: EventQueueConfig,
+    pub gyro_queue_config: EventQueueConfig,
 
     /// Policy for handling gyroscope events.
-    pub gyroscope_policy: Policy,
+    pub gyro_policy: Policy,
 }
 
 impl Settings {

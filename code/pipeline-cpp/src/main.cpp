@@ -19,7 +19,7 @@ using namespace std::chrono_literals;
 struct StreamConfig
 {
   /// The queue configuration for the data stream.
-  const Settings::QueueConfig& queue;
+  const Settings::EventQueueConfig& queue;
 
   /// The stream ID for the data stream.
   const size_t stream_id;
@@ -75,21 +75,21 @@ main(const int argc, const char* const* argv)
   const std::array<StreamConfig, 3> configs =
   {{
       {
-          settings.rgb_queue_config,
+          settings.get_rgb_queue_config(),
           ShmBuffer::RGB_STREAM_ID,
-          settings.rgb_policy,
+          settings.get_rgb_policy(),
           33ms
       },
       {
-          settings.accel_queue_config,
+          settings.get_accel_queue_config(),
           ShmBuffer::ACCEL_STREAM_ID,
-          settings.accelerometer_policy,
+          settings.get_accel_policy(),
           500us
       },
       {
-          settings.gyro_queue_config,
+          settings.get_gyro_queue_config(),
           ShmBuffer::GYRO_STREAM_ID,
-          settings.gyroscope_policy,
+          settings.get_gyro_policy(),
           400us
       }
   }};

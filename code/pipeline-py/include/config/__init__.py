@@ -1,5 +1,5 @@
 from .args import Args
-from .settings import QueueConfig, Settings
+from .settings import EventQueueConfig, Settings
 from .policy import (
     BoundedQueue,
     ExponentialBackoff,
@@ -11,7 +11,7 @@ from .policy import (
 
 __all__ = [
     "Args",
-    "QueueConfig",
+    "EventQueueConfig",
     "Settings",
     "BoundedQueue",
     "ExponentialBackoff",

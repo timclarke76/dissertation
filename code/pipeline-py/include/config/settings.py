@@ -12,7 +12,7 @@ from .policy import (
 
 
 @dataclass
-class QueueConfig:
+class EventQueueConfig:
     """Represents the configuration for an event queue."""
 
     name: str
@@ -29,27 +29,27 @@ class QueueConfig:
 class Settings:
     """Represents the configuration settings for the application."""
 
-    rgb_queue: QueueConfig
+    rgb_queue_config: EventQueueConfig
     """Configuration for the RGB event queue."""
 
     rgb_policy: Policy
     """Policy for handling RGB events."""
 
-    accelerometer_queue: QueueConfig
+    accel_queue_config: EventQueueConfig
     """Configuration for the accelerometer event queue."""
 
-    accelerometer_policy: Policy
+    accel_policy: Policy
     """Policy for handling accelerometer events."""
 
-    gyroscope_queue: QueueConfig
+    gyro_queue_config: EventQueueConfig
     """Configuration for the gyroscope event queue."""
 
-    gyroscope_policy: Policy
+    gyro_policy: Policy
     """Policy for handling gyroscope events."""
 
     def __init__(self, args: argparse.Namespace) -> Settings:
-        """Creates a new `Settings` instance by loading configuration from a
-        TOML file specified by the `args` argument, and applying command-line
+        """Creates a new Settings instance by loading configuration from a TOML
+        file specified by the args argument, and applying command-line
         arguments.
 
         If a setting is provided in the command-line arguments, it will override
@@ -63,18 +63,18 @@ class Settings:
             with open(args.settings, 'rb') as f:
                 data = tomllib.load(f)
 
-            self.rgb_queue = QueueConfig(**data['rgb_queue'])
+            self.rgb_queue_config = EventQueueConfig(**data['rgb_queue_config'])
             self.rgb_policy = self._parse_policy(data['rgb_policy'])
 
-            self.accelerometer_queue = QueueConfig(
-                **data['accelerometer_queue'],
+            self.accel_queue_config = EventQueueConfig(
+                **data['accel_queue_config'],
             )
-            self.accelerometer_policy = (
-                self._parse_policy(data['accelerometer_policy']),
-            )
+            self.accel_policy = (self._parse_policy(data['accel_policy']),)
 
-            self.gyroscope_queue = QueueConfig(**data['gyroscope_queue'])
-            self.gyroscope_policy = self._parse_policy(data['gyroscope_policy'])
+            self.gyro_queue_config = EventQueueConfig(
+                **data['gyro_queue_config']
+            )
+            self.gyro_policy = self._parse_policy(data['gyro_policy'])
         except Exception as e:
             e.add_note(f"Settings file '{args.settings}' parsing failed.")
             raise

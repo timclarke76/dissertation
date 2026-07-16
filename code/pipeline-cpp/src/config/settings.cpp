@@ -9,27 +9,27 @@ Settings::Settings(const Args& args)
   try {
     auto settings = toml::parse_file(source);
 
-    rgb_queue_config = parse_event_queue_config(settings, "rgb_queue");
+    rgb_queue_config = parse_event_queue_config(settings, "rgb_queue_config");
     rgb_policy = parse_policy(settings, "rgb_policy");
 
     accel_queue_config =
-      parse_event_queue_config(settings, "accelerometer_queue");
-    accelerometer_policy = parse_policy(settings, "accelerometer_policy");
+      parse_event_queue_config(settings, "accel_queue_config");
+    accel_policy = parse_policy(settings, "accel_policy");
 
-    gyro_queue_config = parse_event_queue_config(settings, "gyroscope_queue");
-    gyroscope_policy = parse_policy(settings, "gyroscope_policy");
+    gyro_queue_config = parse_event_queue_config(settings, "gyro_queue_config");
+    gyro_policy = parse_policy(settings, "gyro_policy");
   } catch (const toml::parse_error& e) {
     throw std::runtime_error(
       std::format("Settings file '{}' parsing failed: {}", source, e.what()));
   }
 }
 
-Settings::QueueConfig
+Settings::EventQueueConfig
 Settings::parse_event_queue_config(const toml::table& tbl_in,
   const std::string& config_name)
 {
   if (auto tbl = tbl_in[config_name].as_table()) {
-    QueueConfig config;
+    EventQueueConfig config;
 
     if (auto name_node = (*tbl)["name"].as_string()) {
       config.name = name_node->get();
@@ -82,8 +82,8 @@ Settings::parse_policy(const toml::table& tbl_in,
   if (type_str == "BoundedQueue") {
     return BoundedQueue{};
   } else if (type_str == "ExponentialBackoff") {
-    return ExponentialBackoff{
-      static_cast<uint64_t>((*tbl)["base_nanos"].as<int64_t>()->get()),
+    return ExponentialBackoff{ static_cast<uint64_t>(
+                                 (*tbl)["base_nanos"].as<int64_t>()->get()),
       static_cast<uint64_t>((*tbl)["max_nanos"].as<int64_t>()->get()),
       (*tbl)["multiplier"].as<double>()->get() };
   } else if (type_str == "DropOldest") {
@@ -91,12 +91,12 @@ Settings::parse_policy(const toml::table& tbl_in,
   } else if (type_str == "DropNewest") {
     return DropNewest{};
   } else if (type_str == "AdaptiveDecimation") {
-    return AdaptiveDecimation{
-      static_cast<size_t>((*tbl)["threshold"].as<int64_t>()->get()),
+    return AdaptiveDecimation{ static_cast<size_t>(
+                                 (*tbl)["threshold"].as<int64_t>()->get()),
       static_cast<size_t>((*tbl)["min_ratio"].as<int64_t>()->get()),
       static_cast<size_t>((*tbl)["max_ratio"].as<int64_t>()->get()) };
   } else {
-    throw std::runtime_error(std::format("Unknown policy type '{}' in {}",
-      type_str, policy_name));
+    throw std::runtime_error(
+      std::format("Unknown policy type '{}' in {}", type_str, policy_name));
   }
 }
