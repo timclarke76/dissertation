@@ -94,15 +94,6 @@ fn main() -> Result<()> {
         ),
     ];
 
-    // Calculate the total size of the channel between the inference threads and
-    // the fusion thread as the sum of the capacities of all queues. This
-    // ensures that the channel can hold all frames from the inference threads
-    // without blocking.
-    let channel_size = configs
-        .iter()
-        .map(|(queue, _, _, _)| queue.capacity_frames)
-        .sum();
-
     let min_fps = configs
         .iter()
         .map(|(queue, _, _, _)| queue.fps)
@@ -110,7 +101,7 @@ fn main() -> Result<()> {
         .unwrap();
 
     let (inference_sender, fusion_receiver) =
-        sync_channel::<ShmFrame>(channel_size);
+        sync_channel::<ShmFrame>(configs.len());
 
     let mut handles: Vec<_> = configs
         .into_iter()

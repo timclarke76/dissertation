@@ -92,15 +92,9 @@ def main():
         ),
     ]
 
-    # Calculate the total size of the channel between the inference threads and
-    # the fusion thread as the sum of the capacities of all queues. This ensures
-    # that the channel can hold all frames from the inference threads without
-    # blocking.
-    CHANNEL_SIZE: Final[int] = sum(cfg.queue.capacity_frames for cfg in CONFIGS)
-
     MIN_FPS: Final[int] = min(cfg.queue.fps for cfg in CONFIGS)
 
-    (inference_sender, fusion_receiver) = make_channel(CHANNEL_SIZE)
+    (inference_sender, fusion_receiver) = make_channel(len(CONFIGS))
 
     HANDLES: Final[list[Thread]] = [
         thread

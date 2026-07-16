@@ -95,20 +95,14 @@ main(const int argc, const char* const* argv)
   }};
   // clang-format on
 
-  // Calculate the total size of the channel between the inference threads and
-  // the fusion thread as the sum of the capacities of all queues. This ensures
-  // that the channel can hold all frames from the inference threads without
-  // blocking.
-  size_t channel_size = 0;
   size_t min_fps = std::numeric_limits<size_t>::max();
 
   for (const auto& cfg : configs) {
-    channel_size += cfg.queue.capacity_frames;
     min_fps = std::min(min_fps, cfg.queue.fps);
   }
 
   auto [inference_sender, fusion_receiver] =
-    make_channel<ShmBuffer::Frame>(channel_size);
+    make_channel<ShmBuffer::Frame>(configs.size());
   std::vector<std::jthread> handles;
 
   for (const auto& cfg : configs) {
