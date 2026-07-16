@@ -1716,6 +1716,12 @@ preventing an accumulation of unnecessary parsing overhead. Furthermore the
 cargo build tool caches a project dependency graph of to avoid re-parsing or
 re-compiling unchanged files.
 
+In contrast to C++ and Rust, Python is an interpreted language and consequently
+has no compilation overhead, thus reducing friction during initial prototyping.
+However, errors that the other languages would catch at compile time are only
+discovered at runtime in Python, risking reduced system stability within the
+production environment.
+
 == Error Handling
 
 Rust's `Result` type forces developers to explicitly handle failure states at
@@ -1803,6 +1809,10 @@ the language --- similar to that experienced when transitioning from a
 functional paradigm to an object-oriented one --- it eliminates memory-safety
 bugs that are notoriously difficult to resolve, shifting the burden from
 developer vigilance to compiler analysis.
+
+Python's GC automatically handles the lifetime of the variable, preventing the
+dangling reference vulnerabilities of C++, without the steep learning curve of
+Rust's borrowing mechanism.
 
 = Conclusion
 
