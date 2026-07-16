@@ -1802,13 +1802,12 @@ Conversely, Rust's ownership model and borrow checker guarantees memory safety.
 In the aforementioned example, the Rust compiler would refuse to allow
 references that may not outlive the spawned thread. Instead, Rust forces the
 developer to transfer ownership using the `move` keyword and atomic reference
-counting (e.g. `Arc<Mutex<T>>`).
-
-Though Rust's ownership model is a steep learning curve for developers new to
-the language --- similar to that experienced when transitioning from a
-functional paradigm to an object-oriented one --- it eliminates memory-safety
-bugs that are notoriously difficult to resolve, shifting the burden from
-developer vigilance to compiler analysis.
+counting (e.g. `Arc<Mutex<T>>`). Though Rust's ownership model is a steep
+learning curve for developers new to the language --- similar to that
+experienced when transitioning from a functional paradigm to an object-oriented
+one --- it eliminates memory-safety bugs that are notoriously difficult to
+resolve, shifting the burden from developer discipline and vigilance to compiler
+analysis.
 
 Python's GC automatically handles the lifetime of the variable, preventing the
 dangling reference vulnerabilities of C++, without the steep learning curve of
