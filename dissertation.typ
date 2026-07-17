@@ -7,9 +7,9 @@
 #import "template.typ": template, ct, todo
 #show: template.with(
   title: [AC52010 - MSc Project],
-  assignment: [A Comparative Analysis of Memory Safety, Concurrency, and
+  assignment: [A Comparative Analysis of Memory Management, Concurrency, and
     Performance in Edge-AI],
-  abstractTitle: [A Comparative Analysis of Memory Safety, Concurrency, and
+  abstractTitle: [A Comparative Analysis of Memory Management, Concurrency, and
     Performance in Edge-AI],
 )
 
