@@ -535,6 +535,25 @@ the estimated execution duration of the load using a cost model built and
 maintained at run-time, intentionally bypassing processing that would cause the
 latency threshold to be violated.
 
+== Coordinated Omission <sec:coordinated-omission>
+
+If a data-processing pipeline evaluation only starts to measure latency when
+processing an event begins, instead of when an event truly occurs, it risks a
+phenomenon identified by Tene (2014) @tene2014 as _Coordinated Omission_. This
+may also happen when a producer is stalled due to the lack of the consumer's
+readiness to process data. This failure to record the true time that an event
+occurs means that queue delays --- which may occur because of an OS context
+switch, a garbage collection pause, thermal throttling, etc. --- are not
+recorded, consequently reducing latency measurements. Furthermore, because fewer
+events are recorded when the system is throttled or stalled, low-latency events
+form the majority of the recorded dataset, making a system appear more
+performant than it actually is.
+
+Tene also warns against ignoring events beyond the 99th percentile, as doing so
+fails to expose the frequency and impact of systematic delays. Therefore deep
+tail latency measurements, such as the 99.9th and 99.99th percentiles, are
+necessary to understand the true performance of a system under load.
+
 #wc[
 == The Research Gap
 
@@ -566,8 +585,8 @@ Python's GC introduces jitter when reclaiming memory.
 Therefore, there is a research gap in empirically evaluating how the C++, Rust,
 and Python runtime models interact with backpressure policies under the thermal
 constraints of Edge-AI devices with continuous streams of sensor data.
-Consequently, an evaluation of their runtime performance under heavy load is
-necessary to determine their suitability for Edge-AI pipelines.
+Consequently, capturing true latency measurements at high percentiles under
+heavy load is necessary to determine their suitability for Edge-AI pipelines.
 ]
 ]
 
@@ -1002,12 +1021,11 @@ being adjusted. The following six timestamps, as visualised in
     flows through the pipeline. #v(1em)]
 ) <fig:latency_timeline>
 
-_Coordinated Omission_ occurs when a stalled system fails to record the true
-extent of tail-latency delays by omitting the time that the event truly occurred
-@howNotToMeasureLatency. By decoupling the load generator from the pipelines and
-ensuring that it pushes to an unbounded ring buffer, it is never blocked when the
-System Under Test (SUT) is stalled, thus ensuring that `generated_ts` allows
-latency delays to be accurately captured.
+To prevent Coordinated Omission as identified in @sec:coordinated-omission, the
+load generator is decoupled from the pipelines. By ensuring that it pushes to an
+unbounded ring buffer, it is never blocked when the System Under Test (SUT) is
+stalled, thus guaranteeing that `generated_ts` allows queueing delays and
+tail-latency to be accurately captured.
 
 These timestamps provide five key latency measurements: _Unbounded Queue Wait_
 ($"bridged_ts" - "generated_ts"$), _Idiomatic Queue Wait_ ($"pipeline_in_ts" -
@@ -1256,7 +1274,7 @@ correlate throttling events with performance metrics.
 Latency measurements have no theoretical maximum, but are inherently bounded by
 a minimum value of zero. This typically results in non-normal distributions
 which are heavily skewed to the right, with long tails and outliers
-@howNotToMeasureLatency, requiring non-parametric methods for statistical
+@tene2014, requiring non-parametric methods for statistical
 analysis. Data cleaning was restricted to only removing the first #ct[TODO]
 events to allow for warm-up and system stabilisation. The outliers are evidence
 of backpressure events and runtime model pauses (e.g. Garbage Collection in
