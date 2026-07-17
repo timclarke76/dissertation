@@ -117,6 +117,9 @@ public:
     ///   final output
     uint64_t timestamps[6];
 
+    /// The number of frames that have been lapped by the producer.
+    uint64_t lapped_frames = 0;
+
     /// The number of frames that have been dropped due to the bounded queue
     /// being full.
     uint64_t dropped_frames = 0;

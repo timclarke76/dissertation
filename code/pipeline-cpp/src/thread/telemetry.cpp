@@ -16,6 +16,7 @@ TelemetryWriter::Epoch::reset()
     latency_nanos[i].reset();
   }
 
+  lapped_frames = 0;
   dropped_frames = 0;
   allocated_bytes = 0;
   allocation_count = 0;
@@ -42,6 +43,7 @@ TelemetryWriter::Csv::Csv(const std::string_view& filename)
     header.push_back(std::format("{}_max", label));
   }
 
+  header.push_back("lapped_frames");
   header.push_back("dropped_frames");
   header.push_back("allocated_bytes");
   header.push_back("allocation_count");
@@ -74,6 +76,7 @@ TelemetryWriter::Csv::write_epoch(const Epoch& epoch)
     row.push_back(std::to_string(epoch.latency_nanos[i].max()));
   }
 
+  row.push_back(std::to_string(epoch.lapped_frames));
   row.push_back(std::to_string(epoch.dropped_frames));
   row.push_back(std::to_string(epoch.allocated_bytes));
   row.push_back(std::to_string(epoch.allocation_count));
@@ -87,6 +90,7 @@ TelemetryWriter::Csv::write_epoch(const Epoch& epoch)
 
 void
 TelemetryWriter::record(uint64_t ts[Epoch::NUM_LATENCY_MEASURES],
+  const uint64_t lapped_frames,
   const uint64_t dropped_frames)
 {
   if (std::chrono::steady_clock::now() - last_swap_ > SWAP_INTERVAL) {
@@ -102,6 +106,10 @@ TelemetryWriter::record(uint64_t ts[Epoch::NUM_LATENCY_MEASURES],
     saturating_sub(ts[Epoch::TOTAL_LATENCY], ts[Epoch::UNBOUNDED_QUEUE_WAIT]);
   current_epoch_.latency_nanos[Epoch::TOTAL_LATENCY].record(
     std::max<uint64_t>(1, total_nanos));
+
+  const auto newly_lapped = saturating_sub(lapped_frames, last_lapped_frames_);
+  current_epoch_.lapped_frames += newly_lapped;
+  last_lapped_frames_ = lapped_frames;
 
   const auto newly_dropped =
     saturating_sub(dropped_frames, last_dropped_frames_);

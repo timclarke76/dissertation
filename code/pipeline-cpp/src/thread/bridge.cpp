@@ -32,6 +32,7 @@ spawn_bridge_thread(const std::string& shm_name,
       }
 
       std::unique_lock<std::mutex> queue_lock(queue->mutex);
+      queue->lapped_frames += frame.lapped_frames;
 
       if (frame.seq_num == UINT64_MAX) {
         // The generator stream has ended, so push the final

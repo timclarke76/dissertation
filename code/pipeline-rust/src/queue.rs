@@ -17,6 +17,9 @@ pub struct Queue<T> {
     /// The index where the next item will be pushed (the tail of the queue).
     tail: usize,
 
+    /// The number of frames that have been lapped by the producer.
+    pub lapped_frames: u64,
+
     /// The number of frames that have been dropped due to the queue being full
     /// and a backpressure policy being applied.
     pub dropped_frames: u64,
@@ -38,6 +41,7 @@ impl<T> Queue<T> {
             len: 0,
             head: 0,
             tail: 0,
+            lapped_frames: 0,
             dropped_frames: 0,
         }
     }

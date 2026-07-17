@@ -44,9 +44,9 @@ pub fn spawn_inference_thread(
             let mut samples_collected = 0;
 
             loop {
-                let (item, dropped_frames) = {
+                let (item, lapped_frames, dropped_frames) = {
                     let mut q = queue.lock().unwrap();
-                    (q.pop(), q.dropped_frames)
+                    (q.pop(), q.lapped_frames, q.dropped_frames)
                 };
 
                 let t_pipeline_in = now_nanos().expect(
@@ -55,6 +55,7 @@ pub fn spawn_inference_thread(
                 );
 
                 if let Some(mut frame) = item {
+                    frame.lapped_frames = lapped_frames;
                     frame.dropped_frames = dropped_frames;
 
                     if frame.seq_num == u64::MAX {

@@ -101,6 +101,9 @@ private:
   size_t tail_ = 0;
 
 public:
+  /// The number of frames that have been lapped by the producer.
+  uint64_t lapped_frames = 0;
+
   /// The number of frames that have been dropped due to the queue being full
   /// and a backpressure policy being applied.
   uint64_t dropped_frames = 0;

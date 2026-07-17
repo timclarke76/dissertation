@@ -44,10 +44,12 @@ def spawn_fusion_thread(
         latest_accelerometer_timestamps: list[int] = [
             0 for _ in range(ShmBuffer.NUM_TIMESTAMPS)
         ]
+        latest_accelerometer_lapped_frames: int = 0
         latest_accelerometer_dropped_frames: int = 0
         latest_gyrometer_timestamps: list[int] = [
             0 for _ in range(ShmBuffer.NUM_TIMESTAMPS)
         ]
+        latest_gyrometer_lapped_frames: int = 0
         latest_gyrometer_dropped_frames: int = 0
 
         eos_count = 0
@@ -80,11 +82,13 @@ def spawn_fusion_thread(
                 """Only the most recent accelerometer timestamps are needed for
                 fusion, so we store them here."""
                 latest_accelerometer_timestamps = frame.timestamps.copy()
+                latest_accelerometer_lapped_frames = frame.lapped_frames
                 latest_accelerometer_dropped_frames = frame.dropped_frames
             elif frame.stream_id == ShmBuffer.GYRO_STREAM_ID:
                 """Only the most recent gyrometer timestamps are needed for
                 fusion, so we store them here."""
                 latest_gyrometer_timestamps = frame.timestamps.copy()
+                latest_gyrometer_lapped_frames = frame.lapped_frames
                 latest_gyrometer_dropped_frames = frame.dropped_frames
             elif frame.stream_id == ShmBuffer.RGB_STREAM_ID:
                 frame.timestamps[ShmBuffer.FUSION_IN_TS] = (
@@ -98,7 +102,9 @@ def spawn_fusion_thread(
                 try:
                     # Record the RGB telemetry.
                     telemetry_writers[ShmBuffer.RGB_STREAM_ID].record(
-                        frame.timestamps, frame.dropped_frames
+                        frame.timestamps,
+                        frame.lapped_frames,
+                        frame.dropped_frames,
                     )
                 except Exception as e:
                     e.add_note("Failed to record RGB telemetry: {e}")
@@ -116,6 +122,7 @@ def spawn_fusion_thread(
                     # telemetry.
                     telemetry_writers[ShmBuffer.ACCEL_STREAM_ID].record(
                         latest_accelerometer_timestamps,
+                        latest_accelerometer_lapped_frames,
                         latest_accelerometer_dropped_frames,
                     )
                 except Exception as e:
@@ -134,6 +141,7 @@ def spawn_fusion_thread(
                     # telemetry.
                     telemetry_writers[ShmBuffer.GYRO_STREAM_ID].record(
                         latest_gyrometer_timestamps,
+                        latest_gyrometer_lapped_frames,
                         latest_gyrometer_dropped_frames,
                     )
                 except Exception as e:

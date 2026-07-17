@@ -39,6 +39,9 @@ def spawn_bridge_thread(
                 e.add_note(f"Failed to read next frame from shared memory: {e}")
                 raise
 
+            with queue.lock:
+                queue.lapped_frames += frame.lapped_frames
+
             if frame.seq_num == ShmBuffer.POISON_PILL:
                 with queue.lock:
                     # The generator stream has ended, so push the final

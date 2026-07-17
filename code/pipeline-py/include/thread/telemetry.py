@@ -43,6 +43,9 @@ class TelemetryEpoch:
     """The histograms for recording latency measurements in nanoseconds for each
     stage of the inference pipeline, as well as the total latency."""
 
+    lapped_frames: int = 0
+    """The total number of frames lapped during the epoch."""
+
     dropped_frames: int = 0
     """The total number of frames dropped during the epoch."""
 
@@ -73,6 +76,7 @@ class TelemetryEpoch:
             e.add_note("Failed to create HdrHistogram for epoch: {e}")
             raise
 
+        self.lapped_frames = 0
         self.dropped_frames = 0
         self.gc_pause_ns = 0
         self.gc_blocks = 0
@@ -84,6 +88,7 @@ class TelemetryEpoch:
         for histogram in self.histograms:
             histogram.reset()
 
+        self.lapped_frames = 0
         self.dropped_frames = 0
         self.gc_pause_ns = 0
         self.gc_blocks = 0
@@ -111,6 +116,10 @@ class TelemetryWriter:
     """The timestamp of the last buffer swap, used to determine when to next
     swap the buffers."""
 
+    last_lapped_frames: int
+    """The number of frames lapped since the last call to record, used to
+    calculate the number of lapped frames for the current epoch."""
+
     last_dropped_frames: int
     """The number of frames dropped since the last call to record, used to
     calculate the number of dropped frames for the current epoch."""
@@ -134,10 +143,13 @@ class TelemetryWriter:
         self.sender = sender
         self.receiver = receiver
         self.last_swap = time.perf_counter_ns()
+        self.last_lapped_frames = 0
         self.last_dropped_frames = 0
         self.current_epoch = receiver.receive()
 
-    def record(self, ts: list[int], dropped_frames: int) -> None:
+    def record(
+        self, ts: list[int], lapped_frames: int, dropped_frames: int
+    ) -> None:
         """Records latency measurements into the currently active telemetry
         epoch. If at least one second has elapsed since the last buffer swap,
         the active buffer is swapped with a fresh buffer received from the
@@ -147,6 +159,7 @@ class TelemetryWriter:
             ts: An array of six timestamps in nanoseconds, representing the
             start and end times of each stage of the inference pipeline, as well
             as the total latency.
+            lapped_frames: The total number of frames lapped.
             dropped_frames: The total number of frames dropped."""
 
         if time.perf_counter_ns() - self.last_swap >= self.SWAP_INTERVAL:
@@ -178,6 +191,10 @@ class TelemetryWriter:
                 f"Failed to record total latency value {total_nanos} ns: {e}"
             )
             raise
+
+        newly_lapped = saturating_sub(lapped_frames, self.last_lapped_frames)
+        self.current_epoch.lapped_frames += newly_lapped
+        self.last_lapped_frames = lapped_frames
 
         newly_dropped = saturating_sub(dropped_frames, self.last_dropped_frames)
         self.current_epoch.dropped_frames += newly_dropped
@@ -228,6 +245,7 @@ class Csv:
                 f'{label}_{suffix}' for label in LABELS for suffix in SUFFIXES
             ]
 
+            headings.append('lapped_frames')
             headings.append('dropped_frames')
             headings.append('gc_pause_ns')
             headings.append('gc_blocks')
@@ -246,6 +264,7 @@ class Csv:
                 record.append(histogram.get_value_at_percentile(99.9))
                 record.append(histogram.get_max_value())
 
+            record.append(epoch.lapped_frames)
             record.append(epoch.dropped_frames)
             record.append(epoch.gc_pause_ns)
             record.append(epoch.gc_blocks)

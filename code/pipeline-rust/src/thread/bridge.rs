@@ -49,6 +49,7 @@ pub fn spawn_bridge_thread(
                         .expect("Failed to read next frame from shared memory");
 
                     let mut q = queue.lock().unwrap();
+                    q.lapped_frames += frame.lapped_frames;
 
                     if frame.seq_num == u64::MAX {
                         // The generator stream has ended, so push the final

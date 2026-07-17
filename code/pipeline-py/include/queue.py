@@ -22,6 +22,7 @@ class Queue(Generic[T]):
         self.len = 0
         self.head = 0
         self.tail = 0
+        self.lapped_frames = 0
         self.dropped_frames = 0
         self.lock = threading.Lock()
 

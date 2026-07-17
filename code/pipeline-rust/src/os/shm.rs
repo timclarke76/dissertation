@@ -90,6 +90,9 @@ pub struct ShmFrame {
     ///   final output
     pub timestamps: [u64; 6],
 
+    /// The number of frames that have been lapped by the producer.
+    pub lapped_frames: u64,
+
     /// The number of frames that have been dropped due to the bounded queue
     /// being full.
     pub dropped_frames: u64,
@@ -252,19 +255,15 @@ impl ShmBuffer {
                         nanoseconds for t_bridged",
                 )?;
 
+                let mut lapped_frames = 0;
+
                 if seq_num - self.frame_idx > self.capacity_frames {
                     // The producer has lapped the consumer, which means that
                     // frames have been overwritten before they could be read.
-                    // Print a warning to stderr and jump ahead to the oldest
-                    // surviving frame. For example, if the producer is at
-                    // sequence 35 and the capacity is 30, the oldest surviving
-                    // frame is at sequence 6.
-                    eprintln!(
-                        "[WARNING] {} producer lapped consumer by {} frames.",
-                        self.name,
-                        (seq_num - self.frame_idx)
-                    );
-
+                    // Jump ahead to the oldest surviving frame. For example, if
+                    // the producer is at sequence 35 and the capacity is 30,
+                    // the oldest surviving frame is at sequence 6.
+                    lapped_frames = seq_num - self.frame_idx;
                     self.frame_idx = seq_num - self.capacity_frames;
                 }
 
@@ -290,6 +289,7 @@ impl ShmBuffer {
                     stream_id: self.stream_id,
                     seq_num: self.frame_idx + 1,
                     timestamps: [t_generated, t_bridged, 0, 0, 0, 0],
+                    lapped_frames,
                     dropped_frames: 0,
                 });
             }
@@ -307,6 +307,7 @@ impl ShmBuffer {
                     stream_id: self.stream_id,
                     seq_num: u64::MAX,
                     timestamps: [0; ShmBuffer::NUM_TIMESTAMPS],
+                    lapped_frames: 0,
                     dropped_frames: 0,
                 });
             }

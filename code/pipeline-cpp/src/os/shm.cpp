@@ -52,18 +52,15 @@ ShmBuffer::next_frame()
 
     if (seq_num > frame_idx_) {
       const auto t_bridged = current_time_nanos();
+      uint64_t lapped_frames = 0;
 
       if (seq_num - frame_idx_ > header_->capacity_frames) {
         // The producer has lapped the consumer, which means that frames have
-        // been overwritten before they could be read. Print a warning to stderr
-        // and jump ahead to the oldest surviving frame. For example, if the
-        // producer is at sequence 35 and the capacity is 30, the oldest
-        // surviving frame is at sequence 6.
-        std::cerr << std::format(
-          "[WARNING] {} producer lapped consumer by {} frames.\n",
-          name_,
-          (seq_num - frame_idx_));
+        // been overwritten before they could be read. Jump ahead to the oldest
+        // surviving frame. For example, if the producer is at sequence 35 and
+        // the capacity is 30, the oldest surviving frame is at sequence 6.
 
+        lapped_frames = seq_num - frame_idx_;
         frame_idx_ = seq_num - capacity_frames_;
       }
 
@@ -73,7 +70,7 @@ ShmBuffer::next_frame()
       const auto data = this->data_ptr_ + data_offset;
 
       Frame frame = {
-        stream_id_, frame_idx_ + 1, { 0, t_bridged, 0, 0, 0, 0 }
+        stream_id_, frame_idx_ + 1, { 0, t_bridged, 0, 0, 0, 0 }, lapped_frames
       };
 
       std::memcpy(&frame.timestamps[0], data, sizeof(uint64_t));

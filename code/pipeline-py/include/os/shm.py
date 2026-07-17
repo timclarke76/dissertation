@@ -46,10 +46,23 @@ class ShmFrame:
     """Represents a single frame read from the shared memory buffer."""
 
     # Using __slots__ instead of the default __dict__ reduces memory usage and
-    # improces attribute access speed.
-    __slots__ = ['stream_id', 'seq_num', 'timestamps', 'dropped_frames']
+    # improves attribute access speed.
+    __slots__ = [
+        'stream_id',
+        'seq_num',
+        'timestamps',
+        'lapped_frames',
+        'dropped_frames',
+    ]
 
-    def __init__(self, stream_id: int, seq_num: int, timestamps: list[int]):
+    def __init__(
+        self,
+        stream_id: int,
+        seq_num: int,
+        timestamps: list[int],
+        lapped_frames: int,
+        dropped_frames: int,
+    ):
         """Constructs a new ShmBuffer instance and connects to the shared memory
         buffer with the specified name.
 
@@ -73,6 +86,8 @@ class ShmFrame:
               fusion
             * FUSION_OUT: when late fusion completes and the pipeline produces
               the final output
+            lapped_frames: the number of frames that have been lapped by the
+            producer.
         """
         # The stream ID associated with this frame. Used to identify the source
         # of the frame.
@@ -93,6 +108,9 @@ class ShmFrame:
         # * FUSION_OUT: when late fusion completes and the pipeline produces the
         #   final output
         self.timestamps = timestamps
+
+        # The number of frames that have been lapped by the producer.
+        self.lapped_frames = lapped_frames
 
         # The number of frames that have been dropped due to the bounded queue
         # being full.
@@ -238,18 +256,15 @@ class ShmBuffer:
 
             if seq_num > self.frame_idx:
                 t_bridged = time.perf_counter_ns()
+                lapped_frames = 0
 
                 if seq_num - self.frame_idx > self.capacity_frames:
                     # The producer has lapped the consumer, which means that
                     # frames have been overwritten before they could be read.
-                    # Print a warning to stderr and jump ahead to the oldest
-                    # surviving frame. For example, if the producer is at
-                    # sequence 35 and the capacity is 30, the oldest surviving
-                    # frame is at sequence 6.
-                    print(
-                        f"[WARNING] {self.name} producer lapped "
-                        f"consumer by {seq_num - self.frame_idx} frames."
-                    )
+                    # Jump ahead to the oldest surviving frame. For example, if
+                    # the producer is at sequence 35 and the capacity is 30, the
+                    # oldest surviving frame is at sequence 6.
+                    lapped_frames = seq_num - self.frame_idx
                     self.frame_idx = seq_num - self.capacity_frames
 
                 circular_idx = self.frame_idx % self.capacity_frames
@@ -268,10 +283,12 @@ class ShmBuffer:
                     self.stream_id,
                     self.frame_idx + 1,
                     [t_generated, t_bridged, 0, 0, 0, 0],
+                    lapped_frames,
+                    0,
                 )
 
             if self.header.pipeline_stage == self.FINISHED:
-                return ShmFrame(self.stream_id, self.POISON_PILL, [0] * 6)
+                return ShmFrame(self.stream_id, self.POISON_PILL, [0] * 6, 0, 0)
 
             # Avoid latency variance that would be introduced if the OS
             # scheduler were used by sleeping or blocking.

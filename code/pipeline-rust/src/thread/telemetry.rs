@@ -20,6 +20,9 @@ pub struct TelemetryEpoch {
     /// each stage of the inference pipeline, as well as the total latency.
     latency_nanos: [Histogram<u64>; 6],
 
+    /// The total number of frames lapped during the epoch.
+    lapped_frames: u64,
+
     /// The total number of frames dropped during the epoch.
     dropped_frames: u64,
 
@@ -107,6 +110,7 @@ impl TelemetryEpoch {
                 fusion_exec,
                 total_latency,
             ],
+            lapped_frames: 0,
             dropped_frames: 0,
             allocated_bytes: 0,
             allocation_count: 0,
@@ -123,6 +127,7 @@ impl TelemetryEpoch {
             histogram.reset();
         }
 
+        self.lapped_frames = 0;
         self.dropped_frames = 0;
         self.allocated_bytes = 0;
         self.allocation_count = 0;
@@ -185,6 +190,7 @@ impl Csv {
             record.push(format!("{}_max", label));
         }
 
+        record.push("lapped_frames".to_string());
         record.push("dropped_frames".to_string());
         record.push("allocated_bytes".to_string());
         record.push("allocation_count".to_string());
@@ -216,6 +222,7 @@ impl Csv {
             record.push(histogram.max().to_string());
         }
 
+        record.push(epoch.lapped_frames.to_string());
         record.push(epoch.dropped_frames.to_string());
         record.push(epoch.allocated_bytes.to_string());
         record.push(epoch.allocation_count.to_string());
@@ -247,6 +254,10 @@ pub struct TelemetryWriter {
     /// The timestamp of the last buffer swap, used to determine when to next
     /// swap the buffers.
     last_swap: Instant,
+
+    /// The number of frames lapped since the call to record, used to calculate
+    /// the number of lapped frames for the current epoch.
+    last_lapped_frames: u64,
 
     /// The number of frames dropped since the call to record, used to
     /// calculate the number of dropped frames for the current epoch.
@@ -284,6 +295,7 @@ impl TelemetryWriter {
             sender,
             receiver,
             last_swap: Instant::now(),
+            last_lapped_frames: 0,
             last_dropped_frames: 0,
         })
     }
@@ -296,11 +308,17 @@ impl TelemetryWriter {
     /// * `ts` - An array of six timestamps in nanoseconds, representing the
     ///   start and end times of each stage of the inference pipeline, as well
     ///   as the total latency.
+    /// * `lapped_frames` - The total number of frames lapped.
     /// * `dropped_frames` - The total number of frames dropped.
     ///
     /// Returns a `Result` indicating whether the latency measurements were
     /// successfully recorded, or an error if the operation failed.
-    pub fn record(&mut self, ts: [u64; 6], dropped_frames: u64) -> Result<()> {
+    pub fn record(
+        &mut self,
+        ts: [u64; 6],
+        lapped_frames: u64,
+        dropped_frames: u64,
+    ) -> Result<()> {
         if self.last_swap.elapsed() >= Self::SWAP_INTERVAL {
             self.swap_buffers()?;
         }
@@ -317,6 +335,11 @@ impl TelemetryWriter {
         self.current_epoch.latency_nanos[TelemetryEpoch::TOTAL_LATENCY]
             .record(total_nanos)
             .context("Failed to record total latency")?;
+
+        let newly_lapped =
+            lapped_frames.saturating_sub(self.last_lapped_frames);
+        self.current_epoch.lapped_frames += newly_lapped;
+        self.last_lapped_frames = lapped_frames;
 
         let newly_dropped =
             dropped_frames.saturating_sub(self.last_dropped_frames);
