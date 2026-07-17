@@ -1737,6 +1737,17 @@ discipline to write verbose error handling code to explicitly handle exceptions
 occurrence of unhandled errors (decreasing system stability), and a lack of
 contextual information when debugging (increasing system maintenance overhead).
 
+There is a clear contrast when comparing Rust's return type and the
+exception-based error handling of C++ and Python. Rust's `?` operator, in
+combination with third-party crates such as `anyhow`, allow developers to add
+fine-grained contextual information to errors without any boilerplate code.
+Achieving this same level of granularity in C++ or Python would require a
+try-block (`try`/`catch` or `try`/`except`) around every invocation of a
+function that may throw an exception. This would severely hamper code
+readability and maintainability, and therefore idiomatic C++ and Python
+implement coarser-grained exception handling, at the sacrifice of diagnostic
+information when an error occurs.
+
 == Language Ergonomics
 
 While static analysis tools such as Lizard provide a quantitative evaluation for
