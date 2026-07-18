@@ -18,9 +18,9 @@ class ExponentialBackoff:
     """The base wait time in nanoseconds before retrying to insert data into
     the consumer buffer."""
 
-    max_nanos: int
-    """The maximum wait time in nanoseconds before giving up and dropping the
-    data."""
+    max_nanos: float
+    """The maximum accumulated wait time in nanoseconds before giving up and
+    dropping the data."""
 
     multiplier: float
     """The multiplier to apply to the wait time after each retry. For example,

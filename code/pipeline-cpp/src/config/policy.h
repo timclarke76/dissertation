@@ -14,9 +14,9 @@ struct ExponentialBackoff
   /// consumer buffer.
   uint64_t base_nanos;
 
-  /// The maximum wait time in nanoseconds before giving up and dropping the
-  /// data.
-  uint64_t max_nanos;
+  /// The maximum accumulated wait time in nanoseconds before giving up and
+  /// dropping the data.
+  double max_nanos;
 
   /// The multiplier to apply to the wait time after each retry. For example, a
   /// multiplier of 2.0 will double the wait time after each retry.

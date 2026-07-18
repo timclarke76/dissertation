@@ -145,8 +145,16 @@ pub fn spawn_bridge_thread(
                                 drop(q);
                                 let mut frame = rejected;
                                 let mut backoff_nanos = base_nanos as f64;
+                                let mut accumulated_nanos = 0.0;
 
                                 loop {
+                                    if accumulated_nanos > max_nanos {
+                                        // drop
+                                        let mut q = queue.lock().unwrap();
+                                        q.dropped_frames += 1;
+                                        break;
+                                    }
+
                                     sleep(Duration::from_nanos(
                                         backoff_nanos as u64,
                                     ));
@@ -157,17 +165,9 @@ pub fn spawn_bridge_thread(
                                         Ok(_) => break,
 
                                         Err(rejected) => {
+                                            accumulated_nanos += backoff_nanos;
                                             backoff_nanos *= multiplier;
-
-                                            if backoff_nanos <= max_nanos as f64
-                                            {
-                                                // retry
-                                                frame = rejected;
-                                            } else {
-                                                // drop
-                                                q.dropped_frames += 1;
-                                                break;
-                                            }
+                                            frame = rejected;
                                         }
                                     }
                                 }

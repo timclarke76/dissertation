@@ -112,8 +112,16 @@ spawn_bridge_thread(const std::string& shm_name,
               // Waits a short time before retrying to insert the data, with the
               // wait time multiplied with each retry.
               auto backoff_nanos = static_cast<double>(p.base_nanos);
+              const auto max_nanos = static_cast<double>(p.max_nanos);
+              auto accumulated_nanos = 0.0;
 
               for (;;) {
+                if (accumulated_nanos >= max_nanos) {
+                  // drop
+                  queue->dropped_frames++;
+                  break;
+                }
+
                 queue_lock.unlock();
                 std::this_thread::sleep_for(std::chrono::nanoseconds(
                   static_cast<uint64_t>(backoff_nanos)));
@@ -123,12 +131,8 @@ spawn_bridge_thread(const std::string& shm_name,
                   break;
                 }
 
+                accumulated_nanos += backoff_nanos;
                 backoff_nanos *= p.multiplier;
-
-                if (backoff_nanos >= static_cast<double>(p.max_nanos)) {
-                  queue->dropped_frames++;
-                  break;
-                }
               }
             },
 
