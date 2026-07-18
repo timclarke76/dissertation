@@ -1259,7 +1259,9 @@ redundant fusion executions and prevented the fusion thread from being
 bottlenecked by the faster IMU streams. Consequently, the IMU streams were both
 downsampled using fixed window sizes to match the 30Hz RGB stream, ensuring that
 the IMU inference was only executed and the results injected into the MPSC
-channel when the window was full.
+channel when the window was full. Zero-Order Hold was used to pair the RGB and
+IMU inference results, where the most recent IMU inference result was held until
+the next RGB inference result was available.
 
 ==== Thermal and Power Throttling
 
@@ -1740,11 +1742,6 @@ Conversely, Rust's `std::sync::Arc<Mutex<T>>` combines compiler-enforced RAII
 and data ownership, guaranteeing that the queue cannot be accessed without first
 acquiring the lock guard.
 
-#todo[
-- Zero On Hold (ZOH) for IMU data.
-- Sensor data interpolation not used to simulate data between sensor updates,
-  removing number precision as a confounder.
-]
 
 #wc[
 = Results
