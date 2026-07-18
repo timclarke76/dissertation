@@ -719,13 +719,18 @@ angular rate).
 
 A hard-coded seed for each sensor ($"rgb" = 42, "accel" = 43, "gyro" = 44$) was
 used to create the three deterministic data-streams to ensure the same generated
-data was fed into each implementation. Because the AI inference is only a
-repeatable workload to determine the performance of the runtime models, and
-prediction accuracy does not impact the evaluation, the generated data was not
-designed to be realistic. This kept the load generator implementation simple,
-does not introduce disk I/O bottlenecks, and reduced latency and overhead that
-could confound the results by stealing CPU cycles or memory bandwidth from the
-pipelines.
+data was fed into each implementation. To improve efficiency of the runtime
+behaviour and allow faster generation, the random synthetic data for each stream
+was pre-generated during program initialisation to avoid the overhead of
+continuous pseudo-random number generation. Each synthetic data pool was large
+enough for a continuously cycled temporal window of one second to allow
+variation in the data streams without exhausting the device's available memory.
+Because the AI inference is only a repeatable workload to determine the
+performance of the runtime models, and prediction accuracy does not impact the
+evaluation, the generated data was not designed to be realistic. This kept the
+load generator implementation simple, does not introduce disk I/O bottlenecks,
+and reduced latency and overhead that could confound the results by stealing CPU
+cycles or memory bandwidth from the pipelines.
 
 To allow backpressure policies to be evaluated under varying load, the generator
 accepts a _load_ parameter that dictates the speed at which data is produced by
