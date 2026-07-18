@@ -894,6 +894,17 @@ continuity and may impact prediction accuracy.
     (#sym.crossmark) blocks represent dropped data. #v(1em)],
 ) <fig:load_shedding>
 
+The exponential backoff policy was configured with an initial wait time of \1 ms
+--- sufficient time to allow the scheduler to yield to the inference thread,
+providing an opportunity for space to become available in the consumer buffer.
+The wait time is doubled upon each retry, up to an accumulated maximum of \33.3
+ms before the frame is dropped. This maximum wait time was derived from the
+generation interval of the \30 Hz RGB anchor stream. If exponential backoff were
+to wait longer then it would cascade delays to the next late-fusion window.
+Therefore, dropping the stalled frame effectively resets the pipeline,
+providing an opportunity to recover and the next frame to be ingested in time to
+meet the \100 ms latency deadline.
+
 To ensure the runtime models were evaluated under sustained stress, the
 saturation threshold was determined by increasing the _load_ multiplier until at
 least one consumer buffer reached capacity, ensuring the backpressure mechanism
