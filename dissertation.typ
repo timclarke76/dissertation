@@ -210,6 +210,18 @@ prediction accuracy and usefulness of the results, due to the dropping of data
 and temporal discontinuity. However, this dissertation is strictly concerned
 with performance measurements of latency, throughput, and memory efficiency at
 the system level, and not the accuracy of the HAR model itself.
+
+Because the shared memory buffer is circular and unbounded, there is a
+possibility that the producer overwrites a frame while the consumer is reading
+it, leading to misalignment or read-tearing of the sensor data. This would be
+unacceptable in a production environment, requiring a separate _memory arena_ to
+store the sensor data and guarantee that the producer does not overwrite a frame
+until the consumer has released it. However, implementing such a solution would
+effectively bound the load generator, reducing the system pressure and hiding
+the queueing delays that this report aims to measure. As the HAR pipeline serves
+only as a testbed, and the accuracy of the AI inference does not form a part of
+the evaluation, the system accepts misalignment and read-tearing to preserve the
+unbounded nature of the load generator.
 ]
 
 
