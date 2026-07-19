@@ -892,7 +892,8 @@ saturation when the consumer buffer is full:
   - *Bounded queue:* Blocks the producer until space is available in the
     consumer buffer.
   - *Exponential-backoff:* Waits a short time before retrying to insert the
-    data, with the wait time doubling with each retry.
+    data, with the wait time increasing each time by a configurable factor until
+    a maximum wait time is reached (after which the data is dropped).
 
 *Policies that intentionally drop data (Load Shedding):*
   - *Drop-oldest:* Drops the oldest data in the consumer buffer to make room for
