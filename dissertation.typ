@@ -873,15 +873,17 @@ stream (2.0 kHz).
     #v(1em)],
 ) <fig:little-law>
 
+The bounded buffers were implemented as fixed-capacity circular queues using
+contiguous arrays in each language (`std::vector` in C++, `Vec` in Rust, and a
+`list` in Python). Standard mutexes were employed to guarantee multi-threading
+safety during enqueue and dequeue operations.
+
 Backpressure is implemented only in the pipeline
 on the consumer buffer, forcing each language runtime model to handle
 concurrency, memory allocation, and scheduling within realistic constraints and
 allowing us to evaluate RQ2. A _bridge_ in the pipeline is responsible for
 copying data from the producer buffer to the consumer buffer, and for triggering
 the backpressure policy when the consumer buffer is full.
-
-Each bridge uses language-specific idiomatic implementations of the backpressure
-policies: Rust uses #ct[TODO], C++ #ct[TODO], and Python #ct[TODO].
 
 Five backpressure and load shedding policies were implemented to manage queue
 saturation when the consumer buffer is full:
