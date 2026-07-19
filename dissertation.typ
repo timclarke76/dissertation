@@ -905,6 +905,19 @@ Therefore, dropping the stalled frame effectively resets the pipeline,
 providing an opportunity to recover and the next frame to be ingested in time to
 meet the \100 ms latency deadline.
 
+The adaptive decimation policy was configured to activate at 80% of each
+stream's consumer buffer capacity (i.e. 2 frames for RGB, 128 for accelerometer,
+and 160 for gyroscope). This provides 20% of queue capacity for the algorithm to
+dynamically scale how much load is shed before the queue is saturated. At 80%
+capacity, the pipeline is struggling to keep up with the rate of generation, and
+so 50% of the frames are dropped (i.e. every second frame is queued) to allow
+the pipeline to recover. If the consumer buffer continues to fill, the
+decimation factor is linearly scaled until it reaches a maximum of 90% drop-rate
+(i.e. only every 10th frame is queued) at full saturation. #todo[reference
+industry figures if available. 2--10 may be incorrect. The code may need
+refactored to prevent sudden 90% drop-rate to 100% drop-rate when the queue is
+saturated.]
+
 To ensure the runtime models were evaluated under sustained stress, the
 saturation threshold was determined by increasing the _load_ multiplier until at
 least one consumer buffer reached capacity, ensuring the backpressure mechanism
