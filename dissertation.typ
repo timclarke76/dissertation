@@ -1349,6 +1349,48 @@ channel when the window was full. Zero-Order Hold was used to pair the RGB and
 IMU inference results, where the most recent IMU inference result was held until
 the next RGB inference result was available.
 
+#figure(
+  pad(top: 1.0em)[
+    #set text(size: 8pt)
+    #let n(x, y, t, w) = node((x,y), align(center)[#t], shape: rect, width: w,
+    height: 3em)
+    #let s(x, y, name, speed) = n(x, y, [*#name*\ $lambda = #speed$], 7.38em)
+    #let c(x, y, num) = n(x, y, [Capacity: *#num*], 7.06em)
+    #let w(x, y, num) = n(x, y, [Size: *#num*], 9.56em)
+    #diagram(
+      node-stroke: 0.5pt,
+      node-corner-radius: 2pt,
+      spacing: (4em, 1.5em),
+
+      node((0, 0), align(top + center)[*Data Streams* \ ($lambda$ Hz)], shape: rect,
+      fill: luma(240), width: 7.38em, height: 4.5em),
+
+      node((0, 0), shape: rect, fill: luma(240), width: 7.38em, height: 4.5em,
+        align(top + center)[*Data Streams* \ ($lambda$ Hz)]),
+      node((1, 0), shape: rect, fill: luma(240), width: 9.86em, height: 4.5em,
+        align(top + center)[*Inference Window* \ ($w = lambda div 30$) \ 
+          Anchor = 30 Hz]),
+
+      s(0, 1, [RGB], 30),
+      s(0, 2, [Accel], 1600),
+      s(0, 3, [Gyro], 2000),
+
+      w(1, 1, 1),
+      w(1, 2, 53),
+      w(1, 3, 66),
+
+      edge((0, 1), (1, 1), "-|>"),
+      edge((0, 2), (1, 2), "-|>"),
+      edge((0, 3), (1, 3), "-|>"),
+      
+      edge((0, 0), (0, 1), "-|>", stroke: (dash: "dashed")),
+    )
+  ],
+  caption: [Derivation of the inference window sizes for the IMU streams to
+    match the #box[30 Hz] RGB stream, using Zero-Order Hold to pair the
+    inference results. #v(0.5em)],
+)
+
 ==== Thermal and Power Throttling
 
 The Jetson Orin Nano utilises reactive software thermal management (Dynamic
