@@ -1590,7 +1590,7 @@ inference results from all three streams into one prediction.
       r(0, 6, <fusion>, [Late-Fusion\ Thread]),
       e(<mpsc>, <fusion>, [Receive]),
 
-      node(enclose: ((-1.4, 2.2), (1.4, 2.8)), corner-radius: 4pt, layer: 0,
+      node(enclose: ((-1.4, 2.2), (1.4, 2.7)), corner-radius: 4pt, layer: 0,
         stroke: (paint: rgb("EF4444"), thickness: 1pt, dash: "dashed")),
       node(enclose: ((-1.4, 4.2), (1.4, 6.75)), corner-radius: 4pt, layer: 0,
         stroke: (paint: rgb("3B82F6"), thickness: 1pt, dash: "dashed")),
