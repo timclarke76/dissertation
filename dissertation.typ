@@ -74,7 +74,7 @@ making programming language selection an important design decision for Edge-AI
 pipelines.
 ]
 
-== Problem Statement
+== Problem Statement <sec:problem-statement>
 
 #wc[
 A language's runtime model dictates memory management, concurrency, and
@@ -89,7 +89,11 @@ This dissertation focuses on the performance metrics at the system level.
 _Latency_ does not refer to network transmission time, but rather the processing
 time from when the sensor data is created to when the final AI prediction is
 completed. This includes queueing delays, inference time, and final fusion of
-the prediction. _Throughput_ measures how many sensor events the pipeline can
+the prediction.
+A deadline of 100 ms is chosen for the tri-stream HAR pipeline, based on what Xue
+et al. (2025) @xue2025 identified as the maximum allowable latency for effective
+real-time coaching feedback.
+_Throughput_ measures how many sensor events the pipeline can
 process per unit of time (e.g. per second) when under sustained load.
 
 Selecting a language for Edge-AI pipelines is often guided by familiarity or
@@ -817,8 +821,59 @@ The backpressure policies were implemented in the pipelines using two buffers
 per data stream: (1) an unbounded _producer buffer_ in shared memory for the
 load generator to write data into, allowing it to produce data at a consistent
 rate, and (2) a _consumer buffer_ implemented idiomatically for the pipelines to
-read data from for processing, with a fixed #ct[capacity] to trigger the
-backpressure policy when full. Backpressure is implemented only in the pipeline
+read data from for processing, with a fixed capacity to trigger the backpressure
+policy when full.
+
+Using Little's Law ($L = lambda W$) @little1961, the capacity of each consumer
+buffer was determined by multiplying the _target_ baseline throughput ($lambda$)
+by the maximum deadline ($W$) for processing an event. The target throughput is
+based on the _native_ generation rate of the physical sensors. As stated in
+@sec:problem-statement, a maximum deadline of \100 ms was selected based on Xue
+et al. (2025) @xue2025, resulting in a capacity of \3 for the RGB stream (30
+FPS), \160 for the accelerometer stream (1.6 kHz), and \200 for the gyroscope
+stream (2.0 kHz).
+
+#figure(
+  pad(top: 1.5em)[
+    #set text(size: 8pt)
+
+    #let n(x, y, t, w) = node((x,y), align(center)[#t], shape: rect,
+      width: w, height: 3em)
+    #let s(x, y, name, speed) = n(x, y, [*#name*\ $lambda = #speed$], 8.18em)
+    #let c(x, y, num) = n(x, y, [Capacity: *#num*], 7.06em)
+    #let e(p1, p2) = edge(p1, p2, "-|>")
+
+    #diagram(
+      node-stroke: 0.5pt,
+      node-corner-radius: 2pt,
+      spacing: (4em, 1.5em),
+
+      node((0, 0), shape: rect, fill: luma(240), width: 7.38em, height: 4.5em,
+        align(top + center)[*Data Streams* \ ($lambda$ Hz)]),
+      node((1, 0), shape: rect, fill: luma(240), width: 7.06em, height: 4.5em,
+        align(top + center)[*Little's Law* \ ($L = lambda W$) \ $W = 0.1$s]),
+
+      s(0, 1, [RGB], 30),
+      c(1, 1, 3),
+      e((0, 1), (1, 1)),
+
+      s(0, 2, [Accelerometer], 1600),
+      c(1, 2, 160),
+      e((0, 2), (1, 2)),
+
+      s(0, 3, [Gyroscope], 2000),
+      c(1, 3, 200),
+      e((0, 3), (1, 3)),
+
+      edge((0, 0), (0, 1), "-|>", stroke: (dash: "dashed")),
+    )
+  ],
+  caption: [Application of Little's Law to derive the bounded queue capacities
+    from the data stream rates and the maximum latency deadline of \100 ms.
+    #v(1em)],
+) <fig:little-law>
+
+Backpressure is implemented only in the pipeline
 on the consumer buffer, forcing each language runtime model to handle
 concurrency, memory allocation, and scheduling within realistic constraints and
 allowing us to evaluate RQ2. A _bridge_ in the pipeline is responsible for
