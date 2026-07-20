@@ -1,7 +1,7 @@
 #pragma once
 #include <stdexcept>
 
-#include <hdr_histogram.h>
+#include <hdr/hdr_histogram.h>
 
 /// \brief A wrapper class for the HdrHistogram library, providing a convenient
 /// interface for recording and querying latency measurements.

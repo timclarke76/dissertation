@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.0)
+cmake_minimum_required(VERSION 3.5)
 project(pipeline_cpp)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -35,6 +35,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(moodycamel)
 
+FetchContent_Declare(
+    hdrhistogram
+    GIT_REPOSITORY https://github.com/HdrHistogram/HdrHistogram_c.git
+    GIT_TAG        0.11.10
+)
+FetchContent_MakeAvailable(hdrhistogram)
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -Wpedantic -pthread")
 
 add_executable(pipeline_cpp 
@@ -51,7 +58,7 @@ add_executable(pipeline_cpp
 )
 
 target_include_directories(pipeline_cpp PRIVATE src)
-target_include_directories(pipeline_cpp PRIVATE /usr/include/hdr/)
 target_include_directories(pipeline_cpp PRIVATE _deps/moodycamel-src/)
+target_include_directories(pipeline_cpp PRIVATE _deps/tomlplusplus-src/include/)
 
-target_link_libraries(pipeline_cpp rt pthread hdr_histogram argparse)
+target_link_libraries(pipeline_cpp rt pthread hdr_histogram_static argparse)
