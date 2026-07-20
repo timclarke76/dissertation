@@ -165,6 +165,10 @@ where
                 )
             })?;
 
+        // Round the frame size up to the nearest multiple of 64 bytes for cache
+        // line alignment.
+        let frame_size_bytes = (frame_size_bytes + 63) & !63;
+
         // RandomPool knows nothing about the frame size, so we calculate the
         // total pool capacity, in terms of the total number of data elements of
         // type T, here.
