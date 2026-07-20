@@ -34,5 +34,12 @@ fn main() -> Result<()> {
         format!("Failed to write report to file: '{}'", settings.output)
     })?;
 
-    render_report(&report).context("Error rendering report")
+    println!("Report written to: {}", settings.output);
+
+    if settings.headless {
+        Ok(())
+    }
+    else {
+        render_report(&report).context("Error rendering report")
+    }
 }

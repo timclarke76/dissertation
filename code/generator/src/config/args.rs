@@ -29,4 +29,10 @@ pub struct Args {
     /// Output file path for the report.
     #[arg(short, long)]
     pub output: Option<String>,
+
+    /// Whether to run the application in headless mode (without a GUI). Running
+    /// in headless mode will disable the TUI at the end, and allow the
+    /// generator to exit immediately.
+    #[arg(short, long)]
+    pub headless: Option<bool>,
 }

@@ -22,6 +22,11 @@ pub struct Settings {
     /// from returning immediately.
     pub min_sleep_nanos: u64,
 
+    /// Whether to run the application in headless mode (without a GUI). Running
+    /// in headless mode will disable the TUI at the end, and allow the
+    /// generator to exit immediately.
+    pub headless: bool,
+
     /// How long to generate events before exiting (in seconds). This is used in
     /// conjuction with each event's FPS to determine how many events to
     /// generate. If not provided, the application will run indefinitely.
@@ -116,6 +121,10 @@ impl Settings {
 
         if let Some(load) = args.load {
             settings.load = load;
+        }
+
+        if let Some(headless) = args.headless {
+            settings.headless = headless;
         }
 
         if let Some(output) = args.output {
