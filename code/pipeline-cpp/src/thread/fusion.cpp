@@ -71,7 +71,7 @@ spawn_fusion_thread(Receiver<ShmBuffer::Frame> receiver,
           std::copy(std::begin(frame.timestamps),
             std::end(frame.timestamps),
             std::begin(latest_accel_ts));
-          latest_accel_dropped_frames = frame.lapped_frames;
+          latest_accel_lapped_frames = frame.lapped_frames;
           latest_accel_dropped_frames = frame.dropped_frames;
           break;
 
@@ -81,7 +81,7 @@ spawn_fusion_thread(Receiver<ShmBuffer::Frame> receiver,
           std::copy(std::begin(frame.timestamps),
             std::end(frame.timestamps),
             std::begin(latest_gyro_ts));
-          latest_gyro_dropped_frames = frame.lapped_frames;
+          latest_gyro_lapped_frames = frame.lapped_frames;
           latest_gyro_dropped_frames = frame.dropped_frames;
           break;
 
