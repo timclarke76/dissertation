@@ -148,7 +148,7 @@ spawn_bridge_thread(const std::string& shm_name,
                 queue->dropped_frames++;
             },
 
-            [&queue](const AdaptiveDecimation&) {
+            [&queue, frame](const AdaptiveDecimation&) {
                 // If the Adaptive Decimation throttling is not enough to keep
                 // the queue from filling up, we drop the oldest frame to make
                 // room for the new frame.
