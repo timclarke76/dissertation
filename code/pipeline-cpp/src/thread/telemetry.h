@@ -121,7 +121,7 @@ public:
 
   private:
     /// The file descriptor for the CSV file.
-    int fd_;
+    int fd_ = -1;
   };
 
 private:
