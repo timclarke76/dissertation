@@ -903,7 +903,11 @@ saturation when the consumer buffer is full:
 *Policies that drop data while preserving temporal continuity:*
   - *Adaptive decimation:* Dynamically downsamples the data stream (i.e.
     queueing only every _nth_ frame) to reduce pressure on the consumer buffer
-    while preserving the temporal continuity of the data.
+    while preserving the temporal continuity of the data. As the consumer buffer
+    fills, the decimation factor is increased to reduce the number of frames
+    being queued. Similarly, as the consumer buffer empties, the decimation
+    factor is decreased. If the queue reaches full saturation, the oldest frame
+    is dropped to make room for the newest frame.
 
 Bounded queue and exponential backoff are both flow control policies, and
 instead of dropping data they stall the data producer when the consumer buffer
@@ -971,10 +975,8 @@ capacity, the pipeline is struggling to keep up with the rate of generation, and
 so 50% of the frames are dropped (i.e. every second frame is queued) to allow
 the pipeline to recover. If the consumer buffer continues to fill, the
 decimation factor is linearly scaled until it reaches a maximum of 90% drop-rate
-(i.e. only every 10th frame is queued) at full saturation. #todo[reference
-industry figures if available. 2--10 may be incorrect. The code may need
-refactored to prevent sudden 90% drop-rate to 100% drop-rate when the queue is
-saturated.]
+(i.e. only every 10th frame is queued by overwriting the oldest frame) at full
+saturation.
 
 To ensure the runtime models were evaluated under sustained stress, the
 saturation threshold was determined by increasing the _load_ multiplier until at

@@ -189,7 +189,9 @@ pub fn spawn_bridge_thread(
                             Policy::AdaptiveDecimation { .. } => {
                                 // If the Adaptive Decimation throttling is not
                                 // enough to keep the queue from filling up, we
-                                // drop the incoming frame.
+                                // drop the oldest frame to make room for the
+                                // new frame.
+                                q.overwrite_oldest(rejected);
                                 q.dropped_frames += 1;
                             }
                         }

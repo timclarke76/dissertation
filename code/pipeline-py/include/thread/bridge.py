@@ -145,9 +145,10 @@ def spawn_bridge_thread(
 
                     case AdaptiveDecimation():
                         # If the Adaptive Decimation throttling is not enough to
-                        # keep the queue from filling up, we drop the incoming
-                        # frame.
+                        # keep the queue from filling up, we drop the oldest
+                        # frame to make room for the new frame.
                         with queue.lock:
+                            queue.overwrite_oldest(frame)
                             queue.dropped_frames += 1
 
         shm_buffer.close()
