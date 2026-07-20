@@ -226,51 +226,63 @@ class TelemetryWriter:
 
 class Csv:
     filename: str
+    file: object
+    writer: object
 
     def __init__(self, filename: str):
         self.filename = filename
+        self.file = open(filename, 'w', newline='')
+        self.writer = csv.writer(self.file)
 
-        with open(filename, 'w', newline='') as f:
-            LABELS: Final[list[str]] = [
-                'unbounded_wait',
-                'idiomatic_wait',
-                'inference_exec',
-                'mpsc_wait',
-                'fusion_exec',
-                'total_latency',
+        LABELS: Final[list[str]] = [
+            'unbounded_wait',
+            'idiomatic_wait',
+            'inference_exec',
+            'mpsc_wait',
+            'fusion_exec',
+            'total_latency',
+        ]
+        SUFFIXES: Final[list[str]] = ['p50', 'p99', 'p99_9', 'max']
+
+        headings: list[str] = [
+            f'{label}_{suffix}' for label in LABELS for suffix in SUFFIXES
+        ]
+
+        headings.extend(
+            [
+                'lapped_frames',
+                'dropped_frames',
+                'gc_pause_ns',
+                'gc_blocks',
+                'rss_bytes',
             ]
-            SUFFIXES: Final[list[str]] = ['p50', 'p99', 'p99_9', 'max']
+        )
 
-            headings: list[str] = [
-                f'{label}_{suffix}' for label in LABELS for suffix in SUFFIXES
-            ]
-
-            headings.append('lapped_frames')
-            headings.append('dropped_frames')
-            headings.append('gc_pause_ns')
-            headings.append('gc_blocks')
-            headings.append('rss_bytes')
-
-            csv.writer(f).writerow(headings)
+        self.writer.writerow(headings)
+        self.file.flush()
 
     def write_record(self, epoch: TelemetryEpoch):
-        with open(self.filename, 'a', newline='') as f:
-            record: list[float] = []
+        record: list[float] = []
 
-            for i in range(TelemetryEpoch.NUM_LATENCY_MEASURES):
-                histogram = epoch.histograms[i]
-                record.append(histogram.get_value_at_percentile(50))
-                record.append(histogram.get_value_at_percentile(99))
-                record.append(histogram.get_value_at_percentile(99.9))
-                record.append(histogram.get_max_value())
+        for i in range(TelemetryEpoch.NUM_LATENCY_MEASURES):
+            histogram = epoch.histograms[i]
+            record.append(histogram.get_value_at_percentile(50))
+            record.append(histogram.get_value_at_percentile(99))
+            record.append(histogram.get_value_at_percentile(99.9))
+            record.append(histogram.get_max_value())
 
-            record.append(epoch.lapped_frames)
-            record.append(epoch.dropped_frames)
-            record.append(epoch.gc_pause_ns)
-            record.append(epoch.gc_blocks)
-            record.append(epoch.rss_bytes)
+        record.extend(
+            [
+                epoch.lapped_frames,
+                epoch.dropped_frames,
+                epoch.gc_pause_ns,
+                epoch.gc_blocks,
+                epoch.rss_bytes,
+            ]
+        )
 
-            csv.writer(f).writerow(record)
+        self.writer.writerow(record)
+        self.file.flush()
 
 
 def spawn_telemetry_thread(

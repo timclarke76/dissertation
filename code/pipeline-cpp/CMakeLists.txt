@@ -35,13 +35,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(moodycamel)
 
-FetchContent_Declare(
-    csv2
-    GIT_REPOSITORY https://github.com/p-ranav/csv2.git
-    GIT_TAG        v0.1
-)
-FetchContent_MakeAvailable(csv2)
-
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -Wpedantic -pthread")
 
 add_executable(pipeline_cpp 
@@ -60,6 +53,5 @@ add_executable(pipeline_cpp
 target_include_directories(pipeline_cpp PRIVATE src)
 target_include_directories(pipeline_cpp PRIVATE /usr/include/hdr/)
 target_include_directories(pipeline_cpp PRIVATE _deps/moodycamel-src/)
-target_include_directories(pipeline_cpp PRIVATE _deps/csv2-src/include/)
 
 target_link_libraries(pipeline_cpp rt pthread hdr_histogram argparse)

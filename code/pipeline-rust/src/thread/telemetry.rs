@@ -1,4 +1,6 @@
 use std::{
+    fs::File,
+    io::{Read, Write},
     sync::{
         atomic::Ordering,
         mpsc::{Receiver, SyncSender},
@@ -150,8 +152,7 @@ impl TelemetryEpoch {
 
 /// A CSV file writer for telemetry data.
 struct Csv {
-    /// The CSV writer for writing telemetry records to a file.
-    writer: csv::Writer<std::fs::File>,
+    file: File,
 }
 
 impl Csv {
@@ -166,43 +167,22 @@ impl Csv {
     /// the file could not be created or the header row could not be written.
     fn try_new(filename: impl Into<String>) -> Result<Self> {
         let filename = filename.into();
-        let mut writer =
-            csv::Writer::from_path(&filename).with_context(|| {
-                format!(
-                    "Failed to create CSV writer for telemetry file '{}'",
-                    filename
-                )
-            })?;
+        let mut file = File::create(&filename).with_context(|| {
+            format!("Failed to create CSV telemtry file '{}'", filename)
+        })?;
 
-        let mut record = Vec::new();
+        let header = b"unbounded_wait_p50,unbounded_wait_p99,unbounded_wait_p99_9,unbounded_wait_max,\
+            idiomatic_wait_p50,idiomatic_wait_p99,idiomatic_wait_p99_9,idiomatic_wait_max,\
+            inference_exec_p50,inference_exec_p99,inference_exec_p99_9,inference_exec_max,\
+            mpsc_wait_p50,mpsc_wait_p99,mpsc_wait_p99_9,mpsc_wait_max,\
+            fusion_exec_p50,fusion_exec_p99,fusion_exec_p99_9,fusion_exec_max,\
+            total_latency_p50,total_latency_p99,total_latency_p99_9,total_latency_max,\
+            lapped_frames,dropped_frames,allocated_bytes,allocation_count,\
+            freed_bytes,rss_bytes,fordblks_bytes\n";
 
-        for label in [
-            "unbounded_wait",
-            "idiomatic_wait",
-            "inference_exec",
-            "mpsc_wait",
-            "fusion_exec",
-            "total_latency",
-        ] {
-            record.push(format!("{}_p50", label));
-            record.push(format!("{}_p99", label));
-            record.push(format!("{}_p99_9", label));
-            record.push(format!("{}_max", label));
-        }
+        file.write_all(header).expect("Failed to write CSV header");
 
-        record.push("lapped_frames".to_string());
-        record.push("dropped_frames".to_string());
-        record.push("allocated_bytes".to_string());
-        record.push("allocation_count".to_string());
-        record.push("freed_bytes".to_string());
-        record.push("rss_bytes".to_string());
-        record.push("fordblks_bytes".to_string());
-
-        writer
-            .write_record(&record)
-            .expect("Failed to write telemetry record to CSV");
-
-        Ok(Self { writer })
+        Ok(Self { file })
     }
 
     /// Writes a telemetry record to the CSV file.
@@ -213,27 +193,40 @@ impl Csv {
     /// Returns a `Result` indicating whether the record was successfully
     /// written, or an error if the operation failed.
     fn write_record(&mut self, epoch: &TelemetryEpoch) -> Result<()> {
-        let mut record = Vec::new();
+        const BUFFER_SIZE: usize = 1024;
+
+        let mut buf = [0u8; BUFFER_SIZE];
+        let mut cursor = &mut buf[..];
+        let mut itoa_buf = itoa::Buffer::new();
+
+        let mut append = |val: u64| {
+            let s = itoa_buf.format(val);
+            cursor.write_all(s.as_bytes()).unwrap();
+            cursor.write_all(b",").unwrap();
+        };
 
         for histogram in epoch.latency_nanos.iter() {
-            record.push(histogram.value_at_quantile(0.5).to_string());
-            record.push(histogram.value_at_quantile(0.99).to_string());
-            record.push(histogram.value_at_quantile(0.999).to_string());
-            record.push(histogram.max().to_string());
+            append(histogram.value_at_quantile(0.5));
+            append(histogram.value_at_quantile(0.99));
+            append(histogram.value_at_quantile(0.999));
+            append(histogram.max());
         }
 
-        record.push(epoch.lapped_frames.to_string());
-        record.push(epoch.dropped_frames.to_string());
-        record.push(epoch.allocated_bytes.to_string());
-        record.push(epoch.allocation_count.to_string());
-        record.push(epoch.freed_bytes.to_string());
-        record.push(epoch.rss_bytes.to_string());
-        record.push(epoch.fordblks_bytes.to_string());
+        append(epoch.lapped_frames);
+        append(epoch.dropped_frames);
+        append(epoch.allocated_bytes as u64);
+        append(epoch.allocation_count as u64);
+        append(epoch.freed_bytes as u64);
+        append(epoch.rss_bytes as u64);
+        append(epoch.fordblks_bytes as u64);
 
-        self.writer
-            .write_record(record)
+        // Replace final comma with newline.
+        let written = BUFFER_SIZE - cursor.len();
+        buf[written - 1] = b'\n';
+
+        self.file
+            .write_all(&buf[..written])
             .context("Failed to write telemetry record to CSV")?;
-        self.writer.flush().context("Failed to flush CSV writer")?;
 
         Ok(())
     }
@@ -462,15 +455,37 @@ pub fn spawn_telemetry_thread(
                     current_freed_bytes.saturating_sub(last_freed);
                 last_freed = current_freed_bytes;
 
-                let statm = std::fs::read_to_string("/proc/self/statm")
-                    .expect("Failed to read /proc/self/statm");
-                let rss_pages = statm.split_whitespace().nth(1).expect(
-                    "Failed to parse resident pages from /proc/self/statm",
-                );
-                let rss_pages = rss_pages.parse::<usize>().expect(
-                    "Failed to parse resident pages from /proc/self/statm",
-                );
-                epoch.rss_bytes = rss_pages * page_size;
+                let mut statm_file = std::fs::File::open("/proc/self/statm")
+                    .expect("Failed to open /proc/self/statm");
+
+                let mut sbuf = [0u8; 128];
+                let n =
+                    statm_file.read(&mut sbuf).expect("Failed to read statm");
+
+                if n > 0 {
+                    let mut start = 0;
+
+                    // Ignore size.
+                    while sbuf[start] != b' ' && start < n {
+                        start += 1;
+                    }
+                    if start < n {
+                        start += 1;
+                    }
+
+                    let mut end = start;
+                    while sbuf[end] != b' ' && end < n {
+                        end += 1;
+                    }
+
+                    let rss_str = std::str::from_utf8(&sbuf[start..end])
+                        .expect("Invalid UTF-8 in statm");
+                    let rss_pages: usize = rss_str.parse().expect(
+                        "Failed to parse resident pages from /proc/self/statm",
+                    );
+
+                    epoch.rss_bytes = rss_pages * page_size;
+                }
 
                 epoch.fordblks_bytes =
                     unsafe { libc::mallinfo2().fordblks as usize };

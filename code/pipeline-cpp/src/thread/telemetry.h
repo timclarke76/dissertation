@@ -1,14 +1,12 @@
 #pragma once
 #include <chrono>
 #include <cstddef>
-#include <fstream>
 #include <iterator>
 #include <memory>
 #include <string_view>
 #include <thread>
 
 #include <blockingconcurrentqueue.h>
-#include <csv2/writer.hpp>
 #include <histogram.h>
 
 #include <os/channel.h>
@@ -113,6 +111,8 @@ public:
     /// \param filename The name of the CSV file to write to.
     Csv(const std::string_view& filename);
 
+    ~Csv();
+
     /// \brief Writes a telemetry record to the CSV file.
     ///
     /// \param epoch The telemetry epoch containing the latency measurements to
@@ -120,11 +120,8 @@ public:
     void write_epoch(const Epoch& epoch);
 
   private:
-    /// The output file stream for the CSV file.
-    std::ofstream stream_;
-
-    /// The CSV writer for writing telemetry records to the CSV file.
-    csv2::Writer<csv2::delimiter<','>> writer_;
+    /// The file descriptor for the CSV file.
+    int fd_;
   };
 
 private:

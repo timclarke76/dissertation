@@ -1,5 +1,7 @@
+#include <charconv>
+#include <cstring>
+#include <fcntl.h>
 #include <format>
-#include <fstream>
 #include <malloc.h>
 #include <unistd.h>
 #include <vector>
@@ -26,66 +28,78 @@ TelemetryWriter::Epoch::reset()
 }
 
 TelemetryWriter::Csv::Csv(const std::string_view& filename)
-  : stream_(filename.data())
-  , writer_(stream_)
 {
-  std::vector<std::string> header;
+  fd_ = open(filename.data(), O_CREAT | O_WRONLY | O_TRUNC, 0644);
 
-  for (auto label : { "unbounded_wait",
-         "idiomatic_wait",
-         "inference_exec",
-         "mpsc_wait",
-         "fusion_exec",
-         "total_latency" }) {
-    header.push_back(std::format("{}_p50", label));
-    header.push_back(std::format("{}_p99", label));
-    header.push_back(std::format("{}_p99_9", label));
-    header.push_back(std::format("{}_max", label));
+  if (fd_ < 0) {
+    throw std::runtime_error(std::format(
+      "Failed to open CSV file '{}': {}", filename, std::strerror(errno)));
   }
 
-  header.push_back("lapped_frames");
-  header.push_back("dropped_frames");
-  header.push_back("allocated_bytes");
-  header.push_back("allocation_count");
-  header.push_back("freed_bytes");
-  header.push_back("rss_bytes");
-  header.push_back("fordblks_bytes");
+  // clang-format off
+  const char* header =
+    "unbounded_wait_p50,unbounded_wait_p99,unbounded_wait_p99_9,unbounded_wait_max,"
+    "idiomatic_wait_p50,idiomatic_wait_p99,idiomatic_wait_p99_9,idiomatic_wait_max,"
+    "inference_exec_p50,inference_exec_p99,inference_exec_p99_9,inference_exec_max,"
+    "mpsc_wait_p50,mpsc_wait_p99,mpsc_wait_p99_9,mpsc_wait_max,"
+    "fusion_exec_p50,fusion_exec_p99,fusion_exec_p99_9,fusion_exec_max,"
+    "total_latency_p50,total_latency_p99,total_latency_p99_9,total_latency_max,"
+    "lapped_frames,dropped_frames,allocated_bytes,allocation_count,"
+    "freed_bytes,rss_bytes,fordblks_bytes\n";
+  // clang-format on
 
-  writer_.write_row(header);
-  stream_.flush();
+  write(fd_, header, std::strlen(header));
+}
+
+TelemetryWriter::Csv::~Csv()
+{
+  if (fd_ >= 0) {
+    close(fd_);
+  }
 }
 
 void
 TelemetryWriter::Csv::write_epoch(const Epoch& epoch)
 {
-  std::vector<std::string> row;
+  // Plenty of space for the CSV row, since the maximum number of characters for
+  // a 64-bit integer is 20, and there are 31 fields, plus commas and a newline.
+  char buf[1024];
+  char* ptr = buf;
+  char* end = buf + sizeof(buf);
+
+  auto append = [&](uint64_t v) {
+    auto res = std::to_chars(ptr, end, v);
+    ptr = res.ptr;
+
+    // This will always be true, but adding the check prevents the compiler from
+    // complaining about writing past the end of the buffer.
+    if (ptr < end) {
+      *ptr++ = ',';
+    }
+  };
 
   for (size_t i = 0; i < Epoch::NUM_LATENCY_MEASURES; ++i) {
-    const auto p50 =
-      static_cast<uint64_t>(epoch.latency_nanos[i].value_at_percentile(50.0));
-    row.push_back(std::to_string(p50));
-
-    const auto p99 =
-      static_cast<uint64_t>(epoch.latency_nanos[i].value_at_percentile(99.0));
-    row.push_back(std::to_string(p99));
-
-    const auto p99_9 =
-      static_cast<uint64_t>(epoch.latency_nanos[i].value_at_percentile(99.9));
-    row.push_back(std::to_string(p99_9));
-
-    row.push_back(std::to_string(epoch.latency_nanos[i].max()));
+    append(
+      static_cast<uint64_t>(epoch.latency_nanos[i].value_at_percentile(50.0)));
+    append(
+      static_cast<uint64_t>(epoch.latency_nanos[i].value_at_percentile(99.0)));
+    append(
+      static_cast<uint64_t>(epoch.latency_nanos[i].value_at_percentile(99.9)));
+    append(epoch.latency_nanos[i].max());
   }
 
-  row.push_back(std::to_string(epoch.lapped_frames));
-  row.push_back(std::to_string(epoch.dropped_frames));
-  row.push_back(std::to_string(epoch.allocated_bytes));
-  row.push_back(std::to_string(epoch.allocation_count));
-  row.push_back(std::to_string(epoch.freed_bytes));
-  row.push_back(std::to_string(epoch.rss_bytes));
-  row.push_back(std::to_string(epoch.fordblks_bytes));
+  append(epoch.lapped_frames);
+  append(epoch.dropped_frames);
+  append(epoch.allocated_bytes);
+  append(epoch.allocation_count);
+  append(epoch.freed_bytes);
+  append(epoch.rss_bytes);
+  append(epoch.fordblks_bytes);
 
-  writer_.write_row(row);
-  stream_.flush();
+  // Replace final comma with newline.
+  *(ptr - 1) = '\n';
+
+  write(fd_, buf, ptr - buf);
 }
 
 void
@@ -187,19 +201,27 @@ spawn_telemetry_thread(const std::string_view& stream_name,
           saturating_sub(currently_freed_bytes, last_freed_bytes);
         last_freed_bytes = currently_freed_bytes;
 
-        std::ifstream statm("/proc/self/statm");
-
-        if (!statm.is_open()) {
+        const int statm_fd = open("/proc/self/statm", O_RDONLY);
+        if (statm_fd < 0) {
           throw std::runtime_error("Failed to open /proc/self/statm");
         }
 
-        try {
-          long size = 0, resident = 0;
-          statm >> size >> resident;
+        char sbuf[128];
+        ssize_t n = read(statm_fd, sbuf, sizeof(sbuf) - 1);
+        close(statm_fd);
+
+        if (n > 0) {
+          char* p = sbuf;
+
+          // Ignore size.
+          while (*p != ' ' && p < sbuf + n)
+            p++;
+          if (p < sbuf + n)
+            p++;
+
+          long resident = 0;
+          std::from_chars(p, sbuf + n, resident);
           epoch.rss_bytes = resident * PAGE_SIZE;
-        } catch (const std::exception& e) {
-          throw std::runtime_error(
-            std::format("Failed to read /proc/self/statm: {}", e.what()));
         }
 
         epoch.fordblks_bytes = mallinfo2().fordblks;
