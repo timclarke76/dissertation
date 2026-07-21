@@ -293,8 +293,11 @@ where
         let slice = self.buffer.get_mut_slice();
         slice[0..Event::<T>::TIMESTAMP_SIZE_BYTES]
             .clone_from_slice(&now.to_ne_bytes());
-        slice[Event::<T>::TIMESTAMP_SIZE_BYTES..]
-            .clone_from_slice(bytemuck::cast_slice(&data));
+
+        let data = bytemuck::cast_slice(&data);
+        let data_start = Event::<T>::TIMESTAMP_SIZE_BYTES;
+        let data_end = data_start + data.len();
+        slice[data_start..data_end].clone_from_slice(data);
         self.buffer.commit();
 
         self.run_count += 1;
