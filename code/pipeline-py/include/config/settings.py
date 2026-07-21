@@ -1,5 +1,5 @@
 import argparse
-import tomllib
+import tomli
 from dataclasses import dataclass
 from .policy import (
     BoundedQueue,
@@ -47,7 +47,7 @@ class Settings:
     gyro_policy: Policy
     """Policy for handling gyroscope events."""
 
-    def __init__(self, args: argparse.Namespace) -> Settings:
+    def __init__(self, args: argparse.Namespace) -> None:
         """Creates a new Settings instance by loading configuration from a TOML
         file specified by the args argument, and applying command-line
         arguments.
@@ -61,7 +61,7 @@ class Settings:
         """
         try:
             with open(args.settings, 'rb') as f:
-                data = tomllib.load(f)
+                data = tomli.load(f)
 
             self.rgb_queue_config = EventQueueConfig(**data['rgb_queue_config'])
             self.rgb_policy = self._parse_policy(data['rgb_policy'])
@@ -70,6 +70,7 @@ class Settings:
                 **data['accel_queue_config'],
             )
             self.accel_policy = (self._parse_policy(data['accel_policy']),)
+            self.accel_policy = self._parse_policy(data['accel_policy'])
 
             self.gyro_queue_config = EventQueueConfig(
                 **data['gyro_queue_config']
@@ -77,14 +78,13 @@ class Settings:
             self.gyro_policy = self._parse_policy(data['gyro_policy'])
         except Exception as e:
             e.add_note(f"Settings file '{args.settings}' parsing failed.")
-            raise
+            raise RuntimeError(f"Settings file '{args.settings}' parsing failed.") from e
 
     def _parse_policy(self, data: dict) -> Policy:
         """Parses the policy configuration from a TOML table.
 
         Args:
-            tbl: The TOML table containing the policy configuration.
-            policy_name: The name of the policy to parse.
+            data: The dictionary containing the policy configuration.
 
         Returns:
             A Policy instance containing the parsed policy.

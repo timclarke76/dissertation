@@ -6,7 +6,7 @@ import threading
 from typing import Final
 
 from include.config import Args, EventQueueConfig, Policy, Settings
-from include.os import ShmBuffer, make_channel, gc
+from include.os import Sender, ShmBuffer, make_channel, gc
 import include.os.gc
 from include.thread import (
     spawn_bridge_thread,
