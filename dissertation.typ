@@ -109,7 +109,7 @@ comparisons.
 This dissertation addresses the gap by providing empirical evidence and an
 evaluation of pipelines deployed on resource-constrained hardware, with a focus
 on the trade-offs among C++20 (with GCC \15.2.0), Rust (\1.97.1), and CPython
-(\3.10.6) implementations of a tri-stream Human Activity Recognition (HAR)
+(\3.10.12) implementations of a tri-stream Human Activity Recognition (HAR)
 pipeline on industry-standard Edge-AI hardware. It focuses on three confounders:
 (1) language runtime models, (2) backpressure policies under various loads, and
 (3) thermal/power throttling. ]
@@ -699,7 +699,7 @@ Linux kernel (core \0) or the generator.
 
 The latest stable releases of the language toolchains, which were compatible
 with the Ubuntu \22.04-based root file system, were used for all
-implementations: C++20 with GCC \15.2.0, Rust \1.97.1 and CPython 3.10.6.
+implementations: C++20 with GCC \15.2.0, Rust \1.97.1 and CPython 3.10.12.
 CPython is the default Python interpreter for many Linux distributions, and
 implements the runtime model, including the GIL and GC, that is evaluated in
 this report.
