@@ -48,7 +48,12 @@ TelemetryWriter::Csv::Csv(const std::string_view& filename)
     "freed_bytes,rss_bytes,fordblks_bytes\n";
   // clang-format on
 
-  write(fd_, header, std::strlen(header));
+  if (write(fd_, header, std::strlen(header)) < 0) {
+    throw std::runtime_error(
+      std::format("Failed to write CSV header to '{}': {}",
+        filename,
+        std::strerror(errno)));
+  }
 }
 
 TelemetryWriter::Csv::~Csv()
@@ -99,7 +104,10 @@ TelemetryWriter::Csv::write_epoch(const Epoch& epoch)
   // Replace final comma with newline.
   *(ptr - 1) = '\n';
 
-  write(fd_, buf, ptr - buf);
+  if (write(fd_, buf, ptr - buf) < 0) {
+    throw std::runtime_error(
+      std::format("Failed to write CSV row: {}", std::strerror(errno)));
+  }
 }
 
 void
