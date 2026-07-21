@@ -106,6 +106,18 @@ pub fn spawn_fusion_thread(
                     }
 
                     ShmBuffer::RGB_STREAM_ID => {
+                        // Do not fuse or record telemetry until all streams
+                        // have provided at least one valid frame for ZoH.
+                        if latest_accelerometer_timestamps
+                            [ShmBuffer::GENERATED_TS]
+                            == 0
+                            || latest_gyrometer_timestamps
+                                [ShmBuffer::GENERATED_TS]
+                                == 0
+                        {
+                            continue;
+                        }
+
                         frame.timestamps[ShmBuffer::FUSION_IN_TS] = now_nanos()
                             .expect(
                                 "Failed to get current time for FUSION_IN_TS",

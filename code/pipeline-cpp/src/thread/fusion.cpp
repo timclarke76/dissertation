@@ -86,6 +86,13 @@ spawn_fusion_thread(Receiver<ShmBuffer::Frame> receiver,
           break;
 
         case ShmBuffer::RGB_STREAM_ID:
+          // Do not fuse or record telemetry until all streams
+          // have provided at least one valid frame for ZoH.
+          if (latest_accel_ts[ShmBuffer::GENERATED_TS] == 0 ||
+              latest_gyro_ts[ShmBuffer::GENERATED_TS] == 0) {
+            continue;
+          }
+
           frame.timestamps[ShmBuffer::FUSION_IN_TS] = current_time_nanos();
           std::this_thread::sleep_for(std::chrono::milliseconds(5));
           frame.timestamps[ShmBuffer::FUSION_OUT_TS] = current_time_nanos();

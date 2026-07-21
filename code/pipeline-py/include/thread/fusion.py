@@ -91,6 +91,14 @@ def spawn_fusion_thread(
                 latest_gyrometer_lapped_frames = frame.lapped_frames
                 latest_gyrometer_dropped_frames = frame.dropped_frames
             elif frame.stream_id == ShmBuffer.RGB_STREAM_ID:
+                # Do not fuse or record telemetry until all streams have
+                # provided at least one valid frame for ZoH.
+                if (
+                    latest_accelerometer_timestamps[ShmBuffer.GENERATED_TS] == 0
+                    or latest_gyrometer_timestamps[ShmBuffer.GENERATED_TS] == 0
+                ):
+                    continue
+
                 frame.timestamps[ShmBuffer.FUSION_IN_TS] = (
                     time.perf_counter_ns()
                 )
