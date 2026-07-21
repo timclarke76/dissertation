@@ -78,7 +78,9 @@ class Settings:
             self.gyro_policy = self._parse_policy(data['gyro_policy'])
         except Exception as e:
             e.add_note(f"Settings file '{args.settings}' parsing failed.")
-            raise RuntimeError(f"Settings file '{args.settings}' parsing failed.") from e
+            raise RuntimeError(
+                f"Settings file '{args.settings}' parsing failed."
+            ) from e
 
     def _parse_policy(self, data: dict) -> Policy:
         """Parses the policy configuration from a TOML table.
