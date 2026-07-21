@@ -162,11 +162,18 @@ public:
     const uint64_t dropped_frames);
 
   /// \brief Signals the telemetry thread to terminate by setting the terminate
-  /// flag in the current epoch and sending it to the telemetry thread.
+  /// flag in the current epoch and sending it to the telemetry thread. It needs
+  /// to be guaranteed that the epoch is sent, regardless of whether the
+  /// telemetry thread is blocked or not, to ensure that the telemetry thread
+  /// can exit gracefully. Therefore swap_buffers() is not called here, and
+  /// instead the termination epoch is sent directly.
   void terminate()
   {
+    if (is_terminated_) return;
+
+    is_terminated_ = true;
     current_epoch_.terminated = true;
-    swap_buffers();
+    sender_.send(std::move(current_epoch_));
   }
 
 private:
@@ -199,6 +206,10 @@ private:
 
   /// The currently active telemetry epoch for recording latency measurements.
   Epoch current_epoch_;
+
+  /// A flag indicating whether the telemetry thread has been signaled to
+  /// terminate.
+  bool is_terminated_ = false;
 };
 
 /// \brief Spawns a background thread for processing telemetry data from a

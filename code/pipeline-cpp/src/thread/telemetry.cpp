@@ -115,6 +115,8 @@ TelemetryWriter::record(uint64_t ts[Epoch::NUM_LATENCY_MEASURES],
   const uint64_t lapped_frames,
   const uint64_t dropped_frames)
 {
+  if (is_terminated_) return;
+
   if (std::chrono::steady_clock::now() - last_swap_ > SWAP_INTERVAL) {
     swap_buffers();
   }

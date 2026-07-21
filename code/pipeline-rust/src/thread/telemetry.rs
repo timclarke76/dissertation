@@ -258,6 +258,10 @@ pub struct TelemetryWriter {
 
     /// The currently active telemetry epoch for recording latency measurements.
     current_epoch: TelemetryEpoch,
+
+    /// A flag indicating whether the telemetry thread has been signaled to
+    /// terminate.
+    is_terminated: bool,
 }
 
 impl TelemetryWriter {
@@ -290,6 +294,7 @@ impl TelemetryWriter {
             last_swap: Instant::now(),
             last_lapped_frames: 0,
             last_dropped_frames: 0,
+            is_terminated: false,
         })
     }
 
@@ -312,6 +317,10 @@ impl TelemetryWriter {
         lapped_frames: u64,
         dropped_frames: u64,
     ) -> Result<()> {
+        if self.is_terminated {
+            return Ok(());
+        }
+
         if self.last_swap.elapsed() >= Self::SWAP_INTERVAL {
             self.swap_buffers()?;
         }
@@ -366,10 +375,28 @@ impl TelemetryWriter {
     }
 
     /// Signals the telemetry thread to terminate by setting the `terminated`
-    /// flag in the current epoch and sending it to the telemetry thread.
+    /// flag in the current epoch and sending it to the telemetry thread. It
+    /// needs to be guaranteed that the epoch is sent, regardless of whether the
+    /// telemetry thread is blocked or not, to ensure that the telemetry thread
+    /// can exit gracefully. Therefore swap_buffers() is not called here, and
+    /// instead the termination epoch is sent directly.
     pub fn terminate(&mut self) -> Result<()> {
+        if self.is_terminated {
+            return Ok(());
+        }
+
+        self.is_terminated = true;
         self.current_epoch.terminated = true;
-        self.swap_buffers()
+
+        // Swap out the current epoch so we can take ownership and send it
+        let mut termination_epoch = TelemetryEpoch::try_new()?;
+        std::mem::swap(&mut self.current_epoch, &mut termination_epoch);
+
+        self.sender
+            .try_send(termination_epoch)
+            .expect("Failed to send termination epoch to telemetry thread");
+
+        Ok(())
     }
 }
 

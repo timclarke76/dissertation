@@ -128,6 +128,10 @@ class TelemetryWriter:
     """The currently active telemetry epoch for recording latency
     measurements."""
 
+    is_terminated: bool
+    """A flag indicating whether the telemetry thread has been signaled to
+    terminate."""
+
     def __init__(
         self, sender: Sender[TelemetryEpoch], receiver: Receiver[TelemetryEpoch]
     ):
@@ -146,6 +150,7 @@ class TelemetryWriter:
         self.last_lapped_frames = 0
         self.last_dropped_frames = 0
         self.current_epoch = receiver.receive()
+        self.is_terminated = False
 
     def record(
         self, ts: list[int], lapped_frames: int, dropped_frames: int
@@ -161,6 +166,9 @@ class TelemetryWriter:
             as the total latency.
             lapped_frames: The total number of frames lapped.
             dropped_frames: The total number of frames dropped."""
+
+        if self.is_terminated:
+            return
 
         if time.perf_counter_ns() - self.last_swap >= self.SWAP_INTERVAL:
             self.swap_buffers()
@@ -218,10 +226,18 @@ class TelemetryWriter:
 
     def terminate(self):
         """Signals the telemetry thread to terminate by setting the terminated
-        flag in the current epoch and sending it to the telemetry thread."""
+        flag in the current epoch and sending it to the telemetry thread. It
+        needs to be guaranteed that the epoch is sent, regardless of whether the
+        telemetry thread is blocked or not, to ensure that the telemetry thread
+        can exit gracefully. Therefore swap_buffers() is not called here, and
+        instead the termination epoch is sent directly."""
 
+        if self.is_terminated:
+            return
+
+        self.is_terminated = True
         self.current_epoch.terminated = True
-        self.swap_buffers()
+        self.sender.send(self.current_epoch)
 
 
 class Csv:
