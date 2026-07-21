@@ -685,15 +685,15 @@ A Docker container, based on NVIDIA's official _l4t-jetpack_ image (36.4.0
 software toolchains and environment variables remained consistent for all
 implementations. While Docker introduces some performance overhead, it was
 considered acceptable to ensure a consistent and reproducible environment for
-all implementations. Six Docker arguments were used for all containers: `--rm`
-to remove the container after execution, `--ipc=host` to allow access to the
-host's shared memory, `--privileged` and `--runtime=nvidia` to allow access to
-the GPU and Jetson device nodes, `--cap-add=SYS_NICE` to allow real-time
-scheduling, and `--volume=$(pwd)/results:/results` to allow the container to
-write results to the host file-system. The generator was detached, using the
-Docker argument `--detach`, so that it would execute in the background, and
-pinned to core \5 using the generator's own `--core` argument to prevent context
-switching overhead. The pipelines were restricted to cores \1-\4 using Docker's
+all implementations. Five Docker arguments were used for all containers:
+`--ipc=host` to allow access to the host's shared memory, `--privileged` and
+`--runtime=nvidia` to allow access to the GPU and Jetson device nodes,
+`--cap-add=SYS_NICE` to allow real-time scheduling, and
+`--volume=$(pwd)/results:/results` to allow the container to write results to
+the host file-system. The generator was detached, using the Docker argument
+`--detach`, so that it would execute in the background, and pinned to core \5
+using the generator's own `--core` argument to prevent context switching
+overhead. The pipelines were restricted to cores \1-\4 using Docker's
 `--cpuset-cpus` argument to prevent them running on the same core as either the
 Linux kernel (core \0) or the generator.
 
