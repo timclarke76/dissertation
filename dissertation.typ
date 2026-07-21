@@ -108,12 +108,11 @@ comparisons.
 
 This dissertation addresses the gap by providing empirical evidence and an
 evaluation of pipelines deployed on resource-constrained hardware, with a focus
-on the trade-offs among #todo[Confirm versions] C++20 (version 16.1.1), Rust
-(version 1.93.0, edition \2024), and Python (version 3.14.6) implementations of
-a tri-stream Human Activity Recognition (HAR) pipeline on industry-standard
-Edge-AI hardware. It focuses on three confounders: (1) language runtime models,
-(2) backpressure policies under various loads, and (3) thermal/power throttling.
-]
+on the trade-offs among C++20 (with GCC \15.2.0), Rust (\1.97.1), and CPython
+(\3.10.6) implementations of a tri-stream Human Activity Recognition (HAR)
+pipeline on industry-standard Edge-AI hardware. It focuses on three confounders:
+(1) language runtime models, (2) backpressure policies under various loads, and
+(3) thermal/power throttling. ]
 
 == Research Questions and Objectives
 
@@ -629,8 +628,8 @@ Nano module itself. This provides the following specifications
 - 32 Tensor cores for AI acceleration
 - L1 and L2 caches with 64-byte cache lines
 
-The Jetson was flashed with NVIDIA’s JetPack 6.2.2 SDK @jetpack-6-2-2 to enable
-_Super Mode_ and allow uncapped _SUPER MAXN_ power mode that enables the highest
+The Jetson came pre-flashed with NVIDIA’s JetPack 6.2 SDK @jetpack-6-2 which provides
+_Super Mode_ and uncapped _SUPER MAXN_ power mode that enables the highest
 number of cores and clock frequency across the SoC.
 
 A Waveshare IMX219-160 Camera Module @imx219-160 was used to deliver the RGB
@@ -658,16 +657,16 @@ measurements.
 #wc[
 == Software Stack
 
-The Jetson was flashed with NVIDIA's JetPack \6.2.2 SDK @jetpack-6-2-2, which
-includes Jetson Linux 36.5 (featuring the Linux Kernel 5.15 and an Ubuntu
-\22.04-based root file system), and CUDA \12.6, cuDNN \9.3, and TensorRT \10.3
-for AI inference and acceleration. The software stack versions were selected as
-the most recent stable releases at the time of development, and were used for
-all implementations to ensure a consistent baseline for comparison. The Jetson
-Linux operating system utilises the GNU C Library (glibc) memory allocator,
-which in turn is used by the installed C++ and Rust toolchains as they rely on
-the system allocator. This enables use of glibc-specific tools for analysis of
-memory fragmentation. #todo[Add ONNX version and Python variant details.]
+The Jetson was already flashed with NVIDIA's JetPack \6.2 SDK @jetpack-6-2,
+which includes Jetson Linux 36.4.3 (featuring the Linux Kernel 5.15 and an
+Ubuntu \22.04-based root file system), and CUDA \12.6.10, cuDNN \9.3.0, and
+TensorRT \10.3.0 for AI inference and acceleration. The software stack versions
+were selected as the most recent stable releases at the time of development, and
+were used for all implementations to ensure a consistent baseline for
+comparison. The Jetson Linux operating system utilises the GNU C Library (glibc)
+memory allocator, which in turn is used by the installed C++ and Rust toolchains
+as they rely on the system allocator. This enables use of glibc-specific tools
+for analysis of memory fragmentation. #todo[Add ONNX version.]
 
 All implementations interact with the *ONNX Runtime* to load and execute the AI
 model, which is responsible for the data transfer and inference orchestration on
@@ -681,17 +680,29 @@ model, and the SIMT architecture runs the AI workloads on the GPU. This prevents
 confounding the results with hardware latency, and provides a clearer comparison
 of how each language's runtime model performs under load and backpressure.
 
-A Docker container, based on NVIDIA's official _l4t-base_ image (#ct[version]),
-was used to prevent host updates to ensure that the software toolchains and
-environment variables remained consistent for all implementations. #todo[Add
-details about container configuration, e.g. volumes, GPU and device access,
-privileged mode (if used), etc.] While Docker introduces some performance
-overhead, it was considered acceptable to ensure a consistent and reproducible
-environment for all implementations.
+A Docker container, based on NVIDIA's official _l4t-jetpack_ image (36.4.0
+@l4t-jetpack-36-4-0), was used to prevent host updates to ensure that the
+software toolchains and environment variables remained consistent for all
+implementations. While Docker introduces some performance overhead, it was
+considered acceptable to ensure a consistent and reproducible environment for
+all implementations. Six Docker arguments were used for all containers: `--rm`
+to remove the container after execution, `--ipc=host` to allow access to the
+host's shared memory, `--privileged` and `--runtime=nvidia` to allow access to
+the GPU and Jetson device nodes, `--cap-add=SYS_NICE` to allow real-time
+scheduling, and `--volume=$(pwd)/results:/results` to allow the container to
+write results to the host file-system. The generator was detached, using the
+Docker argument `--detach`, so that it would execute in the background, and
+pinned to core \5 using the generator's own `--core` argument to prevent context
+switching overhead. The pipelines were restricted to cores \1-\4 using Docker's
+`--cpuset-cpus` argument to prevent them running on the same core as either the
+Linux kernel (core \0) or the generator.
 
-The latest stable releases of the language toolchains were used for all
-implementations: C++20 with GCC #ct[version], Rust #ct[version], and Python
-#ct[version].
+The latest stable releases of the language toolchains, which were compatible
+with the Ubuntu \22.04-based root file system, were used for all
+implementations: C++20 with GCC \15.2.0, Rust \1.97.1 and CPython 3.10.6.
+CPython is the default Python interpreter for many Linux distributions, and
+implements the runtime model, including the GIL and GC, that is evaluated in
+this report.
 ]
 
 #wc[
