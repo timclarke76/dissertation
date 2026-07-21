@@ -493,15 +493,15 @@ pub fn spawn_telemetry_thread(
                     let mut start = 0;
 
                     // Ignore size.
-                    while sbuf[start] != b' ' && start < n {
+                    while start < n && sbuf[start] != b' ' {
                         start += 1;
                     }
-                    if start < n {
+                    if start < n && sbuf[start] == b' ' {
                         start += 1;
                     }
 
                     let mut end = start;
-                    while sbuf[end] != b' ' && end < n {
+                    while end < n && sbuf[end] != b' ' {
                         end += 1;
                     }
 

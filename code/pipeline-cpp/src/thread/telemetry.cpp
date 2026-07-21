@@ -224,9 +224,9 @@ spawn_telemetry_thread(const std::string_view& stream_name,
           char* p = sbuf;
 
           // Ignore size.
-          while (*p != ' ' && p < sbuf + n)
+          while (p < sbuf + n && *p != ' ')
             p++;
-          if (p < sbuf + n)
+          if (p < sbuf + n && *p == ' ')
             p++;
 
           long resident = 0;
