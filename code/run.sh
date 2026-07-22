@@ -25,6 +25,8 @@ jetson_clocks
 
 IMAGE="dissertation:latest"
 VOLUME="$(pwd)/results"
+rm -rf "$VOLUME"
+mkdir -p "$VOLUME"
 
 GEN_CORE="5"
 PIPE_CORES="1-4"
