@@ -33,7 +33,7 @@ GEN_LOAD="1.0"
 RUNTIME_SECS=3
 
 LOADS=($(seq "1.0" "0.25" "1.5"))
-LANGUAGES=("cpp" "rust" "py")
+LANGUAGES=("cpp" "rust" "python")
 
 POLICIES=(
     "BoundedQueue"
@@ -163,7 +163,7 @@ type = "${policy}"
 EOF
             fi
 
-            EVAL="${GRAY}[${RESET}${CYAN}Lang:${RESET} %-5s ${GRAY}|${RESET} ${YELLOW}Policy:${RESET} %-18s ${GRAY}|${RESET} ${BLUE}Load:${RESET} %-5s${GRAY}]${RESET}"
+            EVAL="${GRAY}[${RESET}${CYAN}Lang:${RESET} %-6s ${GRAY}|${RESET} ${YELLOW}Policy:${RESET} %-18s ${GRAY}|${RESET} ${BLUE}Load:${RESET} %-5s${GRAY}]${RESET}"
 
             while true; do
                 TEMP=$(get_temp)
@@ -211,7 +211,7 @@ EOF
                     /app/pipeline-rust/target/release/pipeline-rust \
                         --settings /results/settings.toml
 
-            elif [ "$lang" == "py" ]; then
+            elif [ "$lang" == "python" ]; then
                 docker run ${PIPELINE_ARGS[@]} --workdir "$WORK_DIR" $IMAGE \
                     /app/pipeline-py/.venv/bin/python3 \
                         /app/pipeline-py/pipeline.py \
@@ -229,7 +229,7 @@ done
 timedatectl set-ntp true
 
 # Restore Jetson clocks to default
-jetson_clocks --restore 2>/dev/null || true
+jetson_clocks --restore >/dev/null 2>&1 || true
 
 # Change ownership of the results directory to the current user (Docker will
 # have created the files as root)
