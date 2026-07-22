@@ -96,9 +96,9 @@ spawn_bridge_thread(const std::string& shm_name,
             [&queue, &queue_lock, frame](const BoundedQueue&) mutable {
               // Blocks the producer until space is available in the consumer
               // buffer.
-              queue_lock.unlock();
 
               for (;;) {
+                queue_lock.unlock();
                 spin_loop();
                 queue_lock.lock();
 
