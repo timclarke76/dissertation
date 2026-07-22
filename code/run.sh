@@ -5,6 +5,15 @@ set -e
 if [ "$EUID" -ne 0 ]; then
     exec sudo "$0" "$@"
 fi
+
+RESET="\033[0m"
+BOLD="\033[1m"
+CYAN="\033[36m"
+YELLOW="\033[33m"
+GREEN="\033[32m"
+BLUE="\033[34m"
+GRAY="\033[90m"
+
 # Disable NTP
 timedatectl set-ntp false
 
@@ -27,11 +36,11 @@ LOADS=($(seq "1.0" "0.25" "1.5"))
 LANGUAGES=("cpp" "rust" "py")
 
 POLICIES=(
+    "BoundedQueue"
+    "ExponentialBackoff"
     "DropOldest"
     "DropNewest"
-    "BoundedQueue"
     "AdaptiveDecimation"
-    "ExponentialBackoff"
 )
 
 get_temp() {
@@ -74,6 +83,7 @@ sleep 10
 
 BASE_TEMP=$(get_temp)
 echo "Baseline temperature: ${BASE_TEMP}°C"
+echo ""
 
 for policy in "${POLICIES[@]}"; do
     for load in "${LOADS[@]}"; do
@@ -153,17 +163,17 @@ type = "${policy}"
 EOF
             fi
 
-            EVAL="Evaluating: Language=$lang | Policy=$policy | Load=$load"
+            EVAL="${GRAY}[${RESET}${CYAN}Lang:${RESET} %-5s ${GRAY}|${RESET} ${YELLOW}Policy:${RESET} %-18s ${GRAY}|${RESET} ${BLUE}Load:${RESET} %-5s${GRAY}]${RESET}"
 
             while true; do
                 TEMP=$(get_temp)
 
                 if [ "$TEMP" -le "$BASE_TEMP" ]; then
-                    echo -e "\r${EVAL} | Temp: ${TEMP}°C"
+                    printf "\r$(printf "$EVAL" "$lang" "$policy" "$load") ${GRAY}|${RESET} ${BOLD}Temp:${RESET} ${GREEN}%2d°C${RESET}\033[K\n" "$TEMP"
                     break
                 fi
 
-                echo -ne "\r${EVAL} | Temp: ${TEMP}°C"
+                printf "\r$(printf "$EVAL" "$lang" "$policy" "$load") ${GRAY}|${RESET} ${BOLD}Temp:${RESET} ${YELLOW}%2d°C${RESET}\033[K" "$TEMP"
                 sleep 2
             done
 
