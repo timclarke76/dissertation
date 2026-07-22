@@ -37,12 +37,10 @@
 
 // #set text(size: 12pt)
 #columns(2, gutter: 16pt)[
-#wc[
 = Introduction
 
 == Background and Context
 
-#wc[
 In recent years, Edge-AI (Edge Artificial Intelligence) has begun to move the
 deployment of AI models from centralised cloud-based servers to local devices,
 such as sensors, mobile phones, and other embedded systems. This
@@ -72,11 +70,9 @@ with a large number of devices. The software must make maximum use of the
 limited hardware resources, while also remaining stable over the long term,
 making programming language selection an important design decision for Edge-AI
 pipelines.
-]
 
 == Problem Statement <sec:problem-statement>
 
-#wc[
 A language's runtime model dictates memory management, concurrency, and
 scheduling behaviour under load, which directly impacts latency, throughput, and
 resource usage. For example, manual memory management offers fine-grained
@@ -89,12 +85,11 @@ This dissertation focuses on the performance metrics at the system level.
 _Latency_ does not refer to network transmission time, but rather the processing
 time from when the sensor data is created to when the final AI prediction is
 completed. This includes queueing delays, inference time, and final fusion of
-the prediction.
-A deadline of 100 ms is chosen for the tri-stream HAR pipeline, based on what Xue
-et al. (2025) @xue2025 identified as the maximum allowable latency for effective
-real-time coaching feedback.
-_Throughput_ measures how many sensor events the pipeline can
-process per unit of time (e.g. per second) when under sustained load.
+the prediction. A deadline of 100 ms is chosen for the tri-stream HAR pipeline,
+based on what Xue et al. (2025) @xue2025 identified as the maximum allowable
+latency for effective real-time coaching feedback. _Throughput_ measures how
+many sensor events the pipeline can process per unit of time (e.g. per second)
+when under sustained load.
 
 Selecting a language for Edge-AI pipelines is often guided by familiarity or
 generalised benchmarks, rather than the evaluation of runtime models under
@@ -108,15 +103,14 @@ comparisons.
 
 This dissertation addresses the gap by providing empirical evidence and an
 evaluation of pipelines deployed on resource-constrained hardware, with a focus
-on the trade-offs among C++20 (with GCC \15.2.0), Rust (\1.97.1), and CPython
-(\3.10.12) implementations of a tri-stream Human Activity Recognition (HAR)
-pipeline on industry-standard Edge-AI hardware. It focuses on three confounders:
-(1) language runtime models, (2) backpressure policies under various loads, and
-(3) thermal/power throttling. ]
+on the trade-offs among C++20 (with GCC \15.2.0), Rust (\1.97.1), and Python
+(CPython \3.10.12) implementations of a tri-stream Human Activity Recognition
+(HAR) pipeline on industry-standard Edge-AI hardware. It focuses on three
+confounders: (\1) language runtime models, (\2) backpressure policies under
+various loads, and (\3) thermal/power throttling.
 
 == Research Questions and Objectives
 
-#wc[
 The primary research questions are:
 
 #text[
@@ -153,11 +147,9 @@ The primary research objectives are:
     derive empirically grounded guidance for language selection in constrained
     Edge-AI deployments.
 ]
-]
 
 == Research Contributions
 
-#wc[
 This dissertation offers the following contributions to software engineering for
 Edge-AI systems:
 
@@ -182,26 +174,22 @@ Edge-AI systems:
     questions, this dissertation offers empirically grounded recommendations for
     language selection in real-time, multi-stream edge deployments.
 ]
-]
 
 == Scope and Limitations
 
-#wc[
 The focus of this dissertation is on the interaction of three language runtime
 models (C++, Rust, and Python) with system latency and throughput, using
 standardised, idiomatic implementations of a tri-stream HAR pipeline on
 industry-standard Edge-AI hardware. The scope is limited to a standardised
 implementation representative of real-world multi-modal processing, with
-confounders limited to thermal/power throttling and queue-based backpressure
-policies.
+confounders limited to thermal/power throttling and backpressure policies.
 
-The pipeline architecture, deterministic load generator, backpressure, and
-telemetry mechanisms are designed for portability across Linux environments.
-However, AI acceleration, thermal behaviour, and power management are
-fundamentally SoC-dependent. Consequently, the profiling and acceleration tools
-used during evaluation (e.g. NVIDIA tegrastats, TensorRT) are specific to the
-Jetson Orin Nano platform and cannot be directly applied across other edge
-devices.
+The pipeline architecture, deterministic load generator, and backpressure
+implementations are designed for portability across Linux environments. However,
+AI acceleration, thermal behaviour, and power management are SoC-dependent.
+Consequently, the profiling and acceleration tools used during evaluation (e.g.
+NVIDIA tegrastats, TensorRT) are specific to the Jetson Orin Nano platform and
+cannot be directly applied across other edge devices.
 
 A further limitation of this study is that it is not concerned with the accuracy
 of the HAR prediction results. To ensure the data is both deterministic and
@@ -225,36 +213,31 @@ the queueing delays that this report aims to measure. As the HAR pipeline serves
 only as a testbed, and the accuracy of the AI inference does not form a part of
 the evaluation, the system accepts misalignment and read-tearing to preserve the
 unbounded nature of the load generator.
-]
 
 
 == Dissertation Outline
 
-#wc[
 The remainder of this dissertation is structured as follows: #box[*Chapter 2*]
 provides background on the evolution of Edge-AI and the heterogeneous devices
 employed. It also introduces the programming languages evaluated in this
 dissertation, and briefly explains the concepts of AI acceleration,
 backpressure, and load shedding. #box[*Chapter 3*] reviews related literature
-regarding language efficiency benchmarks and the trade-offs between memory
-safety and cognitive load, concluding by identifying the research gap.
-#box[*Chapter 4*] details the methodology, including the hardware and software
-setup, backpressure interfaces, and profiling toolchains used to collect
-metrics. #box[*Chapter 5*] describes the implementation of the HAR pipeline in
-each language, highlighting language-specific optimisations and challenges.
-#box[*Chapter 6*] presents the results, including performance metrics, memory
-allocation and GC pressure, and backpressure outcomes under varying loads.
-#box[*Chapter 7*] discusses the findings and limitations of the study. Finally,
-#box[*Chapter 8*] concludes by addressing the research questions, providing
-practical recommendations for language selection in Edge-AI contexts, and
-suggesting directions for future work.
-]
-]
+regarding language efficiency benchmarks, the trade-offs between memory safety
+and cognitive load, backpressure policies, and measuring latency, concluding by
+identifying the research gap. #box[*Chapter 4*] details the methodology,
+including the hardware and software setup, backpressure interfaces, and
+profiling toolchains used to collect metrics. #box[*Chapter 5*] describes the
+implementation of the HAR pipeline in each language, highlighting
+language-specific optimisations and challenges. #box[*Chapter 6*] presents the
+results, including performance metrics, memory allocation and GC pressure, and
+backpressure outcomes under varying loads. #box[*Chapter 7*] discusses the
+findings and limitations of the study. Finally, #box[*Chapter 8*] concludes by
+addressing the research questions, providing practical recommendations for
+language selection in Edge-AI contexts, and suggesting directions for future
+work.
 
-#wc[
 = Background
 
-#wc[
 == The Evolution of Edge Computing
 
 The late 1990s saw a growth of online multimedia that demanded a solution to
@@ -265,18 +248,18 @@ could be cached on servers located closer to end-users, thus reducing latency
 and bandwidth usage, especially during periods of high demand.
 
 \2007 saw the release of the iPhone, followed by the Android operating system in
-\2008. These marked a rapid increase in the use of mobile devices, and created
-user demand for computationally intensive applications. However, as
-Satyanarayanan et al. (2009) @satyanarayanan2009 established, "considerations
-such as weight, size, battery life, ergonomics, and heat dissipation exact a
-severe penalty in computational resources such as processor speed, memory size,
-and disk capacity." To bypass these physical limitations, they took the concept
-of CDNs further by introducing decentralised and widely dispersed _cloudlets_
---- servers located on the network edge and close to end-clients (e.g. in cafe
-premises) that run customised service software using hardware VM technology,
-thus allowing mobile devices to act as thin clients, overcoming hardware
-constraints without unacceptable latency and bandwidth usage that would be
-introduced if remote cloud servers were used.
+\2008, and the Windows Phone in \2010. These marked a rapid increase in the use
+of mobile devices, and created user demand for computationally intensive
+applications. However, as Satyanarayanan et al. (2009) @satyanarayanan2009
+established, "considerations such as weight, size, battery life, ergonomics, and
+heat dissipation exact a severe penalty in computational resources such as
+processor speed, memory size, and disk capacity." To bypass these physical
+limitations, they took the concept of CDNs further by proposing decentralised
+and widely dispersed _cloudlets_ --- servers located on the network edge and
+close to end-clients (e.g. in cafe premises) that run customised service
+software using hardware VM technology, thus allowing mobile devices to act as
+thin clients, overcoming hardware constraints without unacceptable latency and
+bandwidth usage that would be introduced if remote cloud servers were used.
 
 The next decade saw an explosive growth of the Internet of Things (IoT), fuelled
 by the adoption in areas such as Fitness Wearables (the first Fitbit Tracker
@@ -287,8 +270,8 @@ also become data producers. Shi et al. (2016) @shi2016 defined "edge" not as a
 specific device, but as any computing and networking resource along the path
 between the data source and the data centre. They recognised that the data
 bandwidth and centralised processing in traditional cloud computing were
-bottlenecks, arguing that data should be processed or massaged at the proximity
-of the data source.
+bottlenecks, arguing that data should be processed at the proximity of the data
+source.
 
 At the same time, the integration of AI rapidly accelerated. While some
 applications were designed to run on remote cloud servers (e.g. ChatGPT,
@@ -297,30 +280,28 @@ processing to ensure safety and reduce dependence on available network bandwidth
 (e.g. Tesla Autopilot, launched in \2014, and the Waymo One in \2018).
 
 This transition to _Edge-AI_ required overcoming the hardware obstacles
-identified by Satyanarayanan et al. and the network bottlenecks identified by
-Shi et al. (2016) @shi2016 and Zhou et al. (2019) @zhou2019 provided a
-comprehensive survey of recent research efforts in Edge Intelligence, and
-identified that physical proximity to the data source is critical to reducing
-monetary costs, latency, and the risk of privacy leakage. For evaluating the
-quality of Edge-AI inference, they highlighted latency, accuracy, energy
-consumption, privacy, and memory footprint. While communication overhead is
-eliminated by offline edge processing, the remaining metrics remain relevant to
-this dissertation. For example, backpressure policies may intentionally drop
-data to ensure system stability, sacrificing model accuracy to satisfy strict
-latency deadlines.
-]
+identified by Satyanarayanan et al. @satyanarayanan2009 and the network
+bottlenecks identified by Shi et al. (2016) @shi2016 and Zhou et al. (2019)
+@zhou2019 provided a comprehensive survey of recent research efforts in Edge
+Intelligence, and identified that physical proximity to the data source is
+critical to reducing monetary costs, latency, and the risk of privacy leakage.
+For evaluating the quality of Edge-AI inference, they highlighted latency,
+accuracy, energy consumption, privacy, and memory footprint. While communication
+overhead is eliminated by offline edge processing, latency, energy consumption,
+and memory overhead remain relevant to this dissertation. For example,
+backpressure policies may intentionally drop data to ensure system stability,
+sacrificing model accuracy to satisfy strict latency deadlines.
 
-#wc[
 == Heterogeneous Devices and DVFS
 
 Heterogeneous devices combine different types of processing units, such as a CPU
 and a GPU, onto a single chip and are an increasingly common solution for
-Edge-AI deployments. Modern heterogeneous System-on-Chips (SoCs), such as the
-NVIDIA Jetson Orin Nano, integrate dedicated CUDA cores for general-purpose GPU
-computing, and Tensor cores for AI acceleration. These allow optimised engines
-like TensorRT to efficiently execute AI pipelines, such as HAR, locally without
-depending on remote cloud servers. Furthermore, they support the enabling
-technologies identified by Zhou et al., such as model compression (e.g.
+Edge-AI deployments. Modern heterogeneous SoCs, such as the NVIDIA Jetson Orin
+Nano, integrate dedicated CUDA cores for general-purpose GPU computing, and
+Tensor cores for AI acceleration. These allow optimised engines like TensorRT to
+efficiently execute AI pipelines, such as HAR, locally without depending on
+remote cloud servers. Furthermore, they support the enabling technologies
+identified by Zhou et al. @zhou2019, such as model compression (e.g.
 quantisation and pruning), to maximise inference speed.
 
 However, embedded devices with a small form factor generate significant heat
@@ -332,9 +313,7 @@ this introduces non-deterministic pipeline performance degradation. It can be
 concluded that to minimise premature throttling, the software architecture and
 language runtime model must be efficient by minimising unnecessary CPU and
 memory overhead.
-]
 
-#wc[
 == AI Acceleration
 
 To deploy AI models on resource-constrained edge devices, they must first be
@@ -439,9 +418,7 @@ softmax, etc.).
 
 *TensorRT* @tensorRT is responsible for compiling an *ONNX* (Open Neural Network
 Exchange) @onnx model into a _.engine_ file, optimised to run on the Jetson GPU.
-]
 
-#wc[
 == Language Runtimes & Memory Models
 
 To mitigate the thermal throttling inherent in Edge-AI hardware, the pipeline
@@ -461,8 +438,8 @@ by employing Ownership Based Resource Management (OBRM, more commonly referred
 to as its ownership and borrowing model) which provides compile-time guarantees
 of memory safety --- every value has a single owner, and the compiler ensures
 that value references do not outlive their owners. This provides a strong
-guarantee of memory correctness, but increases cognitive load as the OBRM is a
-novel concept that introduces a steep learning curve.
+guarantee of memory correctness, but potentially increases cognitive load as the
+OBRM is a novel concept that introduces a steep learning curve.
 
 Python is a general-purpose language that is compiled to bytecode and
 interpreted at runtime. It emphasises simplicity and ease of both writing and
@@ -474,9 +451,7 @@ load and the risk of memory-safety bugs, but at the cost of increased latency
 and unpredictable latency jitter due to "stop-the-world" GC events. Latency is
 further impacted by the Global Interpreter Lock (GIL), which prevents true
 concurrency across multiple CPU cores.
-]
 
-#wc[
 == Stream Processing & Backpressure
 
 In stream processing systems, such as HAR pipelines, data is generated
@@ -490,13 +465,9 @@ of transmission, traditional backpressure mechanisms are impossible. Instead,
 _load shedding_ policies are necessary. Policies such as dropping data (e.g.
 dropping the oldest, newest, or every $n$-th frames) are commonly used to manage
 backpressure, but introduce an accuracy trade-off as data is lost.
-]
-]
 
-#wc[
 = Literature Review
 
-#wc[
 == Benchmarking Language Efficiency
 
 Empirical evaluations of programming languages highlight a trade-off between
@@ -508,12 +479,10 @@ required the most memory, consumed the most energy, and were the slowest.
 
 However, the reported results also indicated that execution speed and energy
 efficiency do not perfectly correlate with memory efficiency. For example, in
-the normalised results, Rust performed second only to C in terms of energy
+the normalised results Rust performed second only to C in terms of energy
 efficiency (1.03) and execution speed (1.04), but seventh (1.54) in terms of
 memory usage.
-]
 
-#wc[
 == Memory Safety vs. Cognitive Load Trade-off
 
 While languages like C++ offer high performance, their reliance on manual memory
@@ -529,10 +498,9 @@ memory-safety bugs in practice. They found that all memory-safety bugs in the
 dataset, except one that was a compiler bug, were caused by developers using the
 `unsafe` keyword to bypass the compiler's memory safety checks. However, while
 Coblenz et al. (2023) @coblenz2023 found that developers generally understood
-the concept of ownership, they struggled with the semantics of references and
-borrowing. This introduces a trade-off between memory safety and developer
+the _concept_ of ownership, they struggled with the _semantics_ of references
+and borrowing. This introduces a trade-off between memory safety and developer
 cognitive load.
-]
 
 == Backpressure Policies
 
@@ -553,23 +521,22 @@ latency threshold to be violated.
 == Coordinated Omission <sec:coordinated-omission>
 
 If a data-processing pipeline evaluation only starts to measure latency when
-processing an event begins, instead of when an event truly occurs, it risks a
-phenomenon identified by Tene (2014) @tene2014 as _Coordinated Omission_. This
-may also happen when a producer is stalled due to the lack of the consumer's
-readiness to process data. This failure to record the true time that an event
-occurs means that queue delays --- which may occur because of an OS context
-switch, a garbage collection pause, thermal throttling, etc. --- are not
-recorded, consequently reducing latency measurements. Furthermore, because fewer
-events are recorded when the system is throttled or stalled, low-latency events
-form the majority of the recorded dataset, making a system appear more
-performant than it actually is.
+processing an event begins instead of when an event truly occurs, or when a
+producer is stalled due to the lack of the consumer's readiness to process data,
+it risks a phenomenon identified by Tene (2014) @tene2014 as _Coordinated
+Omission_. This failure to record the true time that an event occurs means that
+queue delays --- which may occur because of an OS context switch, a garbage
+collection pause, thermal throttling, etc. --- are not recorded, consequently
+reducing latency measurements. Furthermore, because fewer events are recorded
+when the system is throttled or stalled, low-latency events form the majority of
+the recorded dataset, making a system appear more performant than it actually
+is.
 
 Tene also warns against ignoring events beyond the 99th percentile, as doing so
 fails to expose the frequency and impact of systematic delays. Therefore deep
 tail latency measurements, such as the 99.9th and 99.99th percentiles, are
 necessary to understand the true performance of a system under load.
 
-#wc[
 == The Research Gap
 
 While studies such as Pereira et al. (2017) @pereira2017energy have evaluated
@@ -602,13 +569,9 @@ and Python runtime models interact with backpressure policies under the thermal
 constraints of Edge-AI devices with continuous streams of sensor data.
 Consequently, capturing true latency measurements at high percentiles under
 heavy load is necessary to determine their suitability for Edge-AI pipelines.
-]
-]
 
-#wc[
 = Methodology
 
-#wc[
 == Hardware Stack
 
 The NVIDIA Jetson Orin Nano (8GB Edition) was utilised as the target Edge-AI
@@ -617,9 +580,9 @@ Edge-AI development in embedded systems, allowing complex AI workloads and
 multi-stream pipelines to be run efficiently.
 
 The developer kit includes a carrier board with I/O interfaces (e.g. USB,
-Ethernet, DisplayPort), a MicroSD card slot for booting, and the Jetson Orin
-Nano module itself. This provides the following specifications
-@jetson-orin-nano @a78RefManual:
+Ethernet, DisplayPort), a MicroSD card slot for initial booting without an NVMe
+SSD, and the Jetson Orin Nano module itself. This provides the following
+specifications @jetson-orin-nano @a78RefManual:
 - 6-core Arm Cortex-A78AE 64-bit CPU (clocked to 1.7 GHz) for general-purpose
   concurrent processing
 - up to 67 TOPS (Tera Operations Per Second) of AI performance
@@ -628,9 +591,9 @@ Nano module itself. This provides the following specifications
 - 32 Tensor cores for AI acceleration
 - L1 and L2 caches with 64-byte cache lines
 
-The Jetson came pre-flashed with NVIDIA’s JetPack 6.2 SDK @jetpack-6-2 which provides
-_Super Mode_ and uncapped _SUPER MAXN_ power mode that enables the highest
-number of cores and clock frequency across the SoC.
+The Jetson came pre-flashed with NVIDIA’s JetPack 6.2 SDK @jetpack-6-2 which
+provides _Super Mode_ and uncapped _SUPER MAXN_ power mode that enables the
+highest number of cores and clock frequency across the SoC.
 
 A Waveshare IMX219-160 Camera Module @imx219-160 was used to deliver the RGB
 video stream, configured to capture at 1920×1080 RGB frames at \30 FPS, and
@@ -649,12 +612,8 @@ To ensure that disk I/O did not cause bottlenecks or confound performance
 comparisons, all implementations were executed from a 1TB Samsung \990 PRO PCIe
 \4.0 NVMe M.2 SSD @samsung-990-pro. A SanDisk "High-Endurance" microSD Card
 (64GB, Class 10/U3) @sandisk-micro-sd was only used for initial device
-installation and bootloading, and was unmounted after boot to prevent any
-background I/O (such as writing logs) from interfering with performance
-measurements.
-]
+installation, and was removed after the NVMe SSD was installed.
 
-#wc[
 == Software Stack
 
 The Jetson was already flashed with NVIDIA's JetPack \6.2 SDK @jetpack-6-2,
@@ -685,7 +644,7 @@ A Docker container, based on NVIDIA's official _l4t-jetpack_ image (36.4.0
 software toolchains and environment variables remained consistent for all
 implementations. While Docker introduces some performance overhead, it was
 considered acceptable to ensure a consistent and reproducible environment for
-all implementations. Five Docker arguments were used for all containers:
+all implementations. Five Docker arguments were used for every container:
 `--ipc=host` to allow access to the host's shared memory, `--privileged` and
 `--runtime=nvidia` to allow access to the GPU and Jetson device nodes,
 `--cap-add=SYS_NICE` to allow real-time scheduling, and
@@ -703,9 +662,7 @@ implementations: C++20 with GCC \15.2.0, Rust \1.97.1 and CPython 3.10.12.
 CPython is the default Python interpreter for many Linux distributions, and
 implements the runtime model, including the GIL and GC, that is evaluated in
 this report.
-]
 
-#wc[
 == Deterministic Load Generator
 
 To reliably compare the performance of the three implementations, a separate
@@ -721,8 +678,8 @@ camera, (2) a 3-axis inertial measurement stream to simulate the accelerometer,
 and (3) a 3-axis inertial measurement stream to simulate the gyroscope. Using
 shared memory allowed for low-latency communication, and allowed the generator
 to write data at a consistent rate. The shared memory buffers were implemented
-as fixed capacity ring buffers, allowing the generator to write data
-without being blocked by the pipeline.
+as fixed capacity ring buffers, allowing the generator to write data without
+being blocked by the pipeline.
 
 The generated image data was random noise. Each image was created as an array of
 RGB pixel values with dimensions of 1920x1080 to match the sensor data, and each
@@ -817,9 +774,7 @@ change the path of execution.
   caption: [System architecture demonstrating communication between the separate
     Load Generator and the HAR Pipeline implementations.#v(1em)],
 ) <fig:architecture>
-]
 
-#wc[
 == Backpressure Policies <sec-backpressure>
 
 Bounded backpressure policies are implemented in each language-specific runtime
@@ -889,12 +844,12 @@ contiguous arrays in each language (`std::vector` in C++, `Vec` in Rust, and a
 `list` in Python). Standard mutexes were employed to guarantee multi-threading
 safety during enqueue and dequeue operations.
 
-Backpressure is implemented only in the pipeline
-on the consumer buffer, forcing each language runtime model to handle
-concurrency, memory allocation, and scheduling within realistic constraints and
-allowing us to evaluate RQ2. A _bridge_ in the pipeline is responsible for
-copying data from the producer buffer to the consumer buffer, and for triggering
-the backpressure policy when the consumer buffer is full.
+Backpressure is implemented only in the pipeline on the consumer buffer, forcing
+each language runtime model to handle concurrency, memory allocation, and
+scheduling within realistic constraints and allowing us to evaluate RQ2. A
+_bridge_ in the pipeline is responsible for copying data from the producer
+buffer to the consumer buffer, and for triggering the backpressure policy when
+the consumer buffer is full.
 
 Five backpressure and load shedding policies were implemented to manage queue
 saturation when the consumer buffer is full:
@@ -974,9 +929,9 @@ The wait time is doubled upon each retry, up to an accumulated maximum of \33.3
 ms before the frame is dropped. This maximum wait time was derived from the
 generation interval of the \30 Hz RGB anchor stream. If exponential backoff were
 to wait longer then it would cascade delays to the next late-fusion window.
-Therefore, dropping the stalled frame effectively resets the pipeline,
-providing an opportunity to recover and the next frame to be ingested in time to
-meet the \100 ms latency deadline.
+Therefore, dropping the stalled frame effectively resets the pipeline, providing
+an opportunity to recover and the next frame to be ingested in time to meet the
+\100 ms latency deadline.
 
 The adaptive decimation policy was configured to activate at 80% of each
 stream's consumer buffer capacity (i.e. 2 frames for RGB, 128 for accelerometer,
@@ -998,13 +953,11 @@ This isolated the memory and scheduling behaviours of the runtime models,
 removing execution speed as a confounding variable, and ensured that all five
 backpressure policies within a given language were evaluated under an identical
 ingestion rate.
-]
 
-#wc[
-=== False Sharing
+== False Sharing
 
 Modern CPU architectures contain multiple caches for each core to significantly
-reduce memory access latency. These are designated by a level (e.g. L1, L2) to
+reduce memory access latency. These are designated a level (e.g. L1, L2) to
 indicate how far away they are physically from the CPU core, and typically
 increase in size and latency as their level increases. Each cache is split into
 multiple _cache lines_, where the data is stored and can be written or read
@@ -1035,9 +988,7 @@ false sharing would occur only once per second if 64-byte alignment were not
 enforced, ensuring cache isolation of the header reflects best engineering
 practice and prevents potential system degradation caused by future
 modifications to the implementation.
-]
 
-#wc[
 == Memory Ordering
 
 Traditional mutexes force a thread to yield to the system kernel. This
@@ -1051,16 +1002,15 @@ pipeline that a new data frame has been written, and the pipeline spin-loops and
 reads the new data as soon as it sees the `seq_num` updated. Without memory
 ordering, the CPU may choose to update these apparently unrelated variables
 "_out of order_" from what the code specifies. This would be catastrophic, as
-the pipeline may read the "new data" before it is committed. To prevent this,
-the `seq_num` was declared as an atomic variable, and release memory ordering
-was used when the generator updated it, informing the CPU that all previous
-writes to any variable must be committed before the `seq_num` is updated.
-Conversely, when the pipeline reads the `seq_num`, it uses acquire memory
-ordering to inform the CPU that it must not speculatively read any other
+the pipeline may read the stale data before the new data is committed. To
+prevent this, the `seq_num` was declared as an atomic variable, and release
+memory ordering was used when the generator updated it, informing the CPU that
+all previous writes to any variable must be committed before the `seq_num` is
+updated. Conversely, when the pipeline reads the `seq_num`, it uses acquire
+memory ordering to inform the CPU that it must not speculatively read any other
 variables before the `seq_num` is read. This simple "fence" guarantees that the
-memory ordering is correct, and that the apparently unrelated `seq_num` and
-data frame are read in the correct order.
-]
+memory ordering is correct, and that the apparently unrelated `seq_num` and data
+frame are read in the correct order.
 
 == Zero-Allocation
 
@@ -1071,7 +1021,6 @@ memory (e.g. the bounded queue) was pre-allocated during initialisation, and
 lightweight data structures (e.g. the telemetry `Epoch`) were continuously
 reused rather than reallocated.
 
-#wc[
 == Profiling and Metrics
 
 === Latency
@@ -1083,7 +1032,7 @@ being adjusted. The following six timestamps, as visualised in
 @fig:latency_timeline, were captured for each event:
 
 + `generated_ts` when the generator pushes to the unbounded ring buffer
-+ `bridged_ts` when the bridge pushes to the idiomatic buffer
++ `bridged_ts` when the bridge pushes to the bounded buffer
 + `pipeline_in_ts` when the pipeline pulls the frame from the idiomatic buffer
 + `pipeline_out_ts` when the pipeline pushes data to the ONNX Runtime for
   inference
@@ -1120,7 +1069,7 @@ being adjusted. The following six timestamps, as visualised in
       n(5, <fusion-out>, [`fusion_out_ts`]),
 
       be(<generated>, <bridged>, [Unbounded\ Queue Wait]),
-      te(<bridged>, <pipeline-in>, [Idiomatic\ Queue Wait]),
+      te(<bridged>, <pipeline-in>, [Bounded\ Queue Wait]),
       be(<pipeline-in>, <pipeline-out>, [Inference\ Execution]),
       te(<pipeline-out>, <fusion-in>, [MPSC Wait]),
       be(<fusion-in>, <fusion-out>, [Fusion\ Execution]),
@@ -1140,20 +1089,16 @@ stalled, thus guaranteeing that `generated_ts` allows queueing delays and
 tail-latency to be accurately captured.
 
 These timestamps provide five key latency measurements: _Unbounded Queue Wait_
-($"bridged_ts" - "generated_ts"$), _Idiomatic Queue Wait_ ($"pipeline_in_ts" -
+($"bridged_ts" - "generated_ts"$), _Queue Wait_ ($"pipeline_in_ts" -
 "bridged_ts"$), _Inference Execution_ ($"pipeline_out_ts" - "pipeline_in_ts"$),
-_MPSC Wait_ ($"fusion_in_ts" - "pipeline_out_ts"$), and _Fusion Execution_ ($"fusion_out_ts"
-- "fusion_in_ts"$). Additionally, _Total Latency_ ($"fusion_out_ts" -
-"generated_ts"$) was calculated to capture the end-to-end processing time.
+_MPSC Wait_ ($"fusion_in_ts" - "pipeline_out_ts"$), and _Fusion Execution_
+($"fusion_out_ts" - "fusion_in_ts"$). Additionally, _Total Latency_
+($"fusion_out_ts" - "generated_ts"$) was calculated to capture the end-to-end
+processing time.
 
 These measurements provide the necessary granularity to measure each runtime
 model's latency, and to identify bottlenecks and trade-offs under load and
 backpressure.
-
-High Dynamic Range (HDR) Histograms @hdrhistogram were used to aggregate the
-latency distributions, preventing memory allocation from polluting the latency
-measurements that would occur if the measurements were stored in standard data
-structures (e.g. vectors or lists).
 
 To retain temporal information about how latency changes over time and
 correlates with runtime model behaviour and backpressure events, a
@@ -1168,6 +1113,11 @@ maximum latency values into a CSV file, then reset the `Epoch` and pushed it
 back to the first channel for reuse. A third `Epoch` was kept idle in the first
 channel ready to be swapped in as the new active buffer, preventing any blocking
 of the pipeline thread if the telemetry thread is delayed (e.g. by I/O stalls).
+
+High Dynamic Range (HDR) Histograms @hdrhistogram were used to aggregate the
+latency distributions, preventing memory allocation from polluting the latency
+measurements that would occur if the measurements were stored in standard data
+structures (e.g. vectors or lists).
 
 #figure(
   pad(top: 1.5em)[
@@ -1210,10 +1160,10 @@ of the pipeline thread if the telemetry thread is delayed (e.g. by I/O stalls).
 To measure the rate of memory churn in C++ and Rust (RQ3), the global memory
 allocation and deallocation functions were overridden to capture memory
 allocation metrics, without relying on third-party profiling tools that may
-introduce additional overhead and confound the results. In C++, the
-`operator new` and `operator delete` functions were overridden, and in Rust a
-custom memory allocator was implemented as the standard library's default by
-using the `#[global_allocator]` attribute.
+introduce additional overhead and confound the results. In C++, the `operator
+new` and `operator delete` functions were overridden, and in Rust a custom
+memory allocator was implemented as the standard library's default by using the
+`#[global_allocator]` attribute.
 
 The telemetry thread concurrently captured the memory allocation metrics during
 the same intervals as the latency measurements, allowing for correlation between
@@ -1239,10 +1189,10 @@ utilised to capture the start and end time of each GC event (using
 `CLOCK_MONOTONIC`) to calculate the duration of each pause.
 
 To prevent memory allocation within the callback function, a triple-buffering
-approach was used, similar to the latency measurements, where the
-callback function writes the GC pause durations to an active `Epoch` without
-blocking. The background telemetry thread then extracts the GC pause percentiles
-and maximums at the same time as the latency measurements, allowing correlation
+approach was used, similar to the latency measurements, where the callback
+function writes the GC pause durations to an active `Epoch` without blocking.
+The background telemetry thread then extracts the GC pause percentiles and
+maximums at the same time as the latency measurements, allowing correlation
 between GC pause durations and runtime model events.
 
 The telemetry thread also employs `gc.get_stats()` to capture the cumulative
@@ -1422,7 +1372,6 @@ implementations. Temperatures during testing were measured using the
 temperatures, CPU and GPU frequencies, and power consumption. This allows us to
 analyse the impact of the different runtime models on thermal behaviour, and to
 correlate throttling events with performance metrics.
-]
 
 #wc[
 === Statistical Analysis
@@ -1541,7 +1490,6 @@ and ownership model, C++'s manual memory management, or Python's dynamic
 typing). These can all significantly influence the development lifecycle
 overhead, and therefore LoC and CC should be interpreted as partial measurements
 of the engineering cost of language selection.
-]
 ]
 
 = Implementation
@@ -2005,7 +1953,7 @@ Conversely, Rust's ownership model and borrow checker guarantees memory safety.
 In the aforementioned example, the Rust compiler would refuse to allow
 references that may not outlive the spawned thread. Instead, Rust forces the
 developer to transfer ownership using the `move` keyword and atomic reference
-counting (e.g. `Arc<Mutex<T>>`). Though Rust's ownership model is a steep
+counting (e.g. `Arc<Mutex<T>>`). Though Rust's ownership model may be a steep
 learning curve for developers new to the language --- similar to that
 experienced when transitioning from a functional paradigm to an object-oriented
 one --- it eliminates memory-safety bugs that are notoriously difficult to
