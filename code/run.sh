@@ -1,6 +1,15 @@
 #!/bin/bash
 set -e
 
+# Disable NTP
+timedatectl set-ntp false
+
+# SUPER_MAXN power mode
+nvpmodel -m 2
+
+# Maximum performance clocks
+jetson_clocks
+
 IMAGE="dissertation:latest"
 VOLUME="$(pwd)/results"
 
@@ -201,3 +210,13 @@ EOF
         done
     done
 done
+
+# Enable NTP
+timedatectl set-ntp true
+
+# Restore Jetson clocks to default
+jetson_clocks --restore 2>/dev/null || true
+
+# Change ownership of the results directory to the current user (Docker will
+# have created the files as root)
+chown -R $USER:$USER $VOLUME
