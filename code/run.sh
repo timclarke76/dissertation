@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# Script must be run as root.
+if [ "$EUID" -ne 0 ]; then
+    exec sudo "$0" "$@"
+fi
 # Disable NTP
 timedatectl set-ntp false
 
