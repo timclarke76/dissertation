@@ -112,7 +112,7 @@ def spawn_bridge_thread(
                         # Waits a short time before retrying to insert the data,
                         # with the wait time multiplied with each retry.
                         backoff_nanos = policy.base_nanos
-                        accumulated_nanos = 0.0
+                        accumulated_nanos = 0
 
                         while True:
                             if accumulated_nanos >= policy.max_nanos:
@@ -128,7 +128,9 @@ def spawn_bridge_thread(
                                     break
 
                             accumulated_nanos += backoff_nanos
-                            backoff_nanos *= policy.multiplier
+                            backoff_nanos = int(
+                                backoff_nanos * policy.multiplier
+                            )
 
                     case DropOldest():
                         # Drops the oldest data in the consumer buffer to make

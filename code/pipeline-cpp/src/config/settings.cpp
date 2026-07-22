@@ -84,7 +84,7 @@ Settings::parse_policy(const toml::table& tbl_in,
   } else if (type_str == "ExponentialBackoff") {
     return ExponentialBackoff{ static_cast<uint64_t>(
                                  (*tbl)["base_nanos"].as<int64_t>()->get()),
-      (*tbl)["max_nanos"].as<double>()->get(),
+      static_cast<uint64_t>((*tbl)["max_nanos"].as<int64_t>()->get()),
       (*tbl)["multiplier"].as<double>()->get() };
   } else if (type_str == "DropOldest") {
     return DropOldest{};

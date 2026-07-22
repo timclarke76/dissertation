@@ -16,7 +16,7 @@ pub enum Policy {
 
         /// The maximum accumulated wait time in nanoseconds before giving up
         /// and dropping the data.
-        max_nanos: f64,
+        max_nanos: u64,
 
         /// The multiplier to apply to the wait time after each retry. For
         /// example, a multiplier of 2.0 will double the wait time after each
