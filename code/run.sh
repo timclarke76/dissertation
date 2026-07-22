@@ -134,21 +134,21 @@ EOF
                 cat <<EOF >> "$VOLUME/settings.toml"
 [rgb_policy]
 type = "ExponentialBackoff"
-base_nanos = 1
-max_nanos = 33.3
-multiplier = 2
+base_nanos = 1_000_000
+max_nanos = 33_300_000
+multiplier = 2.0
 
 [accel_policy]
 type = "ExponentialBackoff"
-base_nanos = 1
-max_nanos = 33.3
-multiplier = 2
+base_nanos = 1_000_000
+max_nanos = 33_300_000
+multiplier = 2.0
 
 [gyro_policy]
 type = "ExponentialBackoff"
-base_nanos = 1
-max_nanos = 33.3
-multiplier = 2
+base_nanos = 1_000_000
+max_nanos = 33_300_000
+multiplier = 2.0
 EOF
             else
                 cat <<EOF >> "$VOLUME/settings.toml"
@@ -233,4 +233,4 @@ jetson_clocks --restore 2>/dev/null || true
 
 # Change ownership of the results directory to the current user (Docker will
 # have created the files as root)
-chown -R $USER:$USER $VOLUME
+chown -R tim:tim $VOLUME
