@@ -2,16 +2,24 @@
 set -e
 
 IMAGE="dissertation:latest"
+VOLUME="$(pwd)/results"
 
 GEN_CORE="5"
 PIPE_CORES="1-4"
 GEN_PRIORITY="99"
 GEN_LOAD="1.0"
-
 RUNTIME_SECS=3
 
-VOLUME="$(pwd)/results"
-mkdir -p $VOLUME
+LOADS=($(seq "1.0" "0.25" "1.5"))
+LANGUAGES=("cpp" "rust" "py")
+
+POLICIES=(
+    "DropOldest"
+    "DropNewest"
+    "BoundedQueue"
+    "AdaptiveDecimation"
+    "ExponentialBackoff"
+)
 
 get_temp() {
     local max_temp=0
@@ -48,64 +56,148 @@ PIPELINE_ARGS=(
     --rm
 )
 
-echo "Letting the Jetson settle."
+echo "Settling Jetson."
 sleep 10 
 
 BASE_TEMP=$(get_temp)
 echo "Baseline temperature: ${BASE_TEMP}°C"
 
-for lang in "cpp" "rust" "py"; do
-    echo "Evaluating $lang"
+for policy in "${POLICIES[@]}"; do
+    for load in "${LOADS[@]}"; do
+        for lang in "${LANGUAGES[@]}"; do
+            EVAL_DIR="${policy}/load_${load}/${lang}"
+            mkdir -p "$VOLUME/$EVAL_DIR"
+            WORK_DIR="/results/$EVAL_DIR"
 
-    while true; do
-        CURR_TEMP=$(get_temp)
+            cat <<EOF > "$VOLUME/settings.toml"
+[rgb_queue_config]
+name = "RGB"
+fps = 30
+capacity_frames = 3
 
-        if [ "$CURR_TEMP" -le "$BASE_TEMP" ]; then
-            echo -e "\rCurrent temperature: ${CURR_TEMP}°C   "
-            break
-        fi
+[accel_queue_config]
+name = "Accelerometer"
+fps = 1600
+capacity_frames = 160
 
-        echo -ne "\rCurrent temperature: ${CURR_TEMP}°C   "
-        sleep 2
+[gyro_queue_config]
+name = "Gyroscope"
+fps = 2000
+capacity_frames = 200
+
+EOF
+
+            if [ "$policy" == "AdaptiveDecimation" ]; then
+                cat <<EOF >> "$VOLUME/settings.toml"
+[rgb_policy]
+type = "AdaptiveDecimation"
+threshold = 2
+min_ratio = 2
+max_ratio = 10
+
+[accel_policy]
+type = "AdaptiveDecimation"
+threshold = 128 # 80% of capacity_frames
+min_ratio = 2
+max_ratio = 10
+
+[gyro_policy]
+type = "AdaptiveDecimation"
+threshold = 160 # 80% of capacity_frames
+min_ratio = 2
+max_ratio = 10
+EOF
+            elif [ "$policy" == "ExponentialBackoff" ]; then
+                cat <<EOF >> "$VOLUME/settings.toml"
+[rgb_policy]
+type = "ExponentialBackoff"
+base_nanos = 1
+max_nanos = 33.3
+multiplier = 2
+
+[accel_policy]
+type = "ExponentialBackoff"
+base_nanos = 1
+max_nanos = 33.3
+multiplier = 2
+
+[gyro_policy]
+type = "ExponentialBackoff"
+base_nanos = 1
+max_nanos = 33.3
+multiplier = 2
+EOF
+            else
+                cat <<EOF >> "$VOLUME/settings.toml"
+[rgb_policy]
+type = "${policy}"
+
+[accel_policy]
+type = "${policy}"
+
+[gyro_policy]
+type = "${policy}"
+EOF
+            fi
+
+            EVAL="Evaluating: Language=$lang | Policy=$policy | Load=$load"
+
+            while true; do
+                TEMP=$(get_temp)
+
+                if [ "$TEMP" -le "$BASE_TEMP" ]; then
+                    echo -e "\r${EVAL} | Temp: ${TEMP}°C"
+                    break
+                fi
+
+                echo -ne "\r${EVAL} | Temp: ${TEMP}°C"
+                sleep 2
+            done
+
+            stdbuf -oL tegrastats --interval 1000 | \
+                awk -W interactive '{ print systime(), $0 }' > \
+                "$VOLUME/$EVAL_DIR/tegrastats.log" &
+            TEGRA_PID=$!
+
+            GEN_CONTAINER_ID=$(docker run ${GENERATOR_ARGS[@]} $IMAGE \
+                /app/generator/target/release/generator \
+                    --settings /app/generator/settings.toml \
+                    --core $GEN_CORE \
+                    --priority $GEN_PRIORITY \
+                    --load $GEN_LOAD \
+                    --runtime-seconds $RUNTIME_SECS \
+                    --output $WORK_DIR/generator.json \
+                    --headless true)
+
+            # Wait for the generator to create the shared memory files before
+            # starting the pipeline
+            while [ ! -e /dev/shm/RGB ] \
+                && [ ! -e /dev/shm/Accelerometer ] \
+                && [ ! -e /dev/shm/Gyroscope ]
+            do
+                sleep 0.5
+            done
+
+            if [ "$lang" == "cpp" ]; then
+                docker run ${PIPELINE_ARGS[@]} --workdir "$WORK_DIR" $IMAGE \
+                    /app/pipeline-cpp/pipeline_cpp \
+                        --settings /results/settings.toml
+
+            elif [ "$lang" == "rust" ]; then
+                docker run ${PIPELINE_ARGS[@]} --workdir "$WORK_DIR" $IMAGE \
+                    /app/pipeline-rust/target/release/pipeline-rust \
+                        --settings /results/settings.toml
+
+            elif [ "$lang" == "py" ]; then
+                docker run ${PIPELINE_ARGS[@]} --workdir "$WORK_DIR" $IMAGE \
+                    /app/pipeline-py/.venv/bin/python3 \
+                        /app/pipeline-py/pipeline.py \
+                            --settings /results/settings.toml
+            fi
+
+            docker wait $GEN_CONTAINER_ID > /dev/null
+            docker rm $GEN_CONTAINER_ID > /dev/null
+            kill $TEGRA_PID 2>/dev/null
+        done
     done
-
-    mkdir -p $VOLUME/$lang
-
-    GEN_CONTAINER_ID=$(docker run ${GENERATOR_ARGS[@]} $IMAGE \
-        /app/generator/target/release/generator \
-            --settings /app/generator/settings.toml \
-            --core $GEN_CORE \
-            --priority $GEN_PRIORITY \
-            --load $GEN_LOAD \
-            --runtime-seconds $RUNTIME_SECS \
-            --output /results/generator_${lang}.json \
-            --headless true)
-
-    # Wait for the generator to create the shared memory files before starting
-    # the pipeline
-    while [ ! -e /dev/shm/RGB ] \
-        && [ ! -e /dev/shm/Accelerometer ] \
-        && [ ! -e /dev/shm/Gyroscope ]
-    do
-        sleep 0.5
-    done
-
-    if [ "$lang" == "cpp" ]; then
-        docker run ${PIPELINE_ARGS[@]} --workdir /results/$lang $IMAGE \
-            /app/pipeline-cpp/pipeline_cpp \
-                --settings /app/pipeline-cpp/settings.toml
-
-    elif [ "$lang" == "rust" ]; then
-        docker run ${PIPELINE_ARGS[@]} --workdir /results/$lang $IMAGE \
-            /app/pipeline-rust/target/release/pipeline-rust \
-                --settings /app/pipeline-rust/settings.toml
-
-    elif [ "$lang" == "py" ]; then
-        docker run ${PIPELINE_ARGS[@]} --workdir /results/$lang $IMAGE \
-            /app/pipeline-py/.venv/bin/python3 /app/pipeline-py/pipeline.py \
-                --settings /app/pipeline-py/settings.toml
-    fi
-
-    docker wait $GEN_CONTAINER_ID > /dev/null
-    docker rm $GEN_CONTAINER_ID > /dev/null
 done
