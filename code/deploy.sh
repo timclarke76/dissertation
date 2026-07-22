@@ -13,6 +13,7 @@ rsync -avz --delete \
     --exclude '_deps' \
     --exclude 'CMakeCache.txt' \
     --exclude 'deploy.sh' \
+    --exclude 'pull_results.sh' \
     ./ ${USER}@${IP}:${DIR}
 
 # Build the Docker image on the Jetson
