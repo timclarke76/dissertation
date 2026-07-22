@@ -98,15 +98,19 @@ def spawn_bridge_thread(
                             # reset
                             decimation_counter = 0
 
+            queue.lock.acquire()
+
             if not queue.try_push(frame):
                 match policy:
                     case BoundedQueue():
                         # Blocks the producer until space is available in the
                         # consumer buffer.
                         while True:
-                            with queue.lock:
-                                if queue.try_push(frame):
-                                    break
+                            queue.lock.release()
+                            pass
+                            queue.lock.acquire()
+                            if queue.try_push(frame):
+                                break
 
                     case ExponentialBackoff():
                         # Waits a short time before retrying to insert the data,
@@ -116,16 +120,16 @@ def spawn_bridge_thread(
 
                         while True:
                             if accumulated_nanos >= policy.max_nanos:
-                                with queue.lock:
-                                    # drop
-                                    queue.dropped_frames += 1
-                                    break
+                                # drop
+                                queue.dropped_frames += 1
+                                break
 
+                            queue.lock.release()
                             time.sleep(backoff_nanos / 1_000_000_000)
+                            queue.lock.acquire()
 
-                            with queue.lock:
-                                if queue.try_push(frame):
-                                    break
+                            if queue.try_push(frame):
+                                break
 
                             accumulated_nanos += backoff_nanos
                             backoff_nanos = int(
@@ -135,23 +139,22 @@ def spawn_bridge_thread(
                     case DropOldest():
                         # Drops the oldest data in the consumer buffer to make
                         # room for new data.
-                        with queue.lock:
-                            queue.overwrite_oldest(frame)
-                            queue.dropped_frames += 1
+                        queue.overwrite_oldest(frame)
+                        queue.dropped_frames += 1
 
                     case DropNewest():
                         # DropNewest drops incoming data when the buffer is
                         # full.
-                        with queue.lock:
-                            queue.dropped_frames += 1
+                        queue.dropped_frames += 1
 
                     case AdaptiveDecimation():
                         # If the Adaptive Decimation throttling is not enough to
                         # keep the queue from filling up, we drop the oldest
                         # frame to make room for the new frame.
-                        with queue.lock:
-                            queue.overwrite_oldest(frame)
-                            queue.dropped_frames += 1
+                        queue.overwrite_oldest(frame)
+                        queue.dropped_frames += 1
+
+            queue.lock.release()
 
         shm_buffer.close()
 
