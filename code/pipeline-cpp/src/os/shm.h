@@ -94,6 +94,9 @@ public:
   /// The total number of timestamps associated with each frame.
   static constexpr size_t NUM_TIMESTAMPS = FUSION_OUT_TS + 1;
 
+  /// The frame offset in bytes of where the payload begins.
+  static constexpr size_t PAYLOAD_OFFSET = sizeof(uint64_t);
+
   /// Represents a single frame read from the shared memory buffer.
   struct Frame
   {
@@ -103,6 +106,10 @@ public:
 
     /// The sequence number of the frame.
     uint64_t seq_num = 0;
+
+    /// A pointer to the start of the frame's payload, that will be fed to the
+    /// inference model.
+    const char* payload_ptr = nullptr;
 
     /// The six timestamps associated with the frame, in nanoseconds:
     /// * GENERATED: when the generator pushes to the unbounded buffer

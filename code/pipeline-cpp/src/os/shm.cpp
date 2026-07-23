@@ -69,9 +69,11 @@ ShmBuffer::next_frame()
       const auto data_offset = circular_idx * frame_size_bytes_;
       const auto data = this->data_ptr_ + data_offset;
 
-      Frame frame = {
-        stream_id_, frame_idx_ + 1, { 0, t_bridged, 0, 0, 0, 0 }, lapped_frames
-      };
+      Frame frame = { stream_id_,
+        frame_idx_ + 1,
+        this->data_ptr_ + data_offset + PAYLOAD_OFFSET,
+        { 0, t_bridged, 0, 0, 0, 0 },
+        lapped_frames };
 
       std::memcpy(&frame.timestamps[0], data, sizeof(uint64_t));
 
@@ -85,7 +87,7 @@ ShmBuffer::next_frame()
       // The producer has finished writing data to the shared memory buffer, and
       // there are no more frames to read. Return a special frame with a
       // sequence number of UINT64_max to signal the end of the stream.
-      return Frame{ stream_id_, UINT64_MAX, { 0, 0, 0, 0, 0, 0 } };
+      return Frame{ stream_id_, UINT64_MAX, nullptr, { 0, 0, 0, 0, 0, 0 } };
     }
 
     spin_loop();

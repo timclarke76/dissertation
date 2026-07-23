@@ -50,6 +50,7 @@ class ShmFrame:
     __slots__ = [
         'stream_id',
         'seq_num',
+        'payload_offset',
         'timestamps',
         'lapped_frames',
         'dropped_frames',
@@ -59,6 +60,7 @@ class ShmFrame:
         self,
         stream_id: int,
         seq_num: int,
+        payload_offset: int,
         timestamps: list[int],
         lapped_frames: int,
         dropped_frames: int,
@@ -74,6 +76,8 @@ class ShmFrame:
             stream_id: the stream ID associated with this frame. Used to
             identify the source of the frame.
             seq_num: the sequence number of the frame.
+            payload_offset: the offset of the frame's payload in the shared
+            memory buffer.
             timestamps: the six timestamps associated with the frame, in
             nanoseconds:
             * GENERATED: when the generator pushes to the unbounded buffer
@@ -95,6 +99,9 @@ class ShmFrame:
 
         # The sequence number of the frame.
         self.seq_num = seq_num
+
+        # The offset of the frame's payload in the shared memory buffer.
+        self.payload_offset = payload_offset
 
         # The six timestamps associated with the frame, in nanoseconds:
         # * GENERATED: when the generator pushes to the unbounded buffer
@@ -156,6 +163,9 @@ class ShmBuffer:
 
     NUM_TIMESTAMPS = 6
     """The total number of timestamps associated with each frame."""
+
+    PAYLOAD_OFFSET = 8
+    """The frame offset in bytes of where the payload begins."""
 
     MAGIC = 0x45444745
     """The magic number used to identify the shared memory buffer. It is set to
@@ -282,13 +292,16 @@ class ShmBuffer:
                 return ShmFrame(
                     self.stream_id,
                     self.frame_idx + 1,
+                    data_offset + self.PAYLOAD_OFFSET,
                     [t_generated, t_bridged, 0, 0, 0, 0],
                     lapped_frames,
                     0,
                 )
 
             if self.header.pipeline_stage == self.FINISHED:
-                return ShmFrame(self.stream_id, self.POISON_PILL, [0] * 6, 0, 0)
+                return ShmFrame(
+                    self.stream_id, self.POISON_PILL, 0, [0] * 6, 0, 0
+                )
 
             # Avoid latency variance that would be introduced if the OS
             # scheduler were used by sleeping or blocking.

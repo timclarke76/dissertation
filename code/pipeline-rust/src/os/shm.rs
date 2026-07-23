@@ -67,6 +67,26 @@ impl ShmHeader {
     pub const FINISHED: u64 = 2;
 }
 
+/// Represents a raw pointer to a frame's payload in the shared memory buffer.
+/// Used to pass the pointer between threads, as `Send` and `Sync` are not
+/// implemented for raw pointers.
+#[derive(Clone)]
+pub struct SafeRawPointer {
+    ptr: *const u8,
+}
+
+unsafe impl Send for SafeRawPointer {}
+unsafe impl Sync for SafeRawPointer {}
+
+impl SafeRawPointer {
+    /// Constructs a new `SafeRawPointer` from a raw pointer.
+    ///
+    /// * `ptr` - A raw pointer to the start of the frame's payload.
+    pub fn new(ptr: *const u8) -> Self {
+        Self { ptr }
+    }
+}
+
 /// Represents a single frame read from the shared memory buffer.
 #[derive(Clone)]
 pub struct ShmFrame {
@@ -76,6 +96,10 @@ pub struct ShmFrame {
 
     /// The sequence number of the frame.
     pub seq_num: u64,
+
+    /// A pointer to the start of the frame's payload, that will be fed to the
+    /// inference model.
+    pub payload_ptr: SafeRawPointer,
 
     /// The six timestamps associated with the frame, in nanoseconds:
     /// * GENERATED: when the generator pushes to the unbounded buffer
@@ -170,6 +194,9 @@ impl ShmBuffer {
 
     /// The total number of timestamps associated with each frame.
     pub const NUM_TIMESTAMPS: usize = Self::FUSION_OUT_TS + 1;
+
+    /// The frame offset in bytes of where the payload begins.
+    const PAYLOAD_OFFSET: usize = std::mem::size_of::<u64>();
 
     /// Constructs a new `ShmBuffer` instance and connects to the shared memory
     /// buffer with the specified name.
@@ -283,11 +310,16 @@ impl ShmBuffer {
                     .context("Failed to read t_generated from frame data")?;
                 let t_generated = u64::from_le_bytes(t_generated);
 
+                let payload_ptr = unsafe {
+                    self.data_ptr.add(data_offset + Self::PAYLOAD_OFFSET)
+                };
+
                 self.frame_idx += 1;
 
                 return Ok(ShmFrame {
                     stream_id: self.stream_id,
                     seq_num: self.frame_idx + 1,
+                    payload_ptr: SafeRawPointer::new(payload_ptr),
                     timestamps: [t_generated, t_bridged, 0, 0, 0, 0],
                     lapped_frames,
                     dropped_frames: 0,
@@ -306,6 +338,7 @@ impl ShmBuffer {
                 return Ok(ShmFrame {
                     stream_id: self.stream_id,
                     seq_num: u64::MAX,
+                    payload_ptr: SafeRawPointer::new(std::ptr::null()),
                     timestamps: [0; ShmBuffer::NUM_TIMESTAMPS],
                     lapped_frames: 0,
                     dropped_frames: 0,
