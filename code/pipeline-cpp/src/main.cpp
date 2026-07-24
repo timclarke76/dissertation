@@ -46,6 +46,10 @@ struct StreamConfig
 /// inference thread.
 /// \param inference_window The number of frames to process in each inference
 /// window.
+/// \param frame_shape The shape of the frames being processed, suitable for
+/// tensor.
+/// \param item_size_bytes The size of each frame item in bytes (e.g., 1 byte
+/// for uint8_t, 4 bytes for float).
 ///
 /// \returns A pair of std::jthread objects representing the bridge and
 /// inference threads, respectively.
@@ -56,12 +60,19 @@ spawn_bridge_and_inference_threads(const std::string& stream_name,
   Sender<ShmBuffer::Frame> inference_sender,
   const Policy& policy,
   const std::chrono::duration<double>& inference_time,
-  const size_t inference_window)
+  const size_t inference_window,
+  const std::vector<int64_t>& frame_shape,
+  const size_t item_size_bytes)
 {
   auto queue = std::make_shared<Queue<ShmBuffer::Frame>>(queue_capacity);
   auto bridge = spawn_bridge_thread(stream_name, stream_id, queue, policy);
-  auto inference = spawn_inference_thread(
-    stream_name, queue, inference_sender, inference_time, inference_window);
+  auto inference = spawn_inference_thread(stream_name,
+    queue,
+    inference_sender,
+    inference_time,
+    inference_window,
+    frame_shape,
+    item_size_bytes);
 
   return { std::move(bridge), std::move(inference) };
 }
@@ -113,7 +124,9 @@ main(const int argc, const char* const* argv)
         inference_sender,
         cfg.policy,
         cfg.inference_time,
-        size_t(cfg.queue.fps / min_fps));
+        size_t(cfg.queue.fps / min_fps),
+        cfg.queue.frame_shape,
+        cfg.queue.item_size_bytes);
 
     handles.push_back(std::move(bridge));
     handles.push_back(std::move(inference));

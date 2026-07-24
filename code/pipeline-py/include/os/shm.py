@@ -1,8 +1,13 @@
 import ctypes
 import struct
 import time
+import warnings
+
 from multiprocessing import shared_memory
 from multiprocessing.resource_tracker import unregister
+
+# Ignore multiprocessing resource_tracker warnings
+warnings.filterwarnings("ignore", module="multiprocessing.resource_tracker")
 
 
 class ShmHeader(ctypes.Structure):

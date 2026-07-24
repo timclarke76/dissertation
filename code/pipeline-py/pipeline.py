@@ -29,7 +29,7 @@ class StreamConfig:
     duration: dt.timedelta
 
 
-def create_bridge_and_inference_threads(
+def spawn_bridge_and_inference_threads(
     stream_name: str,
     stream_id: int,
     queue_capacity: int,
@@ -37,6 +37,8 @@ def create_bridge_and_inference_threads(
     policy: Policy,
     inference_time: int,
     inference_window: int,
+    frame_shape: list[int],
+    item_size_bytes: int,
 ) -> tuple[threading.Thread, threading.Thread]:
     """Creates a bridge thread and an inference thread for a given shared memory
     name, queue capacity, and backpressure policy.
@@ -54,6 +56,10 @@ def create_bridge_and_inference_threads(
         inference thread.
         inference_window: The number of frames to process in each inference
         window.
+        frame_shape: The shape of the frames being processed, suitable for
+        tensor.
+        item_size_bytes: The size of each frame item in bytes (e.g. 1 byte for
+        uint8, 4 bytes for float32).
 
     Returns:
         A tuple containing the spawned bridge and inference threads."""
@@ -62,7 +68,13 @@ def create_bridge_and_inference_threads(
 
     bridge = spawn_bridge_thread(stream_name, stream_id, queue, policy)
     inference = spawn_inference_thread(
-        stream_name, queue, inference_sender, inference_time, inference_window
+        stream_name,
+        queue,
+        inference_sender,
+        inference_time,
+        inference_window,
+        frame_shape,
+        item_size_bytes,
     )
 
     return bridge, inference
@@ -99,15 +111,16 @@ def main():
     HANDLES: Final[list[Thread]] = [
         thread
         for cfg in CONFIGS
-        for thread in create_bridge_and_inference_threads(
+        for thread in spawn_bridge_and_inference_threads(
             cfg.queue.name,
             cfg.stream_id,
             cfg.queue.capacity_frames,
             inference_sender,
             cfg.policy,
             cfg.duration.total_seconds(),
-            # FIXME: I think this is too big for every implementation
             int(cfg.queue.fps / MIN_FPS),
+            cfg.queue.frame_shape,
+            cfg.queue.item_size_bytes,
         )
     ]
 

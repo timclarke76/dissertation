@@ -52,6 +52,23 @@ Settings::parse_event_queue_config(const toml::table& tbl_in,
         std::format("Missing or invalid 'capacity_frames' in {}", config_name));
     }
 
+    if (auto shape_node = (*tbl)["frame_shape"].as_array()) {
+      for (auto& elem : *shape_node) {
+        config.frame_shape.push_back(
+          static_cast<int64_t>(elem.as_integer()->get()));
+      }
+    } else {
+      throw std::runtime_error(
+        std::format("Missing or invalid 'input_shape' in {}", config_name));
+    }
+
+    if (auto bytes_node = (*tbl)["item_size_bytes"].as<int64_t>()) {
+      config.item_size_bytes = static_cast<size_t>(bytes_node->get());
+    } else {
+      throw std::runtime_error(
+        std::format("Missing or invalid 'item_size_bytes' in {}", config_name));
+    }
+
     return config;
   } else {
     throw std::runtime_error(std::format(

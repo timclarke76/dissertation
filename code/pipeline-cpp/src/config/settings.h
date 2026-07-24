@@ -22,6 +22,13 @@ public:
 
     /// The capacity of the queue in frames.
     size_t capacity_frames;
+
+    /// The shape of the frames in the queue, suitable for tensor.
+    std::vector<int64_t> frame_shape;
+
+    /// The size of each frame item in bytes (e.g. 1 byte for uint8_t, 4 bytes
+    /// for float).
+    size_t item_size_bytes;
   };
 
 public:

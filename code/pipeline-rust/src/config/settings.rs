@@ -15,6 +15,13 @@ pub struct EventQueueConfig {
 
     /// The capacity of the queue in frames.
     pub capacity_frames: usize,
+
+    /// The shape of the frames in the queue, suitable for tensor.
+    pub frame_shape: Vec<i64>,
+
+    /// The size of each frame item in bytes (e.g. 1 byte for u8, 4 bytes for
+    /// f32).
+    pub item_size_bytes: usize,
 }
 
 /// Represents the configuration settings for the application.

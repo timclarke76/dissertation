@@ -24,7 +24,12 @@ use crate::{
 /// * `sender` - A reference to the Sender used to send processed frames to the
 ///   next stage in the pipeline.
 /// * `time` - The simulated time taken to process each frame.
-/// * `window` - The number of frames to process in each inference window.
+/// * `window_frames` - The number of frames to process in each inference
+///   window.
+/// * `frame_shape` - The shape of the frames being processed, suitable for
+///   tensor
+/// * `item_size_bytes` - The size of each frame item in bytes (e.g., 1 byte for
+///   u8, 4 bytes for f32).
 ///
 /// Returns a `Result` containing the `JoinHandle` of the spawned thread, or an
 /// error if the thread could not be spawned.
@@ -33,7 +38,9 @@ pub fn spawn_inference_thread(
     queue: &Arc<Mutex<Queue<ShmFrame>>>,
     sender: SyncSender<ShmFrame>,
     time: Duration,
-    window: usize,
+    window_frames: usize,
+    frame_shape: Vec<i64>,
+    item_size_bytes: usize,
 ) -> Result<JoinHandle<()>> {
     let stream_name = stream_name.into();
     let queue = Arc::clone(queue);
@@ -41,6 +48,14 @@ pub fn spawn_inference_thread(
     thread::Builder::new()
         .name(format!("inference_{}", stream_name))
         .spawn(move || {
+            let window_size_items: usize =
+                frame_shape.iter().map(|&s| s as usize).product();
+            let window_size_bytes = window_size_items * item_size_bytes;
+            let frame_size_bytes = window_size_bytes / window_frames;
+
+            let mut tensor_data = vec![0u8; window_size_bytes];
+            let tensor_ptr = tensor_data.as_mut_ptr() as *mut u8;
+
             let mut samples_collected = 0;
 
             loop {
@@ -67,9 +82,18 @@ pub fn spawn_inference_thread(
                         break;
                     }
 
+                    unsafe {
+                        let offset = samples_collected * frame_size_bytes;
+                        std::ptr::copy_nonoverlapping(
+                            frame.payload_ptr.ptr,
+                            tensor_ptr.add(offset),
+                            frame_size_bytes,
+                        );
+                    }
+
                     samples_collected += 1;
 
-                    if samples_collected >= window {
+                    if samples_collected >= window_frames {
                         frame.timestamps[ShmBuffer::PIPELINE_IN_TS] =
                             t_pipeline_in;
 

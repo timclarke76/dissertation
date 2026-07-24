@@ -72,7 +72,7 @@ impl ShmHeader {
 /// implemented for raw pointers.
 #[derive(Clone)]
 pub struct SafeRawPointer {
-    ptr: *const u8,
+    pub ptr: *const u8,
 }
 
 unsafe impl Send for SafeRawPointer {}

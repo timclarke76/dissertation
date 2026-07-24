@@ -40,10 +40,14 @@ static GLOBAL: TrackingAllocator = TrackingAllocator;
 ///   inference thread.
 /// * `inference_window` - The number of frames to process in each inference
 ///   window.
+/// * `frame_shape` - The shape of the frames being processed, suitable for
+///   tensor.
+/// * `item_size_bytes` - The size of each frame item in bytes (e.g., 1 byte for
+///   u8, 4 bytes for f32).
 ///
 /// Returns a tuple containing the `JoinHandle`s of the spawned bridge and
 /// inference threads.
-fn create_bridge_and_inference_threads(
+fn spawn_bridge_and_inference_threads(
     stream_name: &str,
     stream_id: usize,
     queue_capacity: usize,
@@ -51,6 +55,8 @@ fn create_bridge_and_inference_threads(
     policy: Policy,
     inference_time: Duration,
     inference_window: usize,
+    frame_shape: Vec<i64>,
+    item_size_bytes: usize,
 ) -> (JoinHandle<()>, JoinHandle<()>) {
     let queue = Arc::new(Mutex::new(Queue::<ShmFrame>::new(queue_capacity)));
 
@@ -63,6 +69,8 @@ fn create_bridge_and_inference_threads(
         inference_sender,
         inference_time,
         inference_window,
+        frame_shape,
+        item_size_bytes,
     )
     .expect("Failed to spawn inference thread");
 
@@ -106,7 +114,7 @@ fn main() -> Result<()> {
     let mut handles: Vec<_> = configs
         .into_iter()
         .flat_map(|(queue, stream_id, policy, duration)| {
-            let (bridge, inference) = create_bridge_and_inference_threads(
+            let (bridge, inference) = spawn_bridge_and_inference_threads(
                 queue.name.as_str(),
                 stream_id,
                 queue.capacity_frames,
@@ -114,6 +122,8 @@ fn main() -> Result<()> {
                 policy,
                 duration,
                 queue.fps / min_fps,
+                queue.frame_shape.clone(),
+                queue.item_size_bytes,
             );
             [bridge, inference]
         })

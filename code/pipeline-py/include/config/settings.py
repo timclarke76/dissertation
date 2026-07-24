@@ -24,6 +24,13 @@ class EventQueueConfig:
     capacity_frames: int
     """The capacity of the queue in frames."""
 
+    frame_shape: list[int]
+    """The shape of the frames in the queue, suitable for tensor."""
+
+    item_size_bytes: int
+    """The size of each frame item in bytes (e.g. 1 byte for uint8, 4 bytes for
+    float32)."""
+
 
 @dataclass
 class Settings:
