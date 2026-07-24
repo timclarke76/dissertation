@@ -99,16 +99,22 @@ for policy in "${POLICIES[@]}"; do
 name = "RGB"
 fps = 30
 capacity_frames = 3
+frame_shape = [1, 3, 1080, 1920]
+item_size_bytes = 1
 
 [accel_queue_config]
 name = "Accelerometer"
 fps = 1600
 capacity_frames = 160
+frame_shape = [1, 53, 3]
+item_size_bytes = 4
 
 [gyro_queue_config]
 name = "Gyroscope"
 fps = 2000
 capacity_frames = 200
+frame_shape = [1, 66, 3]
+item_size_bytes = 4
 
 EOF
 

@@ -59,7 +59,7 @@ Settings::parse_event_queue_config(const toml::table& tbl_in,
       }
     } else {
       throw std::runtime_error(
-        std::format("Missing or invalid 'input_shape' in {}", config_name));
+        std::format("Missing or invalid 'frame_shape' in {}", config_name));
     }
 
     if (auto bytes_node = (*tbl)["item_size_bytes"].as<int64_t>()) {
