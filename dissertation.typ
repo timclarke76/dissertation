@@ -1367,13 +1367,16 @@ threshold @thermalGuide. While this prevents thermal shutdowns during normal
 operation, it introduces a confounder when comparing the performance of
 different runtime model implementations.
 
-To mitigate this the device was allowed to cool down between tests #todo[needs
-quantified] to ensure that initial thermal conditions were consistent across all
-implementations. Temperatures during testing were measured using the
-`tegrastats` utility, which provides monitoring of the CPU, GPU, and overall
-temperatures, CPU and GPU frequencies, and power consumption. This allows us to
-analyse the impact of the different runtime models on thermal behaviour, and to
-correlate throttling events with performance metrics.
+To mitigate this the device was allowed to idle for 600 seconds before the
+evaluation suite was executed. A baseline temperature was then recorded, and the
+device allowed to idle again between each pipeline execution until the baseline
+temperature was reached.
+
+Temperatures during testing were measured using the `tegrastats` utility, which
+provides monitoring of the CPU, GPU, and overall temperatures, CPU and GPU
+frequencies, and power consumption. This allows us to analyse the impact of the
+different runtime models on thermal behaviour, and to correlate throttling
+events with performance metrics.
 
 #wc[
 === Statistical Analysis
