@@ -1490,11 +1490,14 @@ possible in the event of a major system stall (e.g. an extreme GC
 
 === Temporal Alignment of Late-Fusion
 
-The inference window capture-count introduces a possible temporal misalignment
-between the IMU and RGB streams. Because the inference threads construct the
-temporal windows by counting the frames, rather than by using timestamp deltas,
-aggressive load-shedding effectively stretches the window, potentially causing
-misalignment during late-fusion.
+The inference window capture-count introduces a temporal misalignment between
+the IMU and RGB streams. Because the inference threads construct the temporal
+windows by counting the frames, rather than by using timestamp deltas,
+aggressive load-shedding effectively stretches the window, causing misalignment
+during late-fusion. Furthermore, because the IMU sensor speeds (\1600 Hz and
+\2000 Hz) are not wholly divisible by the anchoring RGB sensor speed (\30 Hz),
+it is recognised that temporal alignment drift is inevitable even in the absence
+of load-shedding.
 
 This would need to be mitigated in a production environment by using a timestamp
 delta to bound the temporal window. However, for this report's evaluation, the
