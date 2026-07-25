@@ -1978,6 +1978,29 @@ Python's GC automatically handles the lifetime of the variable, preventing the
 dangling reference vulnerabilities of C++, without the steep learning curve of
 Rust's borrowing mechanism.
 
+== Memory Management Friction
+
+It is generally believed that a runtime model Garbage Collector (GC) reduces
+cognitive burden when compared to manual memory management (C++), or an
+ownership model (Rust). However, the opposite was found to be true when
+developing the temporal buffering of the unbounded queue's frame payloads. For
+example, to circumvent premature unmapping of shared memory buffer addresses
+when the bridge thread terminates and the inference thread is still processing
+frames, a memory location offset had to be provided in the Python frames instead
+of physical addresses as used in the C++ and Rust implementations. The Python
+inference threads also had to maintain a second
+`multiprocessing.shared_memory.SharedMemory` object to read the frame payloads.
+Doing so caused a further issue of `KeyError` tracebacks displayed during
+evaluation, requiring `noop` patching of the `resource_tracker.register` and
+`unregister` methods.
+
+Conversely, C++ stipulates that the developer is responsible for all memory
+allocation and deallocation. Consequently a frame's payload address can be
+stored directly in the frame itself, with no friction or risk of premature
+unmapping. Rust's ownership model also prevents premature unmapping, but
+`unsafe` marker traits (`Send` and `Sync`) were required to satisfy the compiler
+and allow the memory addresses to be shared across threads.
+
 = Conclusion
 
 Total words: #total-words
