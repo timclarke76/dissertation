@@ -1978,7 +1978,14 @@ executable files which can be easily deployed to the target hardware, Python's
 interpreted nature demands deployment of the Python interpreter itself, the
 source files, and an identical virtual environment. This results in Python
 deployment being heavier, more complex, and more fragile than the statically
-compiled counterparts.
+compiled counterparts. Furthermore, Python's package management system was found
+to be fragile. Package versions had to be manually pinned (by referring to the
+Python Package Index (PyPI) release history @pypi) to prevent versions being
+automatically selected that were incompatible with the Python interpreter under
+evaluation (Python \3.10.12). In addition, the ONNX Runtime package for the
+Jetson Orin Nano is remotely hosted on NVIDIA's PyPi server @pypi_devpi, which
+was often found to be unavailable, requiring the package to be manually
+downloaded and saved locally for adding to the Docker image later.
 
 == Concurrency and Memory Safety
 
