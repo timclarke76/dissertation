@@ -625,13 +625,14 @@ were used for all implementations to ensure a consistent baseline for
 comparison. The Jetson Linux operating system utilises the GNU C Library (glibc)
 memory allocator, which in turn is used by the installed C++ and Rust toolchains
 as they rely on the system allocator. This enables use of glibc-specific tools
-for analysis of memory fragmentation. #todo[Add ONNX version.]
+for analysis of memory fragmentation.
 
-All implementations interact with the *ONNX Runtime* to load and execute the AI
-model, which is responsible for the data transfer and inference orchestration on
-the host, and hands off responsibility to TensorRT for inference execution on
-the device. To ensure a consistent baseline, the same optimised _.engine_ file
-was used across all three implementations.
+All implementations interact with the ONNX Runtime 1.24.0 to load and execute
+the AI model, which is responsible for the data transfer and inference
+orchestration on the host, and hands off responsibility to TensorRT for
+inference execution on the device. To ensure a consistent baseline, the same
+optimised TensorRT context files (`_epctx.onnx`) were used across all three
+implementations.
 
 Performance and overhead of the language runtime models was measured at the
 boundary of the host/device memory separation, where the CPU manages the runtime
@@ -1020,6 +1021,19 @@ a zero-allocation approach was used. This was achieved by ensuring all necessary
 memory (e.g. the bounded queue) was pre-allocated during initialisation, and
 lightweight data structures (e.g. the telemetry `Epoch`) were continuously
 reused rather than reallocated.
+
+== AI Model Generation
+
+Hardware-agnostic `.onnx` AI model files were generated offline using PyTorch
+\2.13.0. Dynamic axes (i.e. allowing the inference data to be of variable sizes)
+were forbidden to ensure that the TensorRT engine would not dynamically allocate
+memory during inference, instead allocating memory once upon startup thus
+improving performance and preserving the zero-allocation approach. These models
+were then transferred to the Jetson Orin Nano and compiled into
+hardware-specific `_epctx.onnx` (Execution Plan Context) files using ONNX
+Runtime \1.24.0. These file ensures that the models do not need to be
+re-optimised at startup for each evaluation, and that the same optimised model
+is used across all three implementations for all evaluations.
 
 == Profiling and Metrics
 
