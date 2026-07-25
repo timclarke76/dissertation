@@ -1010,6 +1010,13 @@ memory (e.g. the bounded queue) was pre-allocated during initialisation, and
 lightweight data structures (e.g. the telemetry `Epoch`) were continuously
 reused rather than reallocated.
 
+A buffer was pre-allocated in each inference thread to copy the payload from
+every frame in the temporal window, providing a contiguous data source for the
+TensorRT engine without utilising dynamic memory allocation. This was necessary
+as the shared memory buffer is a ring buffer, and so later frames may precede
+earlier frames in memory. Furthermore each frame contains a header before the
+payload, causing the data to be strided.
+
 == AI Model Generation
 
 Hardware-agnostic `.onnx` AI model files were generated offline using PyTorch
