@@ -1876,6 +1876,13 @@ However, errors that the other languages would catch at compile time are only
 discovered at runtime in Python, risking reduced system stability within the
 production environment.
 
+It is worth noting that while Rust's memory management philosophy might be
+considered to sit somewhere between the developer-responsibility paradigm of C++
+and the garbage-collected paradigm of Python, Rust developers benefit from fast
+compilation times, and the only paradigm under evaluation that guarantees memory
+safety before runtime. This is a significant advantage when developing and
+maintaining large, complex systems.
+
 == Error Handling
 
 Rust's `Result` type forces developers to explicitly handle failure states at
