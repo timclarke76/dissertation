@@ -202,18 +202,6 @@ and temporal discontinuity. However, this dissertation is strictly concerned
 with performance measurements of latency, throughput, and memory efficiency at
 the system level, and not the accuracy of the HAR model itself.
 
-Because the shared memory buffer is circular and unbounded, there is a
-possibility that the producer overwrites a frame while the consumer is reading
-it, leading to misalignment or read-tearing of the sensor data. This would be
-unacceptable in a production environment, requiring a separate _memory arena_ to
-store the sensor data and guarantee that the producer does not overwrite a frame
-until the consumer has released it. However, implementing such a solution would
-effectively bound the load generator, reducing the system pressure and hiding
-the queueing delays that this report aims to measure. As the HAR pipeline serves
-only as a testbed, and the accuracy of the AI inference does not form a part of
-the evaluation, the system accepts misalignment and read-tearing to preserve the
-unbounded nature of the load generator.
-
 
 == Dissertation Outline
 
@@ -1467,6 +1455,28 @@ not visible to the telemetry thread when using `gc.get_stats()`. While this
 asymmetry is a limitation when comparing memory churn across all three runtime
 models, the methodology mitigates this by using the RSS as a baseline that
 captures all memory demand regardless of its origin.
+
+=== Read-Tearing and Misalignment
+
+Because the shared memory buffer is circular and unbounded, there is a risk that
+the producer overwrites a frame while the consumer is reading it, leading to
+misalignment or read-tearing of the sensor data. This would be unacceptable in a
+production environment, requiring a separate _memory arena_ to store the sensor
+data and guarantee that the producer does not overwrite a frame until the
+consumer has released it. However, implementing such a solution would
+effectively bound the load generator, causing it to block when the pipeline is
+saturated, thus reducing the system pressure and hiding the queueing delays that
+this report aims to measure.
+
+As the HAR pipeline serves only as a testbed, and the accuracy of the AI
+inference does not form a part of the evaluation, the system accepts the
+possibility of read-tearing to preserve the unbounded nature of the load
+generator. This is minimised by adopting a 1-second ring buffer paired with the
+\100 ms latency deadline, building a \900 ms temporal safety margin into the
+architecture, which is sufficient to ensure that read-tearing would only be
+possible in the event of a major system stall (e.g. an extreme GC
+"stop-the-world" pause or severe thermal throttling event).
+
 
 === Temporal Alignment of Late-Fusion
 
