@@ -438,7 +438,8 @@ learning. It utilises a GC, abstracting memory management to reduce cognitive
 load and the risk of memory-safety bugs, but at the cost of increased latency
 and unpredictable latency jitter due to "stop-the-world" GC events. Latency is
 further impacted by the Global Interpreter Lock (GIL), which prevents true
-concurrency across multiple CPU cores.
+concurrency across multiple CPU cores. However, C-extensions (such as ONNX) are
+able to bypass the GIL, allowing them to run concurrently on multiple cores.
 
 == Stream Processing & Backpressure
 
@@ -708,9 +709,12 @@ of the pipelines were consistently backpressured (see @sec-backpressure).
 The load generator was written in Rust to take advantage of its performance and
 memory safety guarantees. For maximum timing accuracy,
 `nix::time::clock_nanosleep` was used to implement the timing of the data
-generation, the generator was pinned to one CPU core to prevent jitter caused by
-the overhead of saving and restoring the generator thread state, and the process
-was given a real-time scheduling policy.
+generation. `CLOCK_MONOTONIC` was used for high resolution timing, and Network
+Time Protocol (NTP) synchronisation was disabled using
+`timedatectl set-ntp false` to prevent the system clock from being adjusted
+during the experiments. The generator was pinned to one CPU core to prevent
+jitter caused by the overhead of saving and restoring the generator thread
+state, and the process was given a real-time scheduling policy.
 
 Before using the load generator, the HAR pipelines were tested with real sensor
 data to ensure that they were functionally correct and optimised. A lightweight
@@ -782,11 +786,13 @@ policy when full.
 Using Little's Law ($L = lambda W$) @little1961, the capacity of each consumer
 buffer was determined by multiplying the _target_ baseline throughput ($lambda$)
 by the maximum deadline ($W$) for processing an event. The target throughput is
-based on the _native_ generation rate of the physical sensors. As stated in
+based on the _native_ generation rate of the physical sensors (i.e. a load
+multiplier of \1.0), allowing the pipelines to be tested under simulated system
+stress relative to the baseline speed of the physical sensors. As stated in
 @sec:problem-statement, a maximum deadline of \100 ms was selected based on Xue
-et al. (2025) @xue2025, resulting in a capacity of \3 for the RGB stream (30
-FPS), \160 for the accelerometer stream (1.6 kHz), and \200 for the gyroscope
-stream (2.0 kHz).
+et al. (\2025) @xue2025, resulting in a capacity of \3 for the RGB stream (\30
+FPS), \160 for the accelerometer stream (\1.6 kHz), and \200 for the gyroscope
+stream (\2.0 kHz).
 
 #figure(
   pad(top: 1.5em)[
@@ -1013,9 +1019,13 @@ reused rather than reallocated.
 A buffer was pre-allocated in each inference thread to copy the payload from
 every frame in the temporal window, providing a contiguous data source for the
 TensorRT engine without utilising dynamic memory allocation. This was necessary
-as the shared memory buffer is a ring buffer, and so later frames may precede
-earlier frames in memory. Furthermore each frame contains a header before the
-payload, causing the data to be strided.
+because the shared memory buffer operates as a ring, and so a temporal window
+may wrap around the physical memory, causing later frames to precede earlier
+frames. Furthermore, each frame contains a timestamp before the payload, causing
+the data to be strided. The contiguous buffer was bound to the inference
+execution context (using `Ort::IoBinding` for C++, `ort::value::TensorRef` for
+Rust, and `onnxruntime.IOBinding` for Python) to prevent the TensorRT engine
+from dynamically allocating memory or internally copying data during inference.
 
 == AI Model Generation
 
@@ -1390,13 +1400,16 @@ events with performance metrics.
 
 Latency measurements have no theoretical maximum, but are inherently bounded by
 a minimum value of zero. This typically results in non-normal distributions
-which are heavily skewed to the right, with long tails and outliers
-@tene2014, requiring non-parametric methods for statistical
-analysis. Data cleaning was restricted to only removing the first #ct[TODO]
-events to allow for warm-up and system stabilisation. The outliers are evidence
-of backpressure events and runtime model pauses (e.g. Garbage Collection in
-Python), necessary for benchmarking and implementation comparisons, and
-consequently were not removed.
+which are heavily skewed to the right, with long tails and outliers @tene2014,
+requiring non-parametric methods for statistical analysis. The outliers are
+evidence of backpressure events and runtime model pauses (e.g. Garbage
+Collection in Python), necessary for benchmarking and implementation
+comparisons, and consequently were not removed. Cold start measurements were
+analysed separately to prevent them from skewing the measurements of the
+steady-state performance. The cold start boundary was determined by calculating
+the moving average of the latency measurements and identifying the point at
+which the moving average stayed within 5% of the average stabilised latency for
+one second.
 
 The mean is sensitive to outliers and skewed distributions, and so would not
 provide an accurate measure of central tendency. Instead, the median ($"p50"$)
@@ -1450,21 +1463,21 @@ development lifecycle overhead.
 
 An asymmetry exists in the measurement of memory churn across the three
 implementations. When overriding `operator new` and `operator delete` in C++,
-memory allocations made by third-party headers (e.g. #ct[TODO]) are captured,
-but allocations made internally by pre-compiled shared libraries (e.g.
-#ct[TODO]) are not. Similarly, in Rust, allocations made by idiomatic wrapper
-crates (e.g. #ct[TODO]) are captured, but those in the underlying pre-compiled
-libraries are not.
+memory allocations made by third-party headers (e.g.
+`moodycamel::BlockingConcurrentQueue`) are captured, but allocations made
+internally by pre-compiled shared libraries (e.g. `libonnxruntime.so`) are not.
+Similarly, in Rust, allocations made by wrapper crates (e.g. `ort`)
+are captured, but those in the underlying pre-compiled libraries are not.
 
 As both the C++ headers and the Rust wrapper crates use the same underlying C
 API, they are symmetric in capturing the memory overhead required to serialise
 data across the Foreign Function Interface (FFI). However, an asymmetry exists
 in the capture of memory allocation within Python's third-party C-extension
-bindings (e.g. #ct[TODO]), which do not use Python's memory manager and thus are
-not visible to the telemetry thread when using `gc.get_stats()`. While this
-asymmetry is a limitation when comparing memory churn across all three runtime
-models, the methodology mitigates this by using the RSS as a baseline that
-captures all memory demand regardless of its origin.
+bindings (e.g. `onnxruntime`), which do not use Python's memory manager and thus
+are not visible to the telemetry thread when using `sys.getallocatedblocks()`.
+While this asymmetry is a limitation when comparing memory churn across all
+three runtime models, the methodology mitigates this by using the RSS as a
+baseline that captures all memory demand regardless of its origin.
 
 === Read-Tearing and Misalignment
 
@@ -1500,10 +1513,11 @@ it is recognised that temporal alignment drift is inevitable even in the absence
 of load-shedding.
 
 This would need to be mitigated in a production environment by using a timestamp
-delta to bound the temporal window. However, for this report's evaluation, the
-inference counter is retained to prevent a fluctuating workload of the
-late-fusion thread, which would make it impossible to compare the true overhead
-of the runtime models under identical load conditions.
+delta to bound the temporal window. However, this would introduce a confounder
+to this report's evaluation, as the workload would fluctuate according to
+language-specific overhead (such as garbage collection pauses in Python).
+Therefore, an inference counter was required to allow a true comparison of the
+overhead of the three runtime models under identical load conditions.
 
 === Temporal Alignment of Telemetry
 
@@ -1971,6 +1985,16 @@ maturity of the ecosystem is still evolving. In contrast to C++, many of Rust's
 foundation libraries (e.g. `libc`, `nix`) remain in "zerover" (0.x.y)
 pre-release states. This results in a cognitive burden caused by API changes,
 deprecated or incomplete documentation, and conflicting online resources.
+
+Furthermore, whereas C++ uses system-installed shared libraries, meaning they
+are _layer cached_ early in the Docker image build process, Rust's `cargo`
+downloads and compiles all dependencies during the build process, resulting in
+extended deployment times. Circumventing this required dummy source files to be
+created (with an identical `Cargo.toml` manifest) to allow a layer to be cached
+early, thus mitigating download-and-compile overhead during every deployment. It
+was also necessary to artificially update the modification timestamps of the
+real source files to guarantee that the later `cargo build` command would
+recompile the source files, rather than using the cached dummy executables.
 
 Python's large ecosystem accelerates initial prototyping, but introduces
 friction during deployment. While C++ and Rust compile down to stand-alone

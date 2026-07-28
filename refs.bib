@@ -71,6 +71,18 @@
   urldate = {2026-05-10},
 }
 
+@online{pypi,
+  title = {PyPI - the Python Package Index},
+  url = {https://pypi.org/},
+  urldate = {2026-07-25},
+}
+
+@online{pypi_devpi,
+  title = {devpi},
+  url = {https://pypi.jetson-ai-lab.io/},
+  urldate = {2026-07-25},
+}
+
 @online{l4t-jetpack-36-4-0,
   title = {NVIDIA L4T JetPack 36.4.0},
   url = {https://catalog.ngc.nvidia.com/orgs/nvidia/-/containers/l4t-jetpack/r36.4.0},
@@ -93,6 +105,55 @@
     url={https://oiccpress.com/ijeee/article/view/18454},
     DOI={10.57647/ijeee.2025.1602.07},
 }
+
+@article{little1961,
+  title = {A proof for the queuing formula: L = λW},
+  author = {Little, John DC},
+  journal = {Operations Research},
+  volume = {9},
+  number = {3},
+  pages = {383--387},
+  year = {1961},
+  publisher = {INFORMS},
+  url = {https://www2.isye.gatech.edu/~spyros/courses/IE7201/Fall-13/Little-OR-paper.pdf},
+}
+
+@inproceedings{li2020,
+author = {Li, Yuanqi and Padmanabhan, Arthi and Zhao, Pengzhan and Wang, Yufei and Xu, Guoqing Harry and Netravali, Ravi},
+title = {Reducto: On-Camera Filtering for Resource-Efficient Real-Time Video Analytics},
+year = {2020},
+isbn = {9781450379557},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3387514.3405874},
+doi = {10.1145/3387514.3405874},
+abstract = {To cope with the high resource (network and compute) demands of real-time video analytics pipelines, recent systems have relied on frame filtering. However, filtering has typically been done with neural networks running on edge/backend servers that are expensive to operate. This paper investigates on-camera filtering, which moves filtering to the beginning of the pipeline. Unfortunately, we find that commodity cameras have limited compute resources that only permit filtering via frame differencing based on low-level video features. Used incorrectly, such techniques can lead to unacceptable drops in query accuracy. To overcome this, we built Reducto, a system that dynamically adapts filtering decisions according to the time-varying correlation between feature type, filtering threshold, query accuracy, and video content. Experiments with a variety of videos and queries show that Reducto achieves significant (51-97\% of frames) filtering benefits, while consistently meeting the desired accuracy.},
+booktitle = {Proceedings of the Annual Conference of the ACM Special Interest Group on Data Communication on the Applications, Technologies, Architectures, and Protocols for Computer Communication},
+pages = {359–376},
+numpages = {18},
+keywords = {deep neural networks, object detection, video analytics},
+location = {Virtual Event, USA},
+series = {SIGCOMM '20}
+}
+
+@inproceedings{rivetti2016,
+author = {Rivetti, Nicol\'{o} and Busnel, Yann and Querzoni, Leonardo},
+title = {Load-aware shedding in stream processing systems},
+year = {2016},
+isbn = {9781450340212},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/2933267.2933311},
+doi = {10.1145/2933267.2933311},
+abstract = {Load shedding is a technique employed by stream processing systems to handle unpredictable spikes in the input load whenever available computing resources are not adequately provisioned. A load shedder drops tuples to keep the input load below a critical threshold and thus avoid tuple queuing and system trashing. In this paper we propose Load-Aware Shedding (LAS), a novel load shedding solution that drops tuples with the aim of maintaining queuing times below a tunable threshold. Tuple execution durations are estimated at runtime using efficient sketch data structures. We provide a theoretical analysis proving that LAS is an (ε, δ)-approximation of the optimal online load shedder and show its performance through a practical evaluation based both on simulations and on a running prototype.},
+booktitle = {Proceedings of the 10th ACM International Conference on Distributed and Event-Based Systems},
+pages = {61–68},
+numpages = {8},
+keywords = {stream processing, load shedding, data streaming},
+location = {Irvine, California},
+series = {DEBS '16}
+}
+
 @software{hdrhistogram,
   author = {Tene, Gil},
   title = {HdrHistogram: A High Dynamic Range Histogram},
