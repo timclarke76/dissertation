@@ -26,7 +26,6 @@ class StreamConfig:
     queue: EventQueueConfig
     stream_id: int
     policy: Policy
-    duration: dt.timedelta
 
 
 def spawn_bridge_and_inference_threads(
@@ -35,7 +34,6 @@ def spawn_bridge_and_inference_threads(
     queue_capacity: int,
     inference_sender: Sender,
     policy: Policy,
-    inference_time: int,
     inference_window: int,
     frame_shape: list[int],
     item_size_bytes: int,
@@ -52,8 +50,6 @@ def spawn_bridge_and_inference_threads(
         inference_sender: A `SyncSender<ShmFrame>` used to send processed frames
         to the fusion thread.
         policy: The backpressure policy to apply when the queue is full.
-        inference_time: The simulated time taken to process each frame in the
-        inference thread.
         inference_window: The number of frames to process in each inference
         window.
         frame_shape: The shape of the frames being processed, suitable for
@@ -71,7 +67,7 @@ def spawn_bridge_and_inference_threads(
         stream_name,
         queue,
         inference_sender,
-        inference_time,
+        f"./models/{stream_name}_epctx.onnx",
         inference_window,
         frame_shape,
         item_size_bytes,
@@ -88,19 +84,16 @@ def main():
             queue=SETTINGS.rgb_queue_config,
             stream_id=ShmBuffer.RGB_STREAM_ID,
             policy=SETTINGS.rgb_policy,
-            duration=dt.timedelta(milliseconds=33),
         ),
         StreamConfig(
             queue=SETTINGS.accel_queue_config,
             stream_id=ShmBuffer.ACCEL_STREAM_ID,
             policy=SETTINGS.accel_policy,
-            duration=dt.timedelta(microseconds=500),
         ),
         StreamConfig(
             queue=SETTINGS.gyro_queue_config,
             stream_id=ShmBuffer.GYRO_STREAM_ID,
             policy=SETTINGS.gyro_policy,
-            duration=dt.timedelta(microseconds=400),
         ),
     ]
 
@@ -117,7 +110,6 @@ def main():
             cfg.queue.capacity_frames,
             inference_sender,
             cfg.policy,
-            cfg.duration.total_seconds(),
             int(cfg.queue.fps / MIN_FPS),
             cfg.queue.frame_shape,
             cfg.queue.item_size_bytes,

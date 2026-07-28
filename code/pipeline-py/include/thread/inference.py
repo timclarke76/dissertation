@@ -3,9 +3,9 @@ import time
 
 import ctypes
 from multiprocessing import shared_memory
-from multiprocessing.resource_tracker import unregister
 import numpy as np
 
+from include.inference import InferenceEngine
 from include.os import Sender, ShmBuffer
 from include.queue import Queue
 
@@ -14,7 +14,7 @@ def spawn_inference_thread(
     stream_name: str,
     queue: Queue,
     sender: Sender,
-    inference_time: int,
+    model_path: str,
     window_frames: int,
     frame_shape: list[int],
     item_size_bytes: int,
@@ -30,7 +30,7 @@ def spawn_inference_thread(
         processing.
         sender: A reference to the Sender used to send processed frames to the
         next stage in the pipeline.
-        inference_time: The simulated time taken to process each frame.
+        model_path: The path to the ONNX model file.
         window_frames: The number of frames to process in each inference window.
         frame_shape: The shape of the frames being processed, suitable for
         tensor.
@@ -42,16 +42,16 @@ def spawn_inference_thread(
 
     def inference_thread():
         window_size_items = int(np.prod(frame_shape))
-        window_size_bytes = window_size_items * item_size_bytes
-        frame_size_bytes = window_size_bytes // window_frames
+        frame_size_items = window_size_items // window_frames
 
         shm = shared_memory.SharedMemory(name=stream_name)
-        unregister(shm._name, 'shared_memory')
         shm_ptr = ctypes.addressof(ctypes.c_char.from_buffer(shm.buf))
 
-        tensor_data = (ctypes.c_uint8 * window_size_bytes)()
-        tensor_ptr = ctypes.addressof(tensor_data)
+        tensor_data = np.zeros(frame_shape, dtype=np.float32)
+        tensor_ptr = int(tensor_data.ctypes.data)
+        tensor_flat = tensor_data.ravel()
 
+        engine = InferenceEngine(model_path, tensor_data)
         samples_collected = 0
 
         while True:
@@ -62,7 +62,7 @@ def spawn_inference_thread(
 
             t_pipeline_in = time.perf_counter_ns()
 
-            if frame != None:
+            if frame is not None:
                 frame.lapped_frames = lapped_frames
                 frame.dropped_frames = dropped_frames
 
@@ -77,20 +77,33 @@ def spawn_inference_thread(
                         )
                     break
 
-                src_ptr = int(shm_ptr + frame.payload_offset)
-                dst_ptr = int(
-                    tensor_ptr + (samples_collected * frame_size_bytes)
-                )
-                ctypes.memmove(dst_ptr, src_ptr, frame_size_bytes)
+                item_offset = samples_collected * frame_size_items
+
+                if item_size_bytes == 1:
+                    src_array = np.frombuffer(
+                        shm.buf,
+                        dtype=np.uint8,
+                        count=frame_size_items,
+                        offset=frame.payload_offset,
+                    )
+
+                    tensor_flat[
+                        item_offset : item_offset + frame_size_items
+                    ] = src_array
+
+                    del src_array
+                else:
+                    frame_size_bytes = frame_size_items * 4
+                    src_ptr = int(shm_ptr + frame.payload_offset)
+                    dst_ptr = int(tensor_ptr + (item_offset * 4))
+                    ctypes.memmove(dst_ptr, src_ptr, frame_size_bytes)
 
                 samples_collected += 1
 
                 if samples_collected >= window_frames:
                     frame.timestamps[ShmBuffer.PIPELINE_IN_TS] = t_pipeline_in
 
-                    time.sleep(
-                        inference_time / 1_000_000_000
-                    )  # Simulate inference
+                    engine.run()
 
                     frame.timestamps[ShmBuffer.PIPELINE_OUT_TS] = (
                         time.perf_counter_ns()
