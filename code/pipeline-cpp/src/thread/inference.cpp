@@ -33,6 +33,7 @@ spawn_inference_thread(const std::string& stream_name,
     for (;;) {
       std::unique_lock<std::mutex> transaction_lock(queue->mutex);
       auto item = queue->pop();
+      const auto t_pipeline_in = current_time_nanos();
       auto lapped_frames = queue->lapped_frames;
       auto dropped_frames = queue->dropped_frames;
       transaction_lock.unlock();
@@ -66,7 +67,7 @@ spawn_inference_thread(const std::string& stream_name,
         samples_collected++;
 
         if (samples_collected >= window_frames) {
-          item->timestamps[ShmBuffer::PIPELINE_IN_TS] = current_time_nanos();
+          item->timestamps[ShmBuffer::PIPELINE_IN_TS] = t_pipeline_in;
           engine.run();
           item->timestamps[ShmBuffer::PIPELINE_OUT_TS] = current_time_nanos();
 
