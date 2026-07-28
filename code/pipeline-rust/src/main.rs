@@ -76,7 +76,38 @@ fn spawn_bridge_and_inference_threads(
 }
 
 fn main() -> Result<()> {
+    ort::init().with_name("pipeline").commit();
+
     let args = Args::try_parse()?;
+
+    if args.precompile {
+        print!("Pre-compiling RGB model ...");
+        let _ = InferenceEngine::try_new(
+            "./models/RGB_epctx.onnx",
+            vec![1, 3, 1080, 1920],
+        )
+        .expect("Failed to pre-compile RGB");
+        println!(" done");
+
+        print!("Pre-compiling Accelerometer model ...");
+        let _ = InferenceEngine::try_new(
+            "./models/Accelerometer_epctx.onnx",
+            vec![1, 53, 3],
+        )
+        .expect("Failed to pre-compile Accelerometer");
+        println!(" done");
+
+        print!("Pre-compiling Gyroscope model ...");
+        let _ = InferenceEngine::try_new(
+            "./models/Gyroscope_epctx.onnx",
+            vec![1, 66, 3],
+        )
+        .expect("Failed to pre-compile Gyroscope");
+        println!(" done");
+
+        return Ok(());
+    }
+
     let settings = Settings::try_new(args)?;
 
     let configs = [

@@ -23,6 +23,7 @@ nvpmodel -m 2
 jetson_clocks
 
 IMAGE="dissertation:latest"
+ORT_DYLIB_PATH="/app/pipeline-py/.venv/lib/python3.10/site-packages/onnxruntime/capi/libonnxruntime.so.1.24.0"
 VOLUME="$(pwd)/results"
 rm -rf "$VOLUME"
 mkdir -p "$VOLUME"
@@ -88,6 +89,9 @@ PIPELINE_ARGS=(
 rm -rf $(pwd)/models/*_epctx.onnx $(pwd)/models/trt_cache/ $(pwd)/trt_cache/
 docker run --rm ${TRT_ARGS[@]} -w /app $IMAGE \
     /app/pipeline-py/.venv/bin/python3 compile_trt.py
+docker run ${PIPELINE_ARGS[@]} -e ORT_DYLIB_PATH="$ORT_DYLIB_PATH" \
+    --workdir "$WORK_DIR" $IMAGE \
+    /app/pipeline-rust/target/release/pipeline-rust --precompile
 chown -R tim:tim $(pwd)/models/
 chown -R tim:tim $(pwd)/trt_cache/
 
@@ -227,7 +231,7 @@ EOF
 
             elif [ "$lang" == "rust" ]; then
                 docker run ${PIPELINE_ARGS[@]} \
-                    -e ORT_DYLIB_PATH="/app/pipeline-py/.venv/lib/python3.10/site-packages/onnxruntime/capi/libonnxruntime.so.1.24.0" \
+                    -e ORT_DYLIB_PATH="$ORT_DYLIB_PATH" \
                     --workdir "$WORK_DIR" $IMAGE \
                     /app/pipeline-rust/target/release/pipeline-rust \
                         --settings /results/settings.toml
