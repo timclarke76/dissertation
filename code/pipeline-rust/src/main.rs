@@ -4,18 +4,19 @@ use std::{
         mpsc::{SyncSender, sync_channel},
     },
     thread::JoinHandle,
-    time::Duration,
 };
 
 use anyhow::Result;
 use clap::Parser;
 
 mod config;
+mod inference;
 mod os;
 mod queue;
 mod thread;
 
 use config::{Args, Policy, Settings};
+use inference::InferenceEngine;
 use os::{ShmBuffer, ShmFrame, TrackingAllocator};
 use queue::Queue;
 use thread::{
@@ -36,8 +37,6 @@ static GLOBAL: TrackingAllocator = TrackingAllocator;
 /// * `inference_sender` - A `SyncSender<ShmFrame>` used to send
 ///   processed frames to the fusion thread.
 /// * `policy` - The backpressure policy to apply when the queue is full.
-/// * `inference_time` - The simulated time taken to process each frame in the
-///   inference thread.
 /// * `inference_window` - The number of frames to process in each inference
 ///   window.
 /// * `frame_shape` - The shape of the frames being processed, suitable for
@@ -53,7 +52,6 @@ fn spawn_bridge_and_inference_threads(
     queue_capacity: usize,
     inference_sender: SyncSender<ShmFrame>,
     policy: Policy,
-    inference_time: Duration,
     inference_window: usize,
     frame_shape: Vec<i64>,
     item_size_bytes: usize,
@@ -67,7 +65,7 @@ fn spawn_bridge_and_inference_threads(
         stream_name,
         &queue,
         inference_sender,
-        inference_time,
+        format!("./models/{}_epctx.onnx", stream_name).as_str(),
         inference_window,
         frame_shape,
         item_size_bytes,
@@ -86,41 +84,33 @@ fn main() -> Result<()> {
             &settings.rgb_queue_config,
             ShmBuffer::RGB_STREAM_ID,
             settings.rgb_policy,
-            Duration::from_millis(33),
         ),
         (
             &settings.accel_queue_config,
             ShmBuffer::ACCEL_STREAM_ID,
             settings.accel_policy,
-            Duration::from_micros(500),
         ),
         (
             &settings.gyro_queue_config,
             ShmBuffer::GYRO_STREAM_ID,
             settings.gyro_policy,
-            Duration::from_micros(400),
         ),
     ];
 
-    let min_fps = configs
-        .iter()
-        .map(|(queue, _, _, _)| queue.fps)
-        .min()
-        .unwrap();
+    let min_fps = configs.iter().map(|(queue, _, _)| queue.fps).min().unwrap();
 
     let (inference_sender, fusion_receiver) =
         sync_channel::<ShmFrame>(configs.len());
 
     let mut handles: Vec<_> = configs
         .into_iter()
-        .flat_map(|(queue, stream_id, policy, duration)| {
+        .flat_map(|(queue, stream_id, policy)| {
             let (bridge, inference) = spawn_bridge_and_inference_threads(
                 queue.name.as_str(),
                 stream_id,
                 queue.capacity_frames,
                 inference_sender.clone(),
                 policy,
-                duration,
                 queue.fps / min_fps,
                 queue.frame_shape.clone(),
                 queue.item_size_bytes,

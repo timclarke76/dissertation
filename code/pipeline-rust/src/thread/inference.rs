@@ -2,20 +2,19 @@ use std::{
     hint::spin_loop,
     sync::{Arc, Mutex, mpsc::SyncSender},
     thread::{self, JoinHandle},
-    time::Duration,
 };
 
 use anyhow::{Context, Result};
 
 use crate::{
-    os::now_nanos,
-    os::{ShmBuffer, ShmFrame},
+    inference::InferenceEngine,
+    os::{ShmBuffer, ShmFrame, now_nanos},
     queue::Queue,
 };
 
 /// Spawns a new thread that continuously processes frames from a shared memory
-/// buffer and sends them to the next stage in the pipeline, simulating
-/// inference processing time for each frame.
+/// buffer and sends them to the next stage in the pipeline, running inference
+/// using the specified ONNX model.
 ///
 /// * `stream_name` - The name of the stream associated with this inference
 ///   thread.
@@ -23,11 +22,11 @@ use crate::{
 ///   processing.
 /// * `sender` - A reference to the Sender used to send processed frames to the
 ///   next stage in the pipeline.
-/// * `time` - The simulated time taken to process each frame.
+/// * `model_path` - The path to the ONNX model file used for inference.
 /// * `window_frames` - The number of frames to process in each inference
 ///   window.
 /// * `frame_shape` - The shape of the frames being processed, suitable for
-///   tensor
+///   tensor.
 /// * `item_size_bytes` - The size of each frame item in bytes (e.g., 1 byte for
 ///   u8, 4 bytes for f32).
 ///
@@ -37,24 +36,25 @@ pub fn spawn_inference_thread(
     stream_name: impl Into<String>,
     queue: &Arc<Mutex<Queue<ShmFrame>>>,
     sender: SyncSender<ShmFrame>,
-    time: Duration,
+    model_path: &str,
     window_frames: usize,
     frame_shape: Vec<i64>,
     item_size_bytes: usize,
 ) -> Result<JoinHandle<()>> {
     let stream_name = stream_name.into();
     let queue = Arc::clone(queue);
+    let model_path = model_path.to_string();
 
     thread::Builder::new()
         .name(format!("inference_{}", stream_name))
         .spawn(move || {
             let window_size_items: usize =
                 frame_shape.iter().map(|&s| s as usize).product();
-            let window_size_bytes = window_size_items * item_size_bytes;
-            let frame_size_bytes = window_size_bytes / window_frames;
+            let frame_size_items = window_size_items / window_frames;
 
-            let mut tensor_data = vec![0u8; window_size_bytes];
-            let tensor_ptr = tensor_data.as_mut_ptr() as *mut u8;
+            let mut tensor_data = vec![0.0f32; window_size_items];
+            let mut engine = InferenceEngine::try_new(&model_path, frame_shape)
+                .expect("Failed to initialise InferenceEngine");
 
             let mut samples_collected = 0;
 
@@ -82,13 +82,39 @@ pub fn spawn_inference_thread(
                         break;
                     }
 
-                    unsafe {
-                        let offset = samples_collected * frame_size_bytes;
-                        std::ptr::copy_nonoverlapping(
-                            frame.payload_ptr.ptr,
-                            tensor_ptr.add(offset),
-                            frame_size_bytes,
-                        );
+                    let item_offset = samples_collected * frame_size_items;
+
+                    if item_size_bytes == 1 {
+                        unsafe {
+                            let src_slice = std::slice::from_raw_parts(
+                                frame.payload_ptr.ptr,
+                                frame_size_items,
+                            );
+
+                            let dest_slice = &mut tensor_data
+                                [item_offset..item_offset + frame_size_items];
+
+                            for (d, s) in
+                                dest_slice.iter_mut().zip(src_slice.iter())
+                            {
+                                *d = *s as f32;
+                            }
+                        }
+                    } else {
+                        unsafe {
+                            let frame_size_bytes =
+                                frame_size_items * std::mem::size_of::<f32>();
+
+                            let dest_ptr =
+                                tensor_data.as_mut_ptr().add(item_offset)
+                                    as *mut u8;
+
+                            std::ptr::copy_nonoverlapping(
+                                frame.payload_ptr.ptr,
+                                dest_ptr,
+                                frame_size_bytes,
+                            );
+                        }
                     }
 
                     samples_collected += 1;
@@ -97,7 +123,9 @@ pub fn spawn_inference_thread(
                         frame.timestamps[ShmBuffer::PIPELINE_IN_TS] =
                             t_pipeline_in;
 
-                        std::thread::sleep(time); // Simulate inference
+                        engine
+                            .run(&tensor_data)
+                            .expect("Inference execution failed");
 
                         frame.timestamps[ShmBuffer::PIPELINE_OUT_TS] =
                             now_nanos().expect(

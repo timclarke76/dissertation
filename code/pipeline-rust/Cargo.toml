@@ -11,5 +11,7 @@ config = "0.15.25"
 hdrhistogram = "7.5.4"
 itoa = "1.0.18"
 libc = "0.2.186"
+ndarray = "0.17.2"
 nix = { version = "0.31.3", features = ["fs", "mman", "time"] }
+ort = { version = "2.0.0-rc.12", features = ["tensorrt", "ndarray", "load-dynamic"] }
 serde = { version = "1.0.228", features = ["derive"] }
