@@ -124,10 +124,6 @@ pub struct ShmFrame {
 
 /// Connects to a circular shared memory buffer and reads its frames.
 pub struct ShmBuffer {
-    /// The name of the shared memory buffer. Also used for logging and error
-    /// messages.
-    name: String,
-
     /// The stream ID associated with this buffer. Used to create the `ShmFrame`
     /// struct when reading frames.
     stream_id: usize,
@@ -241,7 +237,6 @@ impl ShmBuffer {
         }
 
         Ok(Self {
-            name,
             stream_id,
             header,
             data_ptr: unsafe { shm_ptr.add(std::mem::size_of::<ShmHeader>()) },

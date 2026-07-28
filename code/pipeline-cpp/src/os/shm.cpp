@@ -13,21 +13,20 @@
 #include "shm.h"
 
 ShmBuffer::ShmBuffer(const std::string_view& name, const size_t stream_id)
-  : name_(name)
-  , stream_id_(stream_id)
+  : stream_id_(stream_id)
 {
-  header_ = open_shm_file();
+  header_ = open_shm_file(name);
 
   if (header_->magic != Header::MAGIC) {
     throw std::runtime_error(std::format(
       "Memory corruption or invalid magic number in shared memory '{}'",
-      name_));
+      name));
   }
 
   if (header_->version != Header::VERSION) {
     throw std::runtime_error(std::format(
       "Incompatible version in shared memory '{}': expected {}, got {}",
-      name_,
+      name,
       Header::VERSION,
       header_->version));
   }
@@ -95,13 +94,13 @@ ShmBuffer::next_frame()
 }
 
 ShmBuffer::Header*
-ShmBuffer::open_shm_file()
+ShmBuffer::open_shm_file(const std::string_view& name)
 {
-  const int fd = shm_open(name_.c_str(), O_RDWR, 0);
+  const int fd = shm_open(name.data(), O_RDWR, 0);
 
   if (fd == -1) {
     throw std::runtime_error(std::format(
-      "Failed to open shared memory '{}': {}", name_, std::strerror(errno)));
+      "Failed to open shared memory '{}': {}", name, std::strerror(errno)));
   }
 
   struct stat sb;
@@ -110,7 +109,7 @@ ShmBuffer::open_shm_file()
     close(fd);
     throw std::runtime_error(
       std::format("Failed to get metadata for shared memory '{}': {}",
-        name_,
+        name,
         std::strerror(errno)));
   }
 
@@ -120,7 +119,7 @@ ShmBuffer::open_shm_file()
   if (ptr == MAP_FAILED) {
     close(fd);
     throw std::runtime_error(std::format(
-      "Failed to map shared memory '{}': {}", name_, std::strerror(errno)));
+      "Failed to map shared memory '{}': {}", name, std::strerror(errno)));
   }
 
   close(fd);

@@ -52,13 +52,13 @@ RUN cd /app/pipeline-py \
     && ln -s libonnxruntime.so.1.24.0 libonnxruntime.so.1 \
     && ln -s libonnxruntime.so.1.24.0 libonnxruntime.so
 
-RUN cd /app/generator \
-    && find src -type f -name "*.rs" -exec touch {} + \
-    && cargo build --release
-
 RUN cd /app/pipeline-cpp \
     && cmake . \
     && cmake --build . --parallel 6
+
+RUN cd /app/generator \
+    && find src -type f -name "*.rs" -exec touch {} + \
+    && cargo build --release
 
 RUN cd /app/pipeline-rust \
     && find src -type f -name "*.rs" -exec touch {} + \

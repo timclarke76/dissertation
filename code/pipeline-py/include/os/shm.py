@@ -208,7 +208,6 @@ class ShmBuffer:
             stream_id: The stream ID associated with this buffer. Used to create
             the `ShmFrame` struct when reading frames.
         """
-        self.name = name
         self.stream_id = stream_id
 
         try:

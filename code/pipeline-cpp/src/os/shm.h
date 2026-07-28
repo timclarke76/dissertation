@@ -171,13 +171,9 @@ private:
   ///
   /// \param name The name of the shared memory file to open.
   /// \return A pointer to the start of the shared memory region.
-  Header* open_shm_file();
+  Header* open_shm_file(const std::string_view& name);
 
 private:
-  /// The name of the shared memory buffer. Also used for logging and error
-  /// messages.
-  const std::string name_;
-
   /// The stream ID associated with this buffer. Used to create the `ShmFrame`
   /// struct when reading frames.
   const size_t stream_id_;
