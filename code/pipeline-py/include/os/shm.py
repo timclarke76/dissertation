@@ -4,10 +4,6 @@ import time
 import warnings
 
 from multiprocessing import shared_memory
-from multiprocessing.resource_tracker import unregister
-
-# Ignore multiprocessing resource_tracker warnings
-warnings.filterwarnings("ignore", module="multiprocessing.resource_tracker")
 
 
 class ShmHeader(ctypes.Structure):
@@ -212,7 +208,6 @@ class ShmBuffer:
 
         try:
             self.shm_ptr = shared_memory.SharedMemory(name=name)
-            unregister(self.shm_ptr._name, 'shared_memory')
         except FileNotFoundError:
             raise RuntimeError(f"Failed to open shared memory '{name}'.")
 
