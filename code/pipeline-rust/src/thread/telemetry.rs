@@ -367,7 +367,7 @@ impl TelemetryWriter {
 
             // Send the completed epoch to the telemetry thread for processing.
             self.sender
-                .try_send(epoch)
+                .send(epoch)
                 .expect("Failed to send completed epoch to telemetry thread")
         }
 
@@ -393,7 +393,7 @@ impl TelemetryWriter {
         std::mem::swap(&mut self.current_epoch, &mut termination_epoch);
 
         self.sender
-            .try_send(termination_epoch)
+            .send(termination_epoch)
             .expect("Failed to send termination epoch to telemetry thread");
 
         Ok(())
