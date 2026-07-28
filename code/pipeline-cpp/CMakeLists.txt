@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.5)
 project(pipeline_cpp)
 
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -g -fno-omit-frame-pointer")
+# set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
@@ -47,6 +50,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra -Wpedantic -pthread")
 add_executable(pipeline_cpp 
     src/config/args.cpp
     src/config/settings.cpp
+    src/inference/inference_engine.cpp
     src/os/allocator.cpp
     src/os/shm.cpp 
     src/thread/bridge.cpp
@@ -57,8 +61,15 @@ add_executable(pipeline_cpp
     src/main.cpp 
 )
 
-target_include_directories(pipeline_cpp PRIVATE src)
-target_include_directories(pipeline_cpp PRIVATE _deps/moodycamel-src/)
-target_include_directories(pipeline_cpp PRIVATE _deps/tomlplusplus-src/include/)
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/_deps/moodycamel-src/")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/_deps/tomlplusplus-src/include/")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/vendor/onnxruntime/include")
 
-target_link_libraries(pipeline_cpp rt pthread hdr_histogram_static argparse)
+target_link_libraries(pipeline_cpp
+    rt
+    pthread
+    hdr_histogram_static
+    argparse
+    "${CMAKE_CURRENT_SOURCE_DIR}/../pipeline-py/.venv/lib/python3.10/site-packages/onnxruntime/capi/libonnxruntime.so.1.24.0"
+)

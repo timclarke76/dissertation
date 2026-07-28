@@ -1,6 +1,7 @@
 #include <cstring>
 #include <numeric>
 
+#include <inference/inference_engine.h>
 #include <os/os.h>
 #include <os/time.h>
 
@@ -10,22 +11,22 @@ std::jthread
 spawn_inference_thread(const std::string& stream_name,
   std::shared_ptr<Queue<ShmBuffer::Frame>> queue,
   Sender<ShmBuffer::Frame> sender,
-  const std::chrono::duration<double>& time,
+  const std::string& model_path,
   const size_t window_frames,
   const std::vector<int64_t>& frame_shape,
   const size_t item_size_bytes)
 {
   // clang-format off
-  auto thread = std::jthread([stream_name, sender, queue, time, window_frames,
-    frame_shape, item_size_bytes]() mutable {
+  auto thread = std::jthread([stream_name, sender, queue, model_path,
+    window_frames, frame_shape, item_size_bytes]() mutable {
     // clang-format on
-    const size_t window_size_items = std::accumulate(
-      frame_shape.begin(), frame_shape.end(), 1LL, std::multiplies<int64_t>());
-    const size_t window_size_bytes = window_size_items * item_size_bytes;
-    const size_t frame_size_bytes = window_size_bytes / window_frames;
 
-    std::vector<uint8_t> tensor_data(window_size_bytes, 0);
-    char* tensor_ptr = reinterpret_cast<char*>(tensor_data.data());
+    const size_t window_size_items = static_cast<size_t>(std::accumulate(
+      frame_shape.begin(), frame_shape.end(), 1LL, std::multiplies<int64_t>()));
+    const size_t frame_size_items = window_size_items / window_frames;
+
+    std::vector<float> tensor_data(window_size_items, 0.0f);
+    InferenceEngine engine(model_path, frame_shape, tensor_data.data());
 
     size_t samples_collected = 0;
 
@@ -47,14 +48,26 @@ spawn_inference_thread(const std::string& stream_name,
           break;
         }
 
-        const auto offset = samples_collected * frame_size_bytes;
-        std::memcpy((tensor_ptr + offset), item->payload_ptr, frame_size_bytes);
+        const size_t item_offset = samples_collected * frame_size_items;
+
+        if (item_size_bytes == 1) {
+          const uint8_t* raw_src =
+            reinterpret_cast<const uint8_t*>(item->payload_ptr);
+          for (size_t i = 0; i < frame_size_items; ++i) {
+            tensor_data[item_offset + i] = static_cast<float>(raw_src[i]);
+          }
+        } else {
+          const size_t frame_size_bytes = frame_size_items * sizeof(float);
+          std::memcpy(tensor_data.data() + item_offset, 
+            item->payload_ptr, 
+            frame_size_bytes);
+        }
 
         samples_collected++;
 
         if (samples_collected >= window_frames) {
           item->timestamps[ShmBuffer::PIPELINE_IN_TS] = current_time_nanos();
-          std::this_thread::sleep_for(time); // Simulate inference
+          engine.run();
           item->timestamps[ShmBuffer::PIPELINE_OUT_TS] = current_time_nanos();
 
           try {

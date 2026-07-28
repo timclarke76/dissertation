@@ -26,9 +26,6 @@ struct StreamConfig
 
   /// The policy for handling the data stream.
   const Policy& policy;
-
-  /// The simulated inference time for the data stream.
-  const std::chrono::duration<double> inference_time;
 };
 
 /// \brief Creates a bridge thread and an inference thread for a given shared
@@ -42,8 +39,6 @@ struct StreamConfig
 /// \param inference_sender A SyncSender<ShmBuffer::Frame> used to send
 /// processed frames to the fusion thread.
 /// \param policy The backpressure policy to apply when the queue is full.
-/// \param inference_time The simulated time taken to process each frame in the
-/// inference thread.
 /// \param inference_window The number of frames to process in each inference
 /// window.
 /// \param frame_shape The shape of the frames being processed, suitable for
@@ -59,7 +54,6 @@ spawn_bridge_and_inference_threads(const std::string& stream_name,
   const size_t queue_capacity,
   Sender<ShmBuffer::Frame> inference_sender,
   const Policy& policy,
-  const std::chrono::duration<double>& inference_time,
   const size_t inference_window,
   const std::vector<int64_t>& frame_shape,
   const size_t item_size_bytes)
@@ -69,7 +63,7 @@ spawn_bridge_and_inference_threads(const std::string& stream_name,
   auto inference = spawn_inference_thread(stream_name,
     queue,
     inference_sender,
-    inference_time,
+    std::string("./models/") + stream_name + "_epctx.onnx",
     inference_window,
     frame_shape,
     item_size_bytes);
@@ -88,20 +82,17 @@ main(const int argc, const char* const* argv)
       {
           settings.get_rgb_queue_config(),
           ShmBuffer::RGB_STREAM_ID,
-          settings.get_rgb_policy(),
-          33ms
+          settings.get_rgb_policy()
       },
       {
           settings.get_accel_queue_config(),
           ShmBuffer::ACCEL_STREAM_ID,
-          settings.get_accel_policy(),
-          500us
+          settings.get_accel_policy()
       },
       {
           settings.get_gyro_queue_config(),
           ShmBuffer::GYRO_STREAM_ID,
-          settings.get_gyro_policy(),
-          400us
+          settings.get_gyro_policy()
       }
   }};
   // clang-format on
@@ -123,7 +114,6 @@ main(const int argc, const char* const* argv)
         cfg.queue.capacity_frames,
         inference_sender,
         cfg.policy,
-        cfg.inference_time,
         size_t(cfg.queue.fps / min_fps),
         cfg.queue.frame_shape,
         cfg.queue.item_size_bytes);
