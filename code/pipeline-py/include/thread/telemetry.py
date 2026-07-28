@@ -73,8 +73,7 @@ class TelemetryEpoch:
                 for _ in range(self.NUM_LATENCY_MEASURES)
             ]
         except Exception as e:
-            e.add_note("Failed to create HdrHistogram for epoch: {e}")
-            raise
+            raise RuntimeError("Failed to create HdrHistogram for epoch") from e
 
         self.lapped_frames = 0
         self.dropped_frames = 0
@@ -179,11 +178,10 @@ class TelemetryWriter:
             try:
                 self.current_epoch.histograms[i].record_value(nanos)
             except Exception as e:
-                e.add_note(
-                    "Failed to record latency value "
-                    f"{nanos} ns for measure {i}: {e}"
-                )
-                raise
+                raise RuntimeError(
+                    f"Failed to record latency value "
+                    f"{nanos} ns for measure {i}"
+                ) from e
 
         total_nanos = saturating_sub(
             ts[TelemetryEpoch.TOTAL_LATENCY],
@@ -195,10 +193,9 @@ class TelemetryWriter:
                 TelemetryEpoch.TOTAL_LATENCY
             ].record_value(total_nanos)
         except Exception as e:
-            e.add_note(
-                f"Failed to record total latency value {total_nanos} ns: {e}"
-            )
-            raise
+            raise RuntimeError(
+                f"Failed to record total latency value {total_nanos} ns"
+            ) from e
 
         newly_lapped = saturating_sub(lapped_frames, self.last_lapped_frames)
         self.current_epoch.lapped_frames += newly_lapped
@@ -316,11 +313,9 @@ def spawn_telemetry_thread(
     try:
         csv = Csv(csv_filename)
     except Exception as e:
-        e.add_note(
-            "Failed to create CSV file for "
-            f"telemetry file '{csv_filename}': {e}"
-        )
-        raise
+        raise RuntimeError(
+            f"Failed to create CSV file for telemetry file '{csv_filename}'"
+        ) from e
 
     def telemetry_thread():
         PAGE_SIZE: Final[int] = resource.getpagesize()
@@ -354,27 +349,26 @@ def spawn_telemetry_thread(
                     rss_pages = int(f.read().split()[1])
                     epoch.rss_bytes = rss_pages * PAGE_SIZE
             except Exception:
-                e.add_note(
-                    "Failed to read RSS bytes from /proc/self/statm: {e}"
-                )
-                raise
+                raise RuntimeError(
+                    "Failed to read RSS bytes from /proc/self/statm"
+                ) from e
 
             try:
                 csv.write_record(epoch)
             except Exception as e:
-                e.add_note(
+                raise RuntimeError(
                     f"Failed to write telemetry record to CSV file "
-                    f"'{csv_filename}': {e}"
-                )
-                raise
+                    f"'{csv_filename}'"
+                ) from e
 
             epoch.reset()
 
             try:
                 sender.send(epoch)
             except Exception as e:
-                e.add_note("Failed to send clean telemetry epoch")
-                raise
+                raise RuntimeError(
+                    "Failed to send clean telemetry epoch"
+                ) from e
 
     try:
         thread = threading.Thread(
@@ -384,7 +378,8 @@ def spawn_telemetry_thread(
         )
         thread.start()
     except Exception as e:
-        e.add_note(f"Failed to spawn telemetry thread for '{stream_name}': {e}")
-        raise
+        raise RuntimeError(
+            f"Failed to spawn telemetry thread for '{stream_name}'"
+        ) from e
 
     return thread

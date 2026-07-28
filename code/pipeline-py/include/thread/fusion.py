@@ -24,20 +24,18 @@ def spawn_fusion_thread(
                     ),
                 )
             except Exception as e:
-                e.add_note(
-                    f"Failed to spawn telemetry thread for stream {name}: {e}"
-                )
-                raise
+                raise RuntimeError(
+                    f"Failed to spawn telemetry thread for stream {name}"
+                ) from e
 
             try:
                 telemetry_writers.append(
                     TelemetryWriter(inference_sender, inference_reciever)
                 )
             except Exception as e:
-                e.add_note(
-                    f"Failed to create telemetry writer for stream {name}: {e}"
-                )
-                raise
+                raise RuntimeError(
+                    f"Failed to create telemetry writer for stream {name}"
+                ) from e
 
         """Required to save the latest accelerometer and gyrometer
         timestamps for fusion telemetry."""
@@ -65,11 +63,10 @@ def spawn_fusion_thread(
                 try:
                     telemetry_writers[frame.stream_id].terminate()
                 except Exception as e:
-                    e.add_note(
+                    raise RuntimeError(
                         "Failed to terminate telemetry writer "
-                        f"for stream {frame.stream_id}: {e}"
-                    )
-                    raise
+                        f"for stream {frame.stream_id}"
+                    ) from e
 
                 eos_count += 1
 
@@ -115,8 +112,7 @@ def spawn_fusion_thread(
                         frame.dropped_frames,
                     )
                 except Exception as e:
-                    e.add_note("Failed to record RGB telemetry: {e}")
-                    raise
+                    raise RuntimeError("Failed to record RGB telemetry") from e
 
                 latest_accelerometer_timestamps[ShmBuffer.FUSION_IN_TS] = (
                     frame.timestamps[ShmBuffer.FUSION_IN_TS]
@@ -134,8 +130,9 @@ def spawn_fusion_thread(
                         latest_accelerometer_dropped_frames,
                     )
                 except Exception as e:
-                    e.add_note("Failed to record accelerometer telemetry: {e}")
-                    raise
+                    raise RuntimeError(
+                        "Failed to record accelerometer telemetry"
+                    ) from e
 
                 latest_gyrometer_timestamps[ShmBuffer.FUSION_IN_TS] = (
                     frame.timestamps[ShmBuffer.FUSION_IN_TS]
@@ -153,8 +150,9 @@ def spawn_fusion_thread(
                         latest_gyrometer_dropped_frames,
                     )
                 except Exception as e:
-                    e.add_note("Failed to record gyrometer telemetry: {e}")
-                    raise
+                    raise RuntimeError(
+                        "Failed to record gyrometer telemetry"
+                    ) from e
             else:
                 raise ValueError(f"Unknown stream ID: {frame.stream_id}")
 
@@ -167,7 +165,8 @@ def spawn_fusion_thread(
         )
         thread.start()
     except Exception as e:
-        e.add_note(f"Failed to spawn fusion thread for '{shm_name}': {e}")
-        raise
+        raise RuntimeError(
+            f"Failed to spawn fusion thread for '{shm_name}'"
+        ) from e
 
     return thread

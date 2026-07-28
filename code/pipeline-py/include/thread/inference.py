@@ -72,9 +72,9 @@ def spawn_inference_thread(
                     try:
                         sender.send(frame)
                     except Exception as e:
-                        e.add_note(
+                        raise RuntimeError(
                             "Failed to send exit signal frame to output queue"
-                        )
+                        ) from e
                     break
 
                 item_offset = samples_collected * frame_size_items
@@ -112,8 +112,9 @@ def spawn_inference_thread(
                     try:
                         sender.send(frame)
                     except Exception as e:
-                        e.add_note("Failed to send frame to output queue")
-                        raise
+                        raise RuntimeError(
+                            "Failed to send frame to output queue"
+                        ) from e
 
                     samples_collected = 0
             else:
@@ -127,7 +128,8 @@ def spawn_inference_thread(
         )
         thread.start()
     except Exception as e:
-        e.add_note(f"Failed to spawn inference thread for '{shm_name}': {e}")
-        raise
+        raise RuntimeError(
+            f"Failed to spawn inference thread for '{stream_name}': {e}"
+        ) from e
 
     return thread

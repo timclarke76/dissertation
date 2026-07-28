@@ -27,8 +27,7 @@ def spawn_bridge_thread(
         try:
             shm_buffer = ShmBuffer(shm_name, stream_id)
         except Exception as e:
-            e.add_note(f"Failed to connect to '{shm_name}': {e}")
-            raise
+            raise RuntimeError(f"Failed to connect to '{shm_name}'") from e
 
         decimation_counter: int = 0
 
@@ -36,8 +35,9 @@ def spawn_bridge_thread(
             try:
                 frame = shm_buffer.next_frame()
             except Exception as e:
-                e.add_note(f"Failed to read next frame from shared memory: {e}")
-                raise
+                raise RuntimeError(
+                    f"Failed to read next frame from shared memory '{shm_name}'"
+                ) from e
 
             with queue.lock:
                 queue.lapped_frames += frame.lapped_frames
@@ -164,7 +164,8 @@ def spawn_bridge_thread(
         )
         thread.start()
     except Exception as e:
-        e.add_note(f"Failed to spawn bridge thread for '{shm_name}': {e}")
-        raise
+        raise RuntimeError(
+            f"Failed to spawn bridge thread for '{shm_name}'"
+        ) from e
 
     return thread
