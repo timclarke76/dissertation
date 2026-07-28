@@ -1,5 +1,4 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
 
 # Script must be run as root.
 if [ "$EUID" -ne 0 ]; then
@@ -69,19 +68,28 @@ DOCKER_ARGS=(
     --volume $VOLUME:/results
 )
 
+TRT_ARGS=(
+    ${DOCKER_ARGS[@]}
+    --volume $(pwd)/models/:/app/models
+    --volume $(pwd)/trt_cache:/app/trt_cache
+    --rm
+)
+
 GENERATOR_ARGS=(
     ${DOCKER_ARGS[@]}
     --detach
 )
 
 PIPELINE_ARGS=(
-    ${DOCKER_ARGS[@]}
+    ${TRT_ARGS[@]}
     --cpuset-cpus=$PIPE_CORES
-    --rm
 )
 
-echo "Settling Jetson."
-sleep 10 
+rm -rf $(pwd)/models/*_epctx.onnx $(pwd)/models/trt_cache/ $(pwd)/trt_cache/
+docker run --rm ${TRT_ARGS[@]} -w /app $IMAGE \
+    /app/pipeline-py/.venv/bin/python3 compile_trt.py
+chown -R tim:tim $(pwd)/models/
+chown -R tim:tim $(pwd)/trt_cache/
 
 BASE_TEMP=$(get_temp)
 echo "Baseline temperature: ${BASE_TEMP}°C"
@@ -93,6 +101,8 @@ for policy in "${POLICIES[@]}"; do
             EVAL_DIR="${policy}/load_${load}/${lang}"
             mkdir -p "$VOLUME/$EVAL_DIR"
             WORK_DIR="/results/$EVAL_DIR"
+            ln -sfn "/app/models" "$VOLUME/$EVAL_DIR/models"
+            ln -sfn "/app/trt_cache" "$VOLUME/$EVAL_DIR/trt_cache"
 
             cat <<EOF > "$VOLUME/settings.toml"
 [rgb_queue_config]
@@ -171,7 +181,7 @@ type = "${policy}"
 EOF
             fi
 
-            EVAL="${GRAY}[${RESET}${CYAN}Lang:${RESET} %-6s ${GRAY}|${RESET} ${YELLOW}Policy:${RESET} %-18s ${GRAY}|${RESET} ${BLUE}Load:${RESET} %-5s${GRAY}]${RESET}"
+            EVAL="${GRAY}${RESET}${CYAN}Lang:${RESET} %-6s ${GRAY}|${RESET} ${YELLOW}Policy:${RESET} %-18s ${GRAY}|${RESET} ${BLUE}Load:${RESET} %-5s${GRAY}${RESET}"
 
             while true; do
                 TEMP=$(get_temp)
@@ -189,6 +199,7 @@ EOF
                 awk -W interactive '{ print systime(), $0 }' > \
                 "$VOLUME/$EVAL_DIR/tegrastats.log" &
             TEGRA_PID=$!
+            rm -f /dev/shm/RGB /dev/shm/Accelerometer /dev/shm/Gyroscope
 
             GEN_CONTAINER_ID=$(docker run ${GENERATOR_ARGS[@]} $IMAGE \
                 /app/generator/target/release/generator \
@@ -215,7 +226,9 @@ EOF
                         --settings /results/settings.toml
 
             elif [ "$lang" == "rust" ]; then
-                docker run ${PIPELINE_ARGS[@]} --workdir "$WORK_DIR" $IMAGE \
+                docker run ${PIPELINE_ARGS[@]} \
+                    -e ORT_DYLIB_PATH="/app/pipeline-py/.venv/lib/python3.10/site-packages/onnxruntime/capi/libonnxruntime.so.1.24.0" \
+                    --workdir "$WORK_DIR" $IMAGE \
                     /app/pipeline-rust/target/release/pipeline-rust \
                         --settings /results/settings.toml
 
@@ -229,6 +242,11 @@ EOF
             docker wait $GEN_CONTAINER_ID > /dev/null
             docker rm $GEN_CONTAINER_ID > /dev/null
             kill $TEGRA_PID 2>/dev/null
+
+            # Cleanup the temporary symlinks to avoid cluttering the results
+            # directory
+            rm -f "$VOLUME/$EVAL_DIR/models"
+            rm -f "$VOLUME/$EVAL_DIR/trt_cache"
         done
     done
 done

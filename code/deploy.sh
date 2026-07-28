@@ -2,7 +2,7 @@
 
 USER="tim" 
 IP="192.168.55.1"
-DIR="~/dissertation"
+DIR="~/dissertation/"
 
 # Create the AI models
 poetry -C ./torch run python3 generate.py

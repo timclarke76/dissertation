@@ -1,6 +1,16 @@
+import os
+import sys
 import numpy as np
-import onnxruntime as ort
 import threading
+
+fd_stderr = sys.stderr.fileno()
+saved_stderr = os.dup(fd_stderr)
+devnull = os.open(os.devnull, os.O_WRONLY)
+os.dup2(devnull, fd_stderr)
+import onnxruntime as ort
+os.dup2(saved_stderr, fd_stderr)
+os.close(devnull)
+os.close(saved_stderr)
 
 _trt_init_lock = threading.Lock()
 

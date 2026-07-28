@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     for name, spec in CONFIG.items():
         onnx_path = f"models/{name}_base.onnx"
-        print(f"Exporting {onnx_path}")
+        print(f"Exporting {onnx_path} ... ", end="", flush=True)
 
         torch.onnx.export(
             spec["model"].eval(),
@@ -82,3 +82,5 @@ if __name__ == "__main__":
             dynamic_axes=None,  # prevents dynamic allocation during inference
             opset_version=17,
         )
+
+        print(f"done")
