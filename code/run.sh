@@ -209,7 +209,7 @@ EOF
                     --load $GEN_LOAD \
                     --runtime-seconds $RUNTIME_SECS \
                     --output $WORK_DIR/generator.json \
-                    --headless true)
+                    --headless)
 
             # Wait for the generator to create the shared memory files before
             # starting the pipeline
