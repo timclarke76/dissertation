@@ -19,7 +19,7 @@ public:
     void* input_buffer);
 
   /// \brief Runs inference on the input buffer using the ONNX Runtime session.
-  void run();
+  const std::vector<float>& run();
 
 private:
   /// \brief The ONNX Runtime session used for running inference on the model.

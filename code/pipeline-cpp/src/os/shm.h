@@ -130,6 +130,9 @@ public:
     /// The number of frames that have been dropped due to the bounded queue
     /// being full.
     uint64_t dropped_frames = 0;
+
+    /// The inference result produced by the ONNX Runtime.
+    float inference_result[4] = {0.0f};
   };
 
 public:

@@ -68,7 +68,10 @@ spawn_inference_thread(const std::string& stream_name,
 
         if (samples_collected >= window_frames) {
           item->timestamps[ShmBuffer::PIPELINE_IN_TS] = t_pipeline_in;
-          engine.run();
+
+          const auto& out = engine.run();
+          std::copy(out.begin(), out.end(), std::begin(item->inference_result));
+
           item->timestamps[ShmBuffer::PIPELINE_OUT_TS] = current_time_nanos();
 
           try {

@@ -1,3 +1,4 @@
+#include <inference/inference_engine.h>
 #include <os/os.h>
 #include <os/time.h>
 #include <thread/telemetry.h>
@@ -33,6 +34,10 @@ spawn_fusion_thread(Receiver<ShmBuffer::Frame> receiver,
         throw std::runtime_error("Failed to create telemetry writer");
       }
     }
+
+    std::vector<float> fusion_input(12, 0.0f);
+    InferenceEngine engine(
+      "./models/Fusion_epctx.onnx", { 1, 12 }, fusion_input.data());
 
     // Required to save the latest accelerometer and gyrometer timestamps for
     // fusion telemetry.
@@ -73,6 +78,9 @@ spawn_fusion_thread(Receiver<ShmBuffer::Frame> receiver,
             std::begin(latest_accel_ts));
           latest_accel_lapped_frames = frame.lapped_frames;
           latest_accel_dropped_frames = frame.dropped_frames;
+          std::copy(std::begin(frame.inference_result),
+            std::end(frame.inference_result),
+            fusion_input.begin() + 4);
           break;
 
         case ShmBuffer::GYRO_STREAM_ID:
@@ -83,6 +91,9 @@ spawn_fusion_thread(Receiver<ShmBuffer::Frame> receiver,
             std::begin(latest_gyro_ts));
           latest_gyro_lapped_frames = frame.lapped_frames;
           latest_gyro_dropped_frames = frame.dropped_frames;
+          std::copy(std::begin(frame.inference_result),
+            std::end(frame.inference_result),
+            fusion_input.begin() + 8);
           break;
 
         case ShmBuffer::RGB_STREAM_ID:
@@ -94,7 +105,12 @@ spawn_fusion_thread(Receiver<ShmBuffer::Frame> receiver,
           }
 
           frame.timestamps[ShmBuffer::FUSION_IN_TS] = current_time_nanos();
-          std::this_thread::sleep_for(std::chrono::milliseconds(5));
+
+          std::copy(std::begin(frame.inference_result),
+            std::end(frame.inference_result),
+            fusion_input.begin());
+          engine.run();
+
           frame.timestamps[ShmBuffer::FUSION_OUT_TS] = current_time_nanos();
 
           // Record the RGB telemetry.

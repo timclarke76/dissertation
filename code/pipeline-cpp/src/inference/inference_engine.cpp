@@ -55,8 +55,9 @@ InferenceEngine::InferenceEngine(const std::string& model_path,
       output_shape_.size()));
 }
 
-void
+const std::vector<float>&
 InferenceEngine::run()
 {
   session_.Run(Ort::RunOptions{ nullptr }, io_binding_);
+  return output_data_;
 }
