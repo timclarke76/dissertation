@@ -1034,11 +1034,14 @@ Hardware-agnostic `.onnx` AI model files were generated offline using PyTorch
 were forbidden to ensure that the TensorRT engine would not dynamically allocate
 memory during inference, instead allocating memory once upon startup thus
 improving performance and preserving the zero-allocation approach. These models
-were then transferred to the Jetson Orin Nano and compiled into
-hardware-specific `_epctx.onnx` (Execution Plan Context) files using ONNX
-Runtime \1.24.0. These file ensures that the models do not need to be
-re-optimised at startup for each evaluation, and that the same optimised model
-is used across all three implementations for all evaluations.
+were then transferred to the Jetson Orin Nano and saved to hardware-specific
+`_epctx.onnx` (Execution Provider Context) files using ONNX Runtime \1.24.0
+before pipeline evaluation commences. These files ensure that the models do not
+need to be re-optimised at startup for each evaluation. While C++ and Python
+were able to share the same context files, Rust uses a newer C-API and thus was
+required to cache its own versions to disk. However, due to the shared `.onnx`
+model files, both sets used identical parameters and optimisations, ensuring
+functional equivalence across all three implementations.
 
 == Profiling and Metrics
 
