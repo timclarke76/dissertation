@@ -50,6 +50,15 @@ class ImuDummy(nn.Module):
         return self.net(x)
 
 
+class FusionDummy(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.net = nn.Sequential(nn.Linear(12, 4))
+
+    def forward(self, x):
+        return self.net(x)
+
+
 CONFIG = {
     "RGB": {
         "model": RgbDummy(),
@@ -62,6 +71,10 @@ CONFIG = {
     "Gyroscope": {
         "model": ImuDummy(66),
         "shape": (1, 66, 3),
+    },
+    "Fusion": {
+        "model": FusionDummy(),
+        "shape": (1, 12),
     },
 }
 
