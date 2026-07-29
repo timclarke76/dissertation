@@ -13,9 +13,9 @@ pub struct Args {
     /// Whether to precompile the TensorRT models. If true, the pipeline exits
     /// after completion.
     #[arg(
-        short, 
-        long, 
-        num_args(0..=1), 
+        short,
+        long,
+        num_args(0..=1),
         default_missing_value = "true",
         default_value = "false",
         require_equals = true

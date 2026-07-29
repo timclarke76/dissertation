@@ -18,7 +18,7 @@ max = 255
 [[events]]
 name = "Accelerometer"
 seed = 43
-frame_length = 12
+frame_length = 3
 pool_capacity_frames = 1600
 buffer_capacity_frames = 1600
 fps = 1600
@@ -28,7 +28,7 @@ max = 24.0
 [[events]]
 name = "Gyroscope"
 seed = 44
-frame_length = 12
+frame_length = 3
 pool_capacity_frames = 2000
 buffer_capacity_frames = 2000
 fps = 2000
