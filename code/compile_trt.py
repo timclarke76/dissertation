@@ -19,6 +19,7 @@ CONFIG = {
     "RGB": {"shape": (1, 3, 1080, 1920)},
     "Accelerometer": { "shape": (1, 53, 3)},
     "Gyroscope": {"shape": (1, 66, 3)},
+    "Fusion": {"shape": (1, 12)},
 }
 
 os.makedirs("./trt_cache", exist_ok=True)

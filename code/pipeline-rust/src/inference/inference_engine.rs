@@ -63,8 +63,9 @@ impl InferenceEngine {
     ///
     /// * `tensor_data` - The bytes representing the input tensor data.
     ///
-    /// Returns `Ok(())` on success, or an error if the inference fails.
-    pub fn run(&mut self, tensor_data: &[f32]) -> Result<()> {
+    /// Returns an array of 4 f32 values representing the output of the
+    /// inference, or an error if the inference fails.
+    pub fn run(&mut self, tensor_data: &[f32]) -> Result<[f32; 4]> {
         let dynamic_shape = IxDyn(&self.shape_usize);
 
         let view = ArrayViewD::from_shape(dynamic_shape, tensor_data)
@@ -72,10 +73,25 @@ impl InferenceEngine {
         let input = TensorRef::from_array_view(view)
             .context("Failed to create TensorRef from f32 ArrayView")?;
 
-        self.session
+        let output = self
+            .session
             .run(ort::inputs!["input" => input])
             .context("Failed to run inference")?;
 
-        Ok(())
+        let (_shape, slice) = output["output"]
+            .try_extract_tensor::<f32>()
+            .context("Failed to extract output tensor")?;
+
+        if slice.len() != 4 {
+            anyhow::bail!(
+                "Expected 4 output elements, but got {}",
+                slice.len()
+            );
+        }
+
+        let mut result = [0.0f32; 4];
+        result.copy_from_slice(slice);
+
+        Ok(result)
     }
 }

@@ -123,7 +123,7 @@ pub fn spawn_inference_thread(
                         frame.timestamps[ShmBuffer::PIPELINE_IN_TS] =
                             t_pipeline_in;
 
-                        engine
+                        frame.inference_result = engine
                             .run(&tensor_data)
                             .expect("Inference execution failed");
 

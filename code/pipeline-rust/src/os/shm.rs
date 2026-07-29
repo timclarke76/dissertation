@@ -120,6 +120,9 @@ pub struct ShmFrame {
     /// The number of frames that have been dropped due to the bounded queue
     /// being full.
     pub dropped_frames: u64,
+
+    /// The inference result produced by the ONNX Runtime.
+    pub inference_result: [f32; 4],
 }
 
 /// Connects to a circular shared memory buffer and reads its frames.
@@ -318,6 +321,7 @@ impl ShmBuffer {
                     timestamps: [t_generated, t_bridged, 0, 0, 0, 0],
                     lapped_frames,
                     dropped_frames: 0,
+                    inference_result: [0.0; 4],
                 });
             }
 
@@ -337,6 +341,7 @@ impl ShmBuffer {
                     timestamps: [0; ShmBuffer::NUM_TIMESTAMPS],
                     lapped_frames: 0,
                     dropped_frames: 0,
+                    inference_result: [0.0; 4],
                 });
             }
 

@@ -105,6 +105,12 @@ fn main() -> Result<()> {
         .expect("Failed to pre-compile Gyroscope");
         println!(" done");
 
+        print!("Pre-compiling Fusion model ...");
+        let _ =
+            InferenceEngine::try_new("./models/Fusion_epctx.onnx", vec![1, 12])
+                .expect("Failed to pre-compile Fusion");
+        println!(" done");
+
         return Ok(());
     }
 
