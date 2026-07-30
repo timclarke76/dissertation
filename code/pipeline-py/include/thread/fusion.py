@@ -1,6 +1,9 @@
 import threading
 import time
 
+import numpy as np
+
+from include.inference import InferenceEngine
 from include.os import make_channel, Receiver, ShmBuffer
 from .telemetry import TelemetryWriter, spawn_telemetry_thread
 
@@ -37,18 +40,22 @@ def spawn_fusion_thread(
                     f"Failed to create telemetry writer for stream {name}"
                 ) from e
 
+        fusion_input = np.zeros((1, 12), dtype=np.float32)
+        engine = InferenceEngine("./models/Fusion_epctx.onnx", fusion_input)
+
         """Required to save the latest accelerometer and gyrometer
         timestamps for fusion telemetry."""
-        latest_accelerometer_timestamps: list[int] = [
+        latest_accel_timestamps: list[int] = [
             0 for _ in range(ShmBuffer.NUM_TIMESTAMPS)
         ]
-        latest_accelerometer_lapped_frames: int = 0
-        latest_accelerometer_dropped_frames: int = 0
-        latest_gyrometer_timestamps: list[int] = [
+        latest_accel_lapped_frames: int = 0
+        latest_accel_dropped_frames: int = 0
+
+        latest_gyro_timestamps: list[int] = [
             0 for _ in range(ShmBuffer.NUM_TIMESTAMPS)
         ]
-        latest_gyrometer_lapped_frames: int = 0
-        latest_gyrometer_dropped_frames: int = 0
+        latest_gyro_lapped_frames: int = 0
+        latest_gyro_dropped_frames: int = 0
 
         eos_count = 0
 
@@ -78,28 +85,33 @@ def spawn_fusion_thread(
             if frame.stream_id == ShmBuffer.ACCEL_STREAM_ID:
                 """Only the most recent accelerometer timestamps are needed for
                 fusion, so we store them here."""
-                latest_accelerometer_timestamps = frame.timestamps.copy()
-                latest_accelerometer_lapped_frames = frame.lapped_frames
-                latest_accelerometer_dropped_frames = frame.dropped_frames
+                latest_accel_timestamps = frame.timestamps.copy()
+                latest_accel_lapped_frames = frame.lapped_frames
+                latest_accel_dropped_frames = frame.dropped_frames
+                fusion_input[0, 4:8] = frame.inference_result
             elif frame.stream_id == ShmBuffer.GYRO_STREAM_ID:
-                """Only the most recent gyrometer timestamps are needed for
+                """Only the most recent gyro timestamps are needed for
                 fusion, so we store them here."""
-                latest_gyrometer_timestamps = frame.timestamps.copy()
-                latest_gyrometer_lapped_frames = frame.lapped_frames
-                latest_gyrometer_dropped_frames = frame.dropped_frames
+                latest_gyro_timestamps = frame.timestamps.copy()
+                latest_gyro_lapped_frames = frame.lapped_frames
+                latest_gyro_dropped_frames = frame.dropped_frames
+                fusion_input[0, 8:12] = frame.inference_result
             elif frame.stream_id == ShmBuffer.RGB_STREAM_ID:
                 # Do not fuse or record telemetry until all streams have
                 # provided at least one valid frame for ZoH.
                 if (
-                    latest_accelerometer_timestamps[ShmBuffer.GENERATED_TS] == 0
-                    or latest_gyrometer_timestamps[ShmBuffer.GENERATED_TS] == 0
+                    latest_accel_timestamps[ShmBuffer.GENERATED_TS] == 0
+                    or latest_gyro_timestamps[ShmBuffer.GENERATED_TS] == 0
                 ):
                     continue
 
                 frame.timestamps[ShmBuffer.FUSION_IN_TS] = (
                     time.perf_counter_ns()
                 )
-                time.sleep(0.005)  # Simulate fusion
+
+                fusion_input[0, 0:4] = frame.inference_result
+                engine.run()
+
                 frame.timestamps[ShmBuffer.FUSION_OUT_TS] = (
                     time.perf_counter_ns()
                 )
@@ -114,10 +126,10 @@ def spawn_fusion_thread(
                 except Exception as e:
                     raise RuntimeError("Failed to record RGB telemetry") from e
 
-                latest_accelerometer_timestamps[ShmBuffer.FUSION_IN_TS] = (
+                latest_accel_timestamps[ShmBuffer.FUSION_IN_TS] = (
                     frame.timestamps[ShmBuffer.FUSION_IN_TS]
                 )
-                latest_accelerometer_timestamps[ShmBuffer.FUSION_OUT_TS] = (
+                latest_accel_timestamps[ShmBuffer.FUSION_OUT_TS] = (
                     frame.timestamps[ShmBuffer.FUSION_OUT_TS]
                 )
 
@@ -125,19 +137,19 @@ def spawn_fusion_thread(
                     # Copy the fusion timestamps and record the accelerometer
                     # telemetry.
                     telemetry_writers[ShmBuffer.ACCEL_STREAM_ID].record(
-                        latest_accelerometer_timestamps,
-                        latest_accelerometer_lapped_frames,
-                        latest_accelerometer_dropped_frames,
+                        latest_accel_timestamps,
+                        latest_accel_lapped_frames,
+                        latest_accel_dropped_frames,
                     )
                 except Exception as e:
                     raise RuntimeError(
                         "Failed to record accelerometer telemetry"
                     ) from e
 
-                latest_gyrometer_timestamps[ShmBuffer.FUSION_IN_TS] = (
+                latest_gyro_timestamps[ShmBuffer.FUSION_IN_TS] = (
                     frame.timestamps[ShmBuffer.FUSION_IN_TS]
                 )
-                latest_gyrometer_timestamps[ShmBuffer.FUSION_OUT_TS] = (
+                latest_gyro_timestamps[ShmBuffer.FUSION_OUT_TS] = (
                     frame.timestamps[ShmBuffer.FUSION_OUT_TS]
                 )
 
@@ -145,9 +157,9 @@ def spawn_fusion_thread(
                     # Copy the fusion timestamps and record the gyrometer
                     # telemetry.
                     telemetry_writers[ShmBuffer.GYRO_STREAM_ID].record(
-                        latest_gyrometer_timestamps,
-                        latest_gyrometer_lapped_frames,
-                        latest_gyrometer_dropped_frames,
+                        latest_gyro_timestamps,
+                        latest_gyro_lapped_frames,
+                        latest_gyro_dropped_frames,
                     )
                 except Exception as e:
                     raise RuntimeError(

@@ -60,6 +60,11 @@ class InferenceEngine:
             buffer_ptr=self.output_data.ctypes.data,
         )
 
-    def run(self):
-        """Runs inference on the input buffer using the ONNX Runtime session."""
+    def run(self) -> tuple[np.ndarray]:
+        """Runs inference on the input buffer using the ONNX Runtime session.
+
+        Returns:
+            A tuple containing the output numpy arrays from the model.
+        """
         self.session.run_with_iobinding(self.io_binding)
+        return tuple(self.output_data[0])

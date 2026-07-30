@@ -55,6 +55,7 @@ class ShmFrame:
         'timestamps',
         'lapped_frames',
         'dropped_frames',
+        'inference_result',
     ]
 
     def __init__(
@@ -123,6 +124,9 @@ class ShmFrame:
         # The number of frames that have been dropped due to the bounded queue
         # being full.
         self.dropped_frames = 0
+
+        # The inference result produced by the ONNX Runtime.
+        self.inference_result = (0.0, 0.0, 0.0, 0.0)
 
 
 class ShmBuffer:

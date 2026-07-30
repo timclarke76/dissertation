@@ -103,7 +103,7 @@ def spawn_inference_thread(
                 if samples_collected >= window_frames:
                     frame.timestamps[ShmBuffer.PIPELINE_IN_TS] = t_pipeline_in
 
-                    engine.run()
+                    frame.inference_result = engine.run()
 
                     frame.timestamps[ShmBuffer.PIPELINE_OUT_TS] = (
                         time.perf_counter_ns()
