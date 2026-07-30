@@ -38,6 +38,7 @@ TelemetryWriter::Csv::Csv(const std::string_view& filename)
 
   // clang-format off
   const char* header =
+    "timestamp_ns,"
     "unbounded_wait_p50,unbounded_wait_p99,unbounded_wait_p99_9,unbounded_wait_max,"
     "idiomatic_wait_p50,idiomatic_wait_p99,idiomatic_wait_p99_9,idiomatic_wait_max,"
     "inference_exec_p50,inference_exec_p99,inference_exec_p99_9,inference_exec_max,"
@@ -64,7 +65,8 @@ TelemetryWriter::Csv::~Csv()
 }
 
 void
-TelemetryWriter::Csv::write_epoch(const Epoch& epoch)
+TelemetryWriter::Csv::write_epoch(const Epoch& epoch,
+  const uint64_t timestamp_ns)
 {
   // Plenty of space for the CSV row, since the maximum number of characters for
   // a 64-bit integer is 20, and there are 31 fields, plus commas and a newline.
@@ -82,6 +84,8 @@ TelemetryWriter::Csv::write_epoch(const Epoch& epoch)
       *ptr++ = ',';
     }
   };
+
+  append(timestamp_ns);
 
   for (size_t i = 0; i < Epoch::NUM_LATENCY_MEASURES; ++i) {
     append(
@@ -115,7 +119,8 @@ TelemetryWriter::record(uint64_t ts[Epoch::NUM_LATENCY_MEASURES],
   const uint64_t lapped_frames,
   const uint64_t dropped_frames)
 {
-  if (is_terminated_) return;
+  if (is_terminated_)
+    return;
 
   if (std::chrono::steady_clock::now() - last_swap_ > SWAP_INTERVAL) {
     swap_buffers();
@@ -183,6 +188,10 @@ spawn_telemetry_thread(const std::string_view& stream_name,
 
       for (;;) {
         auto epoch = receiver.receive();
+        const uint64_t timestamp_ns =
+          std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
 
         // If the terminate flag is set, we break out of the loop and exit the
         // telemetry thread gracefully.
@@ -236,7 +245,7 @@ spawn_telemetry_thread(const std::string_view& stream_name,
 
         epoch.fordblks_bytes = mallinfo2().fordblks;
 
-        csv.write_epoch(epoch);
+        csv.write_epoch(epoch, timestamp_ns);
         epoch.reset();
         sender.send(std::move(epoch));
       }

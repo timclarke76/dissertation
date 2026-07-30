@@ -6,7 +6,7 @@ use std::{
         mpsc::{Receiver, SyncSender},
     },
     thread::{self, JoinHandle},
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{Context, Result};
@@ -171,7 +171,8 @@ impl Csv {
             format!("Failed to create CSV telemtry file '{}'", filename)
         })?;
 
-        let header = b"unbounded_wait_p50,unbounded_wait_p99,unbounded_wait_p99_9,unbounded_wait_max,\
+        let header = b"timestamp_ns,\
+            unbounded_wait_p50,unbounded_wait_p99,unbounded_wait_p99_9,unbounded_wait_max,\
             idiomatic_wait_p50,idiomatic_wait_p99,idiomatic_wait_p99_9,idiomatic_wait_max,\
             inference_exec_p50,inference_exec_p99,inference_exec_p99_9,inference_exec_max,\
             mpsc_wait_p50,mpsc_wait_p99,mpsc_wait_p99_9,mpsc_wait_max,\
@@ -192,7 +193,11 @@ impl Csv {
     ///
     /// Returns a `Result` indicating whether the record was successfully
     /// written, or an error if the operation failed.
-    fn write_record(&mut self, epoch: &TelemetryEpoch) -> Result<()> {
+    fn write_record(
+        &mut self,
+        epoch: &TelemetryEpoch,
+        timestamp_ns: u64,
+    ) -> Result<()> {
         const BUFFER_SIZE: usize = 1024;
 
         let mut buf = [0u8; BUFFER_SIZE];
@@ -204,6 +209,8 @@ impl Csv {
             cursor.write_all(s.as_bytes()).unwrap();
             cursor.write_all(b",").unwrap();
         };
+
+        append(timestamp_ns);
 
         for histogram in epoch.latency_nanos.iter() {
             append(histogram.value_at_quantile(0.5));
@@ -456,6 +463,11 @@ pub fn spawn_telemetry_thread(
             let mut last_freed = 0;
 
             while let Ok(mut epoch) = receiver.recv() {
+                let timestamp_ns = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("Error getting current time")
+                    .as_nanos() as u64;
+
                 // If the `terminated` flag is set, we break out of the loop and
                 // exit the telemetry thread gracefully.
                 if epoch.terminated {
@@ -517,7 +529,7 @@ pub fn spawn_telemetry_thread(
                 epoch.fordblks_bytes =
                     unsafe { libc::mallinfo2().fordblks as usize };
 
-                csv.write_record(&epoch)
+                csv.write_record(&epoch, timestamp_ns)
                     .expect("Failed to write telemetry record to CSV");
 
                 epoch.reset();

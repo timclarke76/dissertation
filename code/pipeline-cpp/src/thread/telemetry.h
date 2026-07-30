@@ -117,7 +117,9 @@ public:
     ///
     /// \param epoch The telemetry epoch containing the latency measurements to
     /// be written.
-    void write_epoch(const Epoch& epoch);
+    /// \param timestamp_ns The timestamp in nanoseconds at which the telemetry
+    /// epoch was received.
+    void write_epoch(const Epoch& epoch, const uint64_t timestamp_ns);
 
   private:
     /// The file descriptor for the CSV file.

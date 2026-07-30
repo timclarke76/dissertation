@@ -257,9 +257,13 @@ class Csv:
         ]
         SUFFIXES: Final[list[str]] = ['p50', 'p99', 'p99_9', 'max']
 
-        headings: list[str] = [
-            f'{label}_{suffix}' for label in LABELS for suffix in SUFFIXES
-        ]
+        headings: list[str] = ['timestamp_ns']
+
+        headings.extend(
+            [
+                f'{label}_{suffix}' for label in LABELS for suffix in SUFFIXES
+            ]
+        )
 
         headings.extend(
             [
@@ -274,8 +278,8 @@ class Csv:
         self.writer.writerow(headings)
         self.file.flush()
 
-    def write_record(self, epoch: TelemetryEpoch):
-        record: list[float] = []
+    def write_record(self, epoch: TelemetryEpoch, timestamp_ns: int):
+        record: list[float] = [timestamp_ns]
 
         for i in range(TelemetryEpoch.NUM_LATENCY_MEASURES):
             histogram = epoch.histograms[i]
@@ -325,6 +329,7 @@ def spawn_telemetry_thread(
 
         while True:
             epoch = receiver.receive()
+            timestamp_ns = time.time_ns()
 
             # If the `terminated` flag is set, we break out of the loop and exit
             # the telemetry thread gracefully.
@@ -354,7 +359,7 @@ def spawn_telemetry_thread(
                 ) from e
 
             try:
-                csv.write_record(epoch)
+                csv.write_record(epoch, timestamp_ns)
             except Exception as e:
                 raise RuntimeError(
                     f"Failed to write telemetry record to CSV file "
