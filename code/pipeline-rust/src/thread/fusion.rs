@@ -52,7 +52,6 @@ pub fn spawn_fusion_thread(
                     })
                     .unzip();
 
-            let mut fusion_input = vec![0.0f32; 12];
             let mut engine = InferenceEngine::try_new(
                 "./models/Fusion_epctx.onnx",
                 vec![1, 12],
@@ -60,7 +59,7 @@ pub fn spawn_fusion_thread(
             .expect("Failed to initialize fusion engine");
 
             // Required to save the latest accel and gyro
-            // timestamps for fusion telemetry.
+            // timestamps and results for fusion telemetry.
             let mut latest_accel_timestamps = [0; ShmBuffer::NUM_TIMESTAMPS];
             let mut latest_accel_lapped_frames = 0;
             let mut latest_accel_dropped_frames = 0;
@@ -128,15 +127,14 @@ pub fn spawn_fusion_thread(
                                 "Failed to get current time for FUSION_IN_TS",
                             );
 
+                        let fusion_input = engine.input_buffer_mut();
                         fusion_input[0..4]
                             .copy_from_slice(&frame.inference_result);
                         fusion_input[4..8]
                             .copy_from_slice(&latest_accel_result);
                         fusion_input[8..12]
                             .copy_from_slice(&latest_gyro_result);
-                        let _ = engine
-                            .run(&fusion_input)
-                            .expect("Fusion inference failed");
+                        let _ = engine.run().expect("Fusion inference failed");
 
                         frame.timestamps[ShmBuffer::FUSION_OUT_TS] = now_nanos(
                         )

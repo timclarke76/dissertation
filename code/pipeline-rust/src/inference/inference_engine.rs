@@ -1,17 +1,22 @@
 use anyhow::{Context, Result};
-use ndarray::{ArrayViewD, IxDyn};
+use ndarray::Array;
 use ort::{
     execution_providers::TensorRTExecutionProvider,
-    session::{Session, builder::GraphOptimizationLevel},
-    value::TensorRef,
+    session::{IoBinding, Session, builder::GraphOptimizationLevel},
+    value::Tensor,
 };
 use std::sync::Mutex;
 
 static TRT_INIT_MUTEX: Mutex<()> = Mutex::new(());
 
 pub struct InferenceEngine {
+    io_binding: IoBinding,
     session: Session,
-    shape_usize: Vec<usize>,
+    _input_tensor: Tensor<f32>,
+
+    input_ptr: *mut f32,
+    input_size: usize,
+    output_ptr: *const f32,
 }
 
 impl InferenceEngine {
@@ -51,46 +56,78 @@ impl InferenceEngine {
 
         let shape_usize: Vec<usize> =
             input_shape.into_iter().map(|x| x as usize).collect();
+        let input_size: usize = shape_usize.iter().product();
+
+        let mut io_binding = session
+            .create_binding()
+            .context("Failed to create IoBinding")?;
+
+        let mut input_array =
+            Array::from_shape_vec(shape_usize, vec![0.0f32; input_size])
+                .context("Failed to create input array")?;
+        let input_ptr = input_array.as_mut_ptr();
+        let input_tensor = Tensor::from_array(input_array)
+            .context("Failed to create input tensor")?;
+        io_binding
+            .bind_input("input", &input_tensor)
+            .context("Failed to bind input")?;
+
+        let output_array = Array::from_shape_vec(vec![1, 4], vec![0.0f32; 4])
+            .context("Failed to create output array")?;
+        let output_ptr = output_array.as_ptr();
+        let output_tensor = Tensor::from_array(output_array)
+            .context("Failed to create output tensor")?;
+        io_binding
+            .bind_output("output", output_tensor)
+            .context("Failed to bind output")?;
 
         Ok(Self {
+            io_binding,
             session,
-            shape_usize,
+            _input_tensor: input_tensor,
+            input_ptr,
+            input_size,
+            output_ptr,
         })
     }
 
-    /// Runs inference on the provided tensor data using the ONNX Runtime
-    /// session.
+    /// Returns a mutable slice to the input buffer for the inference engine.
     ///
-    /// * `tensor_data` - The bytes representing the input tensor data.
+    /// Allows the client to modify the input data before running inference.
+    ///
+    /// Returns a mutable slice of f32 values representing the input buffer.
+    pub fn input_buffer_mut(&mut self) -> &mut [f32] {
+        unsafe {
+            std::slice::from_raw_parts_mut(self.input_ptr, self.input_size)
+        }
+    }
+
+    /// Runs inference on the contained tensor data using the ONNX Runtime
+    /// session.
     ///
     /// Returns an array of 4 f32 values representing the output of the
     /// inference, or an error if the inference fails.
-    pub fn run(&mut self, tensor_data: &[f32]) -> Result<[f32; 4]> {
-        let dynamic_shape = IxDyn(&self.shape_usize);
+    pub fn run(&mut self) -> Result<[f32; 4]> {
+        self.io_binding
+            .synchronize_inputs()
+            .context("Failed to synchronise inputs")?;
 
-        let view = ArrayViewD::from_shape(dynamic_shape, tensor_data)
-            .context("Failed to create f32 ArrayView")?;
-        let input = TensorRef::from_array_view(view)
-            .context("Failed to create TensorRef from f32 ArrayView")?;
-
-        let output = self
-            .session
-            .run(ort::inputs!["input" => input])
+        self.session
+            .run_binding(&self.io_binding)
             .context("Failed to run inference")?;
 
-        let (_shape, slice) = output["output"]
-            .try_extract_tensor::<f32>()
-            .context("Failed to extract output tensor")?;
-
-        if slice.len() != 4 {
-            anyhow::bail!(
-                "Expected 4 output elements, but got {}",
-                slice.len()
-            );
-        }
+        self.io_binding
+            .synchronize_outputs()
+            .context("Failed to synchronise outputs")?;
 
         let mut result = [0.0f32; 4];
-        result.copy_from_slice(slice);
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                self.output_ptr,
+                result.as_mut_ptr(),
+                4,
+            );
+        }
 
         Ok(result)
     }

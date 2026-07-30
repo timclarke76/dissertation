@@ -52,7 +52,6 @@ pub fn spawn_inference_thread(
                 frame_shape.iter().map(|&s| s as usize).product();
             let frame_size_items = window_size_items / window_frames;
 
-            let mut tensor_data = vec![0.0f32; window_size_items];
             let mut engine = InferenceEngine::try_new(&model_path, frame_shape)
                 .expect("Failed to initialise InferenceEngine");
 
@@ -91,7 +90,7 @@ pub fn spawn_inference_thread(
                                 frame_size_items,
                             );
 
-                            let dest_slice = &mut tensor_data
+                            let dest_slice = &mut engine.input_buffer_mut()
                                 [item_offset..item_offset + frame_size_items];
 
                             for (d, s) in
@@ -105,9 +104,11 @@ pub fn spawn_inference_thread(
                             let frame_size_bytes =
                                 frame_size_items * std::mem::size_of::<f32>();
 
-                            let dest_ptr =
-                                tensor_data.as_mut_ptr().add(item_offset)
-                                    as *mut u8;
+                            let dest_ptr = engine
+                                .input_buffer_mut()
+                                .as_mut_ptr()
+                                .add(item_offset)
+                                as *mut u8;
 
                             std::ptr::copy_nonoverlapping(
                                 frame.payload_ptr.ptr,
@@ -123,9 +124,8 @@ pub fn spawn_inference_thread(
                         frame.timestamps[ShmBuffer::PIPELINE_IN_TS] =
                             t_pipeline_in;
 
-                        frame.inference_result = engine
-                            .run(&tensor_data)
-                            .expect("Inference execution failed");
+                        frame.inference_result =
+                            engine.run().expect("Inference execution failed");
 
                         frame.timestamps[ShmBuffer::PIPELINE_OUT_TS] =
                             now_nanos().expect(
