@@ -20,6 +20,11 @@ dir = str(Path(__file__).resolve().parent)
 if dir not in sys.path:
     sys.path.append(dir)
 
+from multiprocessing import resource_tracker
+
+resource_tracker.register = lambda *args, **kwargs: None
+resource_tracker.unregister = lambda *args, **kwargs: None
+
 
 @dataclass(frozen=True)
 class StreamConfig:
