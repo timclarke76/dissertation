@@ -524,9 +524,10 @@ the recorded dataset, making a system appear more performant than it actually
 is.
 
 Tene also warns against ignoring events beyond the 99th percentile, as doing so
-fails to expose the frequency and impact of systematic delays. Therefore deep
-tail latency measurements, such as the 99.9th and 99.99th percentiles, are
-necessary to understand the true performance of a system under load.
+fails to expose the frequency and impact of systematic delays. While Tene
+advises that extreme percentiles (e.g. \99.9th and \99.99th) should be measured,
+this dissertation captures only to the \99.9th percentile due to the limited
+number of events ($< \10,000$) that are generated during a one-second epoch.
 
 == The Research Gap
 
