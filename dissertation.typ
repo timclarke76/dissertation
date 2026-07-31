@@ -622,9 +622,13 @@ for analysis of memory fragmentation.
 All implementations interact with the ONNX Runtime 1.24.0 to load and execute
 the AI model, which is responsible for the data transfer and inference
 orchestration on the host, and hands off responsibility to TensorRT for
-inference execution on the device. To ensure a consistent baseline, the same
-optimised TensorRT context files (`_epctx.onnx`) were used across all three
-implementations.
+inference execution on the device. To ensure a consistent baseline, functionally
+identical TensorRT context files (`_epctx.onnx`) were used across all three
+implementations. C++ and Python both use the same cached files, but because
+Rust's Ort crate uses a newer version of the ONNX Runtime API, it was required
+to generate separate cached files. However, as these were generated from the
+same `.onnx` files, all three implementations used the same model weights and
+functionality.
 
 Performance and overhead of the language runtime models was measured at the
 boundary of the host/device memory separation, where the CPU manages the runtime
@@ -1481,15 +1485,17 @@ internally by pre-compiled shared libraries (e.g. `libonnxruntime.so`) are not.
 Similarly, in Rust, allocations made by wrapper crates (e.g. `ort`)
 are captured, but those in the underlying pre-compiled libraries are not.
 
-As both the C++ headers and the Rust wrapper crates use the same underlying C
-API, they are symmetric in capturing the memory overhead required to serialise
-data across the Foreign Function Interface (FFI). However, an asymmetry exists
-in the capture of memory allocation within Python's third-party C-extension
-bindings (e.g. `onnxruntime`), which do not use Python's memory manager and thus
-are not visible to the telemetry thread when using `sys.getallocatedblocks()`.
-While this asymmetry is a limitation when comparing memory churn across all
-three runtime models, the methodology mitigates this by using the RSS as a
-baseline that captures all memory demand regardless of its origin.
+While C++, Rust, and Python all use ONNX Runtime's C-API, the Rust wrapper crate
+uses a newer version than that used by C++ and Python. Consequently, while all
+implementations use the same data structures to serialise data across the
+Foreign Function Interface (FFI) boundary, there may be differences in the
+memory management of the underlying C-API. An asymmetry also exists in the
+capture of memory allocation within Python's third-party C-extension bindings
+(e.g. `onnxruntime`), which do not use Python's memory manager and thus are not
+visible to the telemetry thread when using `sys.getallocatedblocks()`. While
+this asymmetry is a limitation when comparing memory churn across all three
+runtime models, the methodology mitigates this by using the RSS as a baseline
+that captures all memory demand regardless of its origin.
 
 === Read-Tearing and Misalignment
 
