@@ -1811,6 +1811,7 @@ the ratio. If the push is not successful then the frame is dropped.
       p(1, 4, <push>, [Push to\ Bounded\ Queue]),
       d(2, 4, <mod>, [`counter` divisible\ by `ratio`?]),
       d(1, 5, <success>, [Push\ successful?]),
+      p(1, 6, <overwrite>, [Overwrite\ oldest frame]), 
 
       e(<start>, <len>),
       no(<len>, <reset>),
@@ -1818,16 +1819,14 @@ the ratio. If the push is not successful then the frame is dropped.
       e(<ratio>, <inc>),
       e(<inc>, <mod>),
       yes(<mod>, <push>, label-side: right),
-      // no(<mod>, <drop>, label-side: left),
       e(<reset>, <push>),
       e(<push>, <success>),
 
       edge(<mod>, (3, 4), <drop>, "-|>", [No], label-side: left, label-pos: 0.2),
-      edge(<success>, (3, 5), <drop>, "-|>", [No], label-side: left, label-pos:
-      0.03),
       edge(<drop>, (3, 0), <start>, "-|>"),
-      edge(<success>, (0, 5), (0, 0), <start>, "-|>", [Yes], label-side: right,
-      label-pos: 0.2)
+      no(<success>, <overwrite>),
+      edge(<overwrite>, (0, 6), (0, 0), <start>, "-|>"),
+      edge(<success>, (0, 5), (0, 0), <start>, "-|>", [Yes], label-side: right, label-pos: 0.2)
     )
   ],
   caption: [Flowchart detailing the Adaptive Decimation backpressure policy.\
