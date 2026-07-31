@@ -434,12 +434,14 @@ interpreted at runtime. It emphasises simplicity and ease of both writing and
 reading. CPython (the reference implementation) has a Foreign Function Interface
 (FFI) that allows it to interface with other languages, such as C/C++ libraries.
 Python is often used to automate tasks and for data analysis and machine
-learning. It utilises a GC, abstracting memory management to reduce cognitive
-load and the risk of memory-safety bugs, but at the cost of increased latency
-and unpredictable latency jitter due to "stop-the-world" GC events. Latency is
-further impacted by the Global Interpreter Lock (GIL), which prevents true
-concurrency across multiple CPU cores. However, C-extensions (such as ONNX) are
-able to bypass the GIL, allowing them to run concurrently on multiple cores.
+learning. It utilises a Garbage Collector (GC), abstracting memory management to
+reduce cognitive load and the risk of memory-safety bugs, but at the cost of
+increased latency and unpredictable latency jitter due to "stop-the-world" GC
+events which pause the executable's threads to safely clean up memory. Latency
+is further impacted by CPython's Global Interpreter Lock (GIL), which prevents
+true concurrency across multiple CPU cores by ensuring only one thread is
+executed at any given time. However, C-extensions (such as ONNX) are able to
+bypass the GIL, allowing them to run concurrently on multiple cores.
 
 == Stream Processing & Backpressure
 
