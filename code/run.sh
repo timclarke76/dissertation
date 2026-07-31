@@ -24,6 +24,10 @@ jetson_clocks
 
 # Disable automatic fan control
 systemctl stop nvfancontrol
+
+# Silence kernel console spam to prevent I/O latency jitter
+dmesg -n 1
+
 IMAGE="dissertation:latest"
 ORT_DYLIB_PATH="/app/pipeline-py/.venv/lib/python3.10/site-packages/onnxruntime/capi/libonnxruntime.so.1.24.0"
 VOLUME="$(pwd)/results"
@@ -268,6 +272,10 @@ jetson_clocks --restore >/dev/null 2>&1 || true
 
 # Restore automatic fan control
 systemctl start nvfancontrol
+
+# Restore default kernel console logging
+dmesg -n 7
+
 # Change ownership of the results directory to the current user (Docker will
 # have created the files as root)
 chown -R tim:tim $VOLUME
