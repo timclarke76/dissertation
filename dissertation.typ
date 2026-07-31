@@ -984,10 +984,11 @@ techniques to pad the header to exactly 64 bytes in size and align its starting
 address to a 64-byte boundary, ensuring it would be cached in isolation.
 
 While the shared memory buffers are bound to one-second cycles, and consequently
-false sharing would occur only once per second if 64-byte alignment were not
-enforced, ensuring cache isolation of the header reflects best engineering
-practice and prevents potential system degradation caused by future
-modifications to the implementation.
+false sharing would occur only twice per second if 64-byte alignment were not
+enforced (once for the timestamp and once for the payload), ensuring cache
+isolation of the header reflects best engineering practice and prevents
+potential system degradation caused by future modifications to the
+implementation.
 
 == Memory Ordering
 
