@@ -945,7 +945,9 @@ so 50% of the frames are dropped (i.e. every second frame is queued) to allow
 the pipeline to recover. If the consumer buffer continues to fill, the
 decimation factor is linearly scaled until it reaches a maximum of 90% drop-rate
 (i.e. only every 10th frame is queued by overwriting the oldest frame) at full
-saturation.
+saturation. Should the consumer buffer remain at full saturation, the oldest
+frame is dropped to make room for the newest frame, ensuring that the most
+recent data is retained for inference.
 
 To ensure the runtime models were evaluated under sustained stress, the
 saturation threshold was determined by increasing the _load_ multiplier until at
