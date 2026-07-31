@@ -179,8 +179,7 @@ class TelemetryWriter:
                 self.current_epoch.histograms[i].record_value(nanos)
             except Exception as e:
                 raise RuntimeError(
-                    f"Failed to record latency value "
-                    f"{nanos} ns for measure {i}"
+                    f"Failed to record latency value {nanos} ns for measure {i}"
                 ) from e
 
         total_nanos = saturating_sub(
@@ -260,9 +259,7 @@ class Csv:
         headings: list[str] = ['timestamp_ns']
 
         headings.extend(
-            [
-                f'{label}_{suffix}' for label in LABELS for suffix in SUFFIXES
-            ]
+            [f'{label}_{suffix}' for label in LABELS for suffix in SUFFIXES]
         )
 
         headings.extend(
