@@ -22,6 +22,8 @@ nvpmodel -m 2
 # Maximum performance clocks
 jetson_clocks
 
+# Disable automatic fan control
+systemctl stop nvfancontrol
 IMAGE="dissertation:latest"
 ORT_DYLIB_PATH="/app/pipeline-py/.venv/lib/python3.10/site-packages/onnxruntime/capi/libonnxruntime.so.1.24.0"
 VOLUME="$(pwd)/results"
@@ -185,7 +187,8 @@ type = "${policy}"
 EOF
             fi
 
-            EVAL="${GRAY}${RESET}${CYAN}Lang:${RESET} %-6s ${GRAY}|${RESET} ${YELLOW}Policy:${RESET} %-18s ${GRAY}|${RESET} ${BLUE}Load:${RESET} %-5s${GRAY}${RESET}"
+            EVAL="${GRAY}${RESET}${CYAN}Language:${RESET} %-6s ${GRAY}|${RESET} ${YELLOW}Policy:${RESET} %-18s ${GRAY}|${RESET} ${BLUE}Load:${RESET} %-5s${GRAY}${RESET}"
+            echo 255 > /sys/class/hwmon/hwmon0/pwm1
 
             while true; do
                 TEMP=$(get_temp)
@@ -198,6 +201,8 @@ EOF
                 printf "\r$(printf "$EVAL" "$lang" "$policy" "$load") ${GRAY}|${RESET} ${BOLD}Temp:${RESET} ${YELLOW}%2d°C${RESET}\033[K" "$TEMP"
                 sleep 2
             done
+
+            echo 0 > /sys/class/hwmon/hwmon0/pwm1
 
             stdbuf -oL tegrastats --interval 1000 | \
                 awk -W interactive '{ print systime(), $0 }' > \
@@ -261,6 +266,8 @@ timedatectl set-ntp true
 # Restore Jetson clocks to default
 jetson_clocks --restore >/dev/null 2>&1 || true
 
+# Restore automatic fan control
+systemctl start nvfancontrol
 # Change ownership of the results directory to the current user (Docker will
 # have created the files as root)
 chown -R tim:tim $VOLUME
