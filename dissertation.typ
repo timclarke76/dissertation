@@ -78,7 +78,7 @@ scheduling behaviour under load, which directly impacts latency, throughput, and
 resource usage. For example, manual memory management offers fine-grained
 control and increased performance, but simultaneously increases the risk of
 memory leaks and undefined behaviour. Conversely, memory management may be
-automated through garbage collection (GC) at the cost of increased latency and
+automated through garbage collection (GC) at the cost of execution overhead and
 unpredictable latency jitter.
 
 This dissertation focuses on the performance metrics at the system level.
@@ -604,7 +604,7 @@ To ensure that disk I/O did not cause bottlenecks or confound performance
 comparisons, all implementations were executed from a 1TB Samsung \990 PRO PCIe
 \4.0 NVMe M.2 SSD @samsung-990-pro. A SanDisk "High-Endurance" microSD Card
 (64GB, Class 10/U3) @sandisk-micro-sd was only used for initial device
-installation, and was removed after the NVMe SSD was installed.
+installation, and was physically removed after the NVMe SSD was installed.
 
 == Software Stack
 
@@ -669,10 +669,10 @@ The load generator produces three streams of data to shared memory buffers for
 consumption by the HAR pipelines: (1) an RGB video stream to simulate the
 camera, (2) a 3-axis inertial measurement stream to simulate the accelerometer,
 and (3) a 3-axis inertial measurement stream to simulate the gyroscope. Using
-shared memory allowed for low-latency communication, and allowed the generator
-to write data at a consistent rate. The shared memory buffers were implemented
-as fixed capacity ring buffers, allowing the generator to write data without
-being blocked by the pipeline.
+shared memory allowed for low-latency communication, and for the generator to
+write data at a consistent rate. The shared memory buffers were implemented as
+fixed capacity ring buffers, allowing the generator to write data without being
+blocked by the pipeline.
 
 The generated image data was random noise. Each image was created as an array of
 RGB pixel values with dimensions of 1920x1080 to match the sensor data, and each
@@ -784,9 +784,8 @@ system instability.
 The backpressure policies were implemented in the pipelines using two buffers
 per data stream: (1) an unbounded _producer buffer_ in shared memory for the
 load generator to write data into, allowing it to produce data at a consistent
-rate, and (2) a _consumer buffer_ implemented idiomatically for the pipelines to
-read data from for processing, with a fixed capacity to trigger the backpressure
-policy when full.
+rate, and (2) a _consumer buffer_ for the pipelines to read data from for
+processing, with a fixed capacity to trigger the backpressure policy when full.
 
 Using Little's Law ($L = lambda W$) @little1961, the capacity of each consumer
 buffer was determined by multiplying the _target_ baseline throughput ($lambda$)
@@ -1117,7 +1116,7 @@ stalled, thus guaranteeing that `generated_ts` allows queueing delays and
 tail-latency to be accurately captured.
 
 These timestamps provide five key latency measurements: _Unbounded Queue Wait_
-($"bridged_ts" - "generated_ts"$), _Queue Wait_ ($"pipeline_in_ts" -
+($"bridged_ts" - "generated_ts"$), _Bounded Queue Wait_ ($"pipeline_in_ts" -
 "bridged_ts"$), _Inference Execution_ ($"pipeline_out_ts" - "pipeline_in_ts"$),
 _MPSC Wait_ ($"fusion_in_ts" - "pipeline_out_ts"$), and _Fusion Execution_
 ($"fusion_out_ts" - "fusion_in_ts"$). Additionally, _Total Latency_
