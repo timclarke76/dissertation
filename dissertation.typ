@@ -717,7 +717,9 @@ Time Protocol (NTP) synchronisation was disabled using
 `timedatectl set-ntp false` to prevent the system clock from being adjusted
 during the experiments. The generator was pinned to one CPU core to prevent
 jitter caused by the overhead of saving and restoring the generator thread
-state, and the process was given a real-time scheduling policy.
+state, and the process was given a real-time scheduling policy. The generator
+and pipelines were prevented from running on core \0 to avoid contention with
+the Linux kernel and background processes.
 
 Before using the load generator, the HAR pipelines were tested with real sensor
 data to ensure that they were functionally correct and optimised. A lightweight
@@ -1389,11 +1391,15 @@ components (e.g. CPU and GPU) when the device exceeds operating temperature
 threshold @thermalGuide. While this prevents thermal shutdowns during normal
 operation, it introduces a confounder when comparing the performance of
 different runtime model implementations.
+To mitigate this, a baseline temperature was recorded before the evaluations
+were performed, and the device allowed to idle again between each pipeline
+execution until the baseline temperature was reached.
 
-To mitigate this the device was allowed to idle for 600 seconds before the
-evaluation suite was executed. A baseline temperature was then recorded, and the
-device allowed to idle again between each pipeline execution until the baseline
-temperature was reached.
+To force the Dynamic Voltage and Frequency Scaling (DVFS) to engage, the cooling
+daemon (`nvfancontrol`) was disabled, allowing the device to reach its maximum
+operating temperature forcing DVFS to throttle the CPU and GPU frequencies.
+Kernel console logging was disabled to prevent I/O interrupts from affecting the
+evaluation measurements.
 
 Temperatures during testing were measured using the `tegrastats` utility, which
 provides monitoring of the CPU, GPU, and overall temperatures, CPU and GPU
