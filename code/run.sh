@@ -37,10 +37,9 @@ mkdir -p "$VOLUME"
 GEN_CORE="5"
 PIPE_CORES="1-4"
 GEN_PRIORITY="99"
-GEN_LOAD="1.0"
-RUNTIME_SECS=3
+RUNTIME_SECS=600
 
-LOADS=($(seq "1.0" "0.25" "1.5"))
+LOADS=(0.05 $(seq 1.0 1.5 8.5))
 LANGUAGES=("cpp" "rust" "python")
 
 POLICIES=(
@@ -108,11 +107,12 @@ echo ""
 for policy in "${POLICIES[@]}"; do
     for load in "${LOADS[@]}"; do
         for lang in "${LANGUAGES[@]}"; do
-            EVAL_DIR="${policy}/load_${load}/${lang}"
+            EVAL_DIR="${lang}/${policy}/${load}"
             mkdir -p "$VOLUME/$EVAL_DIR"
             WORK_DIR="/results/$EVAL_DIR"
             ln -sfn "/app/models" "$VOLUME/$EVAL_DIR/models"
             ln -sfn "/app/trt_cache" "$VOLUME/$EVAL_DIR/trt_cache"
+            rm -f /dev/shm/RGB /dev/shm/Accelerometer /dev/shm/Gyroscope
 
             cat <<EOF > "$VOLUME/settings.toml"
 [rgb_queue_config]
@@ -212,14 +212,13 @@ EOF
                 awk -W interactive '{ print systime(), $0 }' > \
                 "$VOLUME/$EVAL_DIR/tegrastats.log" &
             TEGRA_PID=$!
-            rm -f /dev/shm/RGB /dev/shm/Accelerometer /dev/shm/Gyroscope
 
             GEN_CONTAINER_ID=$(docker run ${GENERATOR_ARGS[@]} $IMAGE \
                 /app/generator/target/release/generator \
                     --settings /app/generator/settings.toml \
                     --core $GEN_CORE \
                     --priority $GEN_PRIORITY \
-                    --load $GEN_LOAD \
+                    --load $load \
                     --runtime-seconds $RUNTIME_SECS \
                     --output $WORK_DIR/generator.json \
                     --headless)
