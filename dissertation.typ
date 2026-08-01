@@ -1707,7 +1707,7 @@ modified by the producer. In C++ and Rust, this alignment was achieved using
 simple compiler directives (`alignas(64)` and `#[repr(C, align(64))]`,
 respectively). However, Python required manual memory mapping via
 `ctypes.Structure` inheritance to define the byte widths of the fields
-(`c_uint32`, `c_uint64`).
+(`c_uint32`, `c_uint64`), as shown in @lst:ipc-padding.
 
 #figure(
   pad(top: 0.5em)[
@@ -1753,9 +1753,43 @@ respectively). However, Python required manual memory mapping via
   ],
 
   caption: [64-byte aligned IPC memory header layout. Padding ensures\ the
-    atomic fields consume exactly one CPU cache line, preventing false sharing.
-    #v(1.5em)]
+    atomic fields consume exactly one CPU cache line, preventing false sharing.]
 ) <fig:ipc_memory_layout>
+
+#figure(
+  pad(top: 1.0em)[
+    ```cpp
+      struct alignas(64) ShmHeader {
+          uint32_t magic;
+          // ... omitted ...
+          std::atomic<uint64_t> seq_num;
+          std::atomic<uint64_t> pipeline_stage;
+      };
+      ```
+      ```rust
+      #[repr(C, align(64))]
+      struct ShmHeader {
+          pub magic: u32,
+          // .. omitted ...
+          pub seq_num: AtomicU64,
+          pub pipeline_stage: AtomicU64,
+      }
+      ```
+      ```python
+      class ShmHeader(ctypes.Structure):
+          _fields_ = [
+              ('magic', ctypes.c_uint32),
+              # ... omitted ...
+              ('seq_num', ctypes.c_uint64),
+              ('pipeline_stage', ctypes.c_uint64),
+              ('_padding', ctypes.c_uint8 * 32),
+          ]
+      ```
+    ],
+  caption: [IPC Boundary structure definitions. C++ (top) and Rust
+    (middle) use compiler directives for 64-byte alignment. Python (bottom)
+    requires manual padding.#v(1em)],
+) <lst:ipc-padding>
 
 Mapping the shared memory data to the process's virtual memory address space
 provided zero-copy efficiency at the IPC boundary. While this was automatically
@@ -1858,13 +1892,50 @@ execution_ (when the CPU predicts the next instruction and executes it ahead of
 time, before the previous instruction has completed) and to throttle the CPU for
 a few clock cycles, reducing power usage and generated heat.
 
-Conversely, there is no micro-architectural hint available in Python to yield
-to the CPU. Instead, an empty `pass` loop was utilised. Though the Python
-loop remained functionally identical to the compiled languages, it does not
-reduce power usage or heat generation. In addition, because the thread is
+Conversely, there is no micro-architectural hint available in Python to yield to
+the CPU. Instead, an empty `pass` loop was utilised (see @lst:spin_loop), which
+aggressively spins and holds the Global Interpreter Lock (GIL). Though the
+Python loop remained functionally identical to the compiled languages, it does
+not reduce power usage or heat generation. In addition, because the thread is
 spinning in a tight loop, it aggressively holds the Global Interpreter Lock (GIL
 --- a mutex that ensures only one Python thread executes at a time), starving
 the other threads of execution time and creating an architectural bottleneck.
+
+#figure(
+  pad(top: 1em)[
+    ```cpp
+    #if defined(__x86_64__) || defined(_M_X64)
+      #include <immintrin.h>
+      inline void spin_loop() { _mm_pause(); }
+    #elif defined(__aarch64__)
+      inline void spin_loop() {
+        __asm__ volatile("yield" ::: "memory");
+      }
+    #else
+      inline void spin_loop() {}
+    #endif
+    ```
+    ```rust
+    loop {
+      if seq_num > self.frame_idx {
+          return frame;
+      }
+
+      std::hint::spin_loop();
+    }
+    ```
+    ```python
+    while True:
+        if seq_num > self.frame_idx:
+            return frame
+        pass
+    ```
+  ],
+  caption: [Wait-free spin-loop implementations. C++ (top) and Rust (middle) use
+    micro-architectural hints to pause execution. Python (bottom) instead relies
+    on an empty `pass` loop that holds the Global Interpreter Lock (GIL).
+    #v(1em)]
+) <lst:spin_loop>
 
 == Channels
 
@@ -1903,6 +1974,137 @@ Conversely, Rust's `std::sync::Arc<Mutex<T>>` combines compiler-enforced RAII
 and data ownership, guaranteeing that the queue cannot be accessed without first
 acquiring the lock guard.
 
+=== Zero-Allocation Telemetry
+
+To prevent the telemetry thread from becoming a confounder of the results that
+are being measured (i.e. the "observer effect"), it was designed to be
+zero-allocation and non-blocking.
+
+Triple-buffering was implemented to exchange the telemetry epoch from the hot
+thread to the telemetry thread. As demonstrated in @lst:triple-buffering, a
+pointer to the active epoch is swapped with a pointer to a clean epoch, with no
+I/O latency or dynamic memory allocation.
+
+#figure(
+  pad(top: 1em)[
+    ```cpp
+    void
+    TelemetryWriter::swap_buffers()
+    {
+      auto next_epoch_opt = receiver_.try_receive();
+
+      if (next_epoch_opt.has_value()) {
+        last_swap_ = std::chrono::steady_clock::now();
+        sender_.send(std::move(current_epoch_));
+        current_epoch_ = std::move(next_epoch_opt.value());
+      }
+    }
+    ```
+    ```rust
+    fn swap_buffers(&mut self) -> Result<()> {
+      if let Ok(mut epoch) = self.receiver.try_recv() {
+        self.last_swap = Instant::now();
+        std::mem::swap(&mut self.current_epoch,
+          &mut epoch);
+        self.sender.send(epoch)?;
+      }
+      Ok(())
+    }
+    ```
+    ```python
+    def swap_buffers(self):
+        epoch = self.receiver.try_receive()
+        if epoch != None:
+            self.last_swap = time.perf_counter_ns()
+            self.sender.send(self.current_epoch)
+            self.current_epoch = epoch
+    ```
+  ],
+  caption: [The C++ (top), Rust (middle), and Python (bottom) implementations of
+    the zero-allocation telemetry thread buffer swap. The hot thread pushes the
+    current epoch to the telemetry thread, and swaps in a clean epoch for the
+    next telemetry cycle.#v(1em)]
+) <lst:triple-buffering>
+
+To measure memory efficiency without the overhead of third-party tools, the C++
+and Rust memory allocators were overridden. As shown in @lst:memory-alloc, the
+global memory allocation and deallocation functions were overridden, and relaxed
+memory ordering used to prevent unnecessary stalls of the pipeline.
+
+#figure(
+  pad(top: 1em)[
+    ```cpp
+    void*
+    operator new(std::size_t count)
+    {
+      telemetry::allocated_bytes.fetch_add(count,
+        std::memory_order_relaxed);
+      telemetry::allocation_count.fetch_add(1,
+        std::memory_order_relaxed);
+
+      if (void* ptr = std::malloc(count)) {
+        return ptr;
+      }
+
+      throw std::bad_alloc{};
+    }
+
+    void
+    operator delete(void* ptr, std::size_t count) noexcept
+    {
+      telemetry::freed_bytes.fetch_add(count,
+        std::memory_order_relaxed);
+      std::free(ptr);
+    }
+    ```
+    ```rust
+    unsafe impl GlobalAlloc for TrackingAllocator {
+      unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        ALLOCATED_BYTES.fetch_add(layout.size(),
+          Ordering::Relaxed);
+        ALLOCATION_COUNT.fetch_add(1, Ordering::Relaxed);
+        unsafe { System.alloc(layout) }
+      }
+
+      unsafe fn dealloc(&self, ptr: *mut u8,
+        layout: Layout) {
+        FREED_BYTES.fetch_add(layout.size(),
+          Ordering::Relaxed);
+        unsafe { System.dealloc(ptr, layout) }
+      }
+    }
+
+    #[global_allocator]
+    static GLOBAL: TrackingAllocator = TrackingAllocator;
+    ```
+  ],
+  caption: [Overriding the global memory allocation and deallocation functions
+    in C++ (top) and Rust (bottom) to capture memory allocation metrics.#v(1em)]
+) <lst:memory-alloc>
+
+To measure Python's garbage collection (GC) jitter, the GC callback hook was
+utilised, as shown in @lst:gc-callback. This allows the duration of
+"stop-the-world" events to be measured without the overhead of `tracemalloc` or
+other monitoring tools.
+
+#figure(
+  pad(top: 1em)[
+    ```python
+    def gc_callback(phase, info):
+      global pause_ns
+
+      if phase == "start":
+        _state["start_time"] = time.perf_counter_ns()
+      elif phase == "stop":
+        pause_ns += (time.perf_counter_ns() -
+          _state["start_time"])
+
+    gc.callbacks.append(gc_callback)
+    ```
+  ],
+  caption: [Capturing the duration spent in the Python Garbage \
+    Collector (GC) using the `gc.callbacks` hook.#v(1em)]
+) <lst:gc-callback>
 
 #wc[
 = Results
