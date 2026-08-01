@@ -1187,17 +1187,17 @@ structures (e.g. vectors or lists).
 
   caption: [Triple-buffering approach to cleanly capture the telemetry epochs \
     without blocking the pipeline thread during I/O stalls.]
-) <fig:double_buffering>
+) <fig:triple-buffering>
 
 === Memory Churn (C++ and Rust)
 
 To measure the rate of memory churn in C++ and Rust (RQ3), the global memory
 allocation and deallocation functions were overridden to capture memory
 allocation metrics, without relying on third-party profiling tools that may
-introduce additional overhead and confound the results. In C++, the `operator
-new` and `operator delete` functions were overridden, and in Rust a custom
-memory allocator was implemented as the standard library's default by using the
-`#[global_allocator]` attribute.
+introduce additional overhead and confound the results. In C++, the
+`operator new` and `operator delete` functions were overridden, and in Rust a
+custom memory allocator was implemented as the standard library's default by
+using the `#[global_allocator]` attribute.
 
 The telemetry thread concurrently captured the memory allocation metrics during
 the same intervals as the latency measurements, allowing for correlation between
