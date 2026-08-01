@@ -79,10 +79,10 @@
   }
   */
 
-  #show raw.where(block: true): set block(fill: luma(230),
-    outset: (left: -1em, right: -1em),
-    inset: (left: 2em, right: 2em, top: 1em, bottom: 1em),
-    radius: 0.5em, width: 100%)
+  #show raw.where(block: true): set block(fill: luma(245),
+    // outset: (left: -1em, right: -1em),
+    inset: (left: 0.5em, right: 0.5em, top: 0.5em, bottom: 0.5em),
+    radius: 0.25em, width: 100%)
 
   #set list(indent: 1em)
   #set enum(indent: 1em)
