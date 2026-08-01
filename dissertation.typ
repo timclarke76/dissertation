@@ -1135,17 +1135,18 @@ backpressure.
 
 To retain temporal information about how latency changes over time and
 correlates with runtime model behaviour and backpressure events, a
-triple-buffering approach was used. The pipeline thread (the _writer_) populated
-an active `Epoch` object containing the latency histograms, memory counters, and
-dropped frames counter. At one-second intervals, a clean `Epoch` was pulled from
-a channel using wait-free message passing, and the populated `Epoch` was pushed
-to another channel. Concurrently, a lightweight background telemetry thread (the
-_reader_) pulled the populated `Epoch` messages from the second channel and
-saved the counters and the $"p50"$, $"p95"$, $"p99"$, $"p99.9"$, $"p99.99"$, and
-maximum latency values into a CSV file, then reset the `Epoch` and pushed it
-back to the first channel for reuse. A third `Epoch` was kept idle in the first
-channel ready to be swapped in as the new active buffer, preventing any blocking
-of the pipeline thread if the telemetry thread is delayed (e.g. by I/O stalls).
+triple-buffering approach was used (see @fig:triple-buffering). The pipeline
+thread (the _writer_) populated an active `Epoch` object containing the latency
+histograms, memory counters, and dropped frames counter. At one-second
+intervals, a clean `Epoch` was pulled from a channel using wait-free message
+passing, and the populated `Epoch` was pushed to another channel. Concurrently,
+a lightweight background telemetry thread (the _reader_) pulled the populated
+`Epoch` messages from the second channel and saved the counters and the $"p50"$,
+$"p95"$, $"p99"$, $"p99.9"$, $"p99.99"$, and maximum latency values into a CSV
+file, then reset the `Epoch` and pushed it back to the first channel for reuse.
+A third `Epoch` was kept idle in the first channel ready to be swapped in as the
+new active buffer, preventing any blocking of the pipeline thread if the
+telemetry thread is delayed (e.g. by I/O stalls).
 
 High Dynamic Range (HDR) Histograms @hdrhistogram were used to aggregate the
 latency distributions, preventing memory allocation from polluting the latency
