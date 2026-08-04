@@ -128,21 +128,21 @@ TelemetryWriter::record(uint64_t ts[Epoch::NUM_LATENCY_MEASURES],
 
   for (size_t idx = 0; idx < (Epoch::NUM_LATENCY_MEASURES - 1); idx++) {
     const auto nanos = saturating_sub(ts[idx + 1], ts[idx]);
-    current_epoch_.latency_nanos[idx].record(std::max<uint64_t>(1, nanos));
+    current_epoch_->latency_nanos[idx].record(std::max<uint64_t>(1, nanos));
   }
 
   const auto total_nanos =
     saturating_sub(ts[Epoch::TOTAL_LATENCY], ts[Epoch::UNBOUNDED_QUEUE_WAIT]);
-  current_epoch_.latency_nanos[Epoch::TOTAL_LATENCY].record(
+  current_epoch_->latency_nanos[Epoch::TOTAL_LATENCY].record(
     std::max<uint64_t>(1, total_nanos));
 
   const auto newly_lapped = saturating_sub(lapped_frames, last_lapped_frames_);
-  current_epoch_.lapped_frames += newly_lapped;
+  current_epoch_->lapped_frames += newly_lapped;
   last_lapped_frames_ = lapped_frames;
 
   const auto newly_dropped =
     saturating_sub(dropped_frames, last_dropped_frames_);
-  current_epoch_.dropped_frames += newly_dropped;
+  current_epoch_->dropped_frames += newly_dropped;
   last_dropped_frames_ = dropped_frames;
 }
 
@@ -160,8 +160,8 @@ TelemetryWriter::swap_buffers()
 
 std::jthread
 spawn_telemetry_thread(const std::string_view& stream_name,
-  Sender<TelemetryWriter::Epoch> sender,
-  Receiver<TelemetryWriter::Epoch> receiver)
+  Sender<std::unique_ptr<TelemetryWriter::Epoch>> sender,
+  Receiver<std::unique_ptr<TelemetryWriter::Epoch>> receiver)
 {
   // The `TelemetryEpoch` is used to record measurements, and is what is
   // communicated between the inference thread and the telemetry thread. Three
@@ -172,8 +172,7 @@ spawn_telemetry_thread(const std::string_view& stream_name,
   // * One will be sitting in the channel, ready to be read in even if the
   //   telemetry thread is blocked while writing to the CSV file.
   for (size_t idx = 0; idx < 3; idx++) {
-    auto epoch = TelemetryWriter::Epoch{};
-    sender.send(std::move(epoch));
+    sender.send(std::make_unique<TelemetryWriter::Epoch>());
   }
 
   auto thread = std::jthread{
@@ -198,7 +197,7 @@ spawn_telemetry_thread(const std::string_view& stream_name,
 
         // If the terminate flag is set, we break out of the loop and exit the
         // telemetry thread gracefully.
-        if (epoch.terminated) {
+        if (epoch->terminated) {
           break;
         }
 
@@ -207,19 +206,19 @@ spawn_telemetry_thread(const std::string_view& stream_name,
 
         const auto currently_allocated_bytes =
           telemetry::allocated_bytes.load(std::memory_order_relaxed);
-        epoch.allocated_bytes =
+        epoch->allocated_bytes =
           saturating_sub(currently_allocated_bytes, last_allocated_bytes);
         last_allocated_bytes = currently_allocated_bytes;
 
         const auto currently_allocation_count =
           telemetry::allocation_count.load(std::memory_order_relaxed);
-        epoch.allocation_count =
+        epoch->allocation_count =
           saturating_sub(currently_allocation_count, last_allocation_count);
         last_allocation_count = currently_allocation_count;
 
         const auto currently_freed_bytes =
           telemetry::freed_bytes.load(std::memory_order_relaxed);
-        epoch.freed_bytes =
+        epoch->freed_bytes =
           saturating_sub(currently_freed_bytes, last_freed_bytes);
         last_freed_bytes = currently_freed_bytes;
 
@@ -243,13 +242,13 @@ spawn_telemetry_thread(const std::string_view& stream_name,
 
           long resident = 0;
           std::from_chars(p, sbuf + n, resident);
-          epoch.rss_bytes = resident * PAGE_SIZE;
+          epoch->rss_bytes = resident * PAGE_SIZE;
         }
 
-        epoch.fordblks_bytes = mallinfo2().fordblks;
+        epoch->fordblks_bytes = mallinfo2().fordblks;
 
-        csv.write_epoch(epoch, timestamp_ns);
-        epoch.reset();
+        csv.write_epoch(*epoch, timestamp_ns);
+        epoch->reset();
         sender.send(std::move(epoch));
       }
     }

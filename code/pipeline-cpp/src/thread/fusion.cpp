@@ -17,9 +17,9 @@ spawn_fusion_thread(Receiver<ShmBuffer::Frame> receiver,
 
     for (const auto& name : stream_names) {
       auto [telemetry_sender, inference_receiver] =
-        make_channel<TelemetryWriter::Epoch>(3);
+        make_channel<std::unique_ptr<TelemetryWriter::Epoch>>(3);
       auto [inference_sender, telemetry_receiver] =
-        make_channel<TelemetryWriter::Epoch>(3);
+        make_channel<std::unique_ptr<TelemetryWriter::Epoch>>(3);
 
       try {
         telemetry_threads.push_back(spawn_telemetry_thread(

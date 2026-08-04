@@ -140,7 +140,8 @@ public:
   /// telemetry thread for processing.
   /// \param receiver The receiver channel for receiving a fresh epoch from the
   /// telemetry thread.
-  TelemetryWriter(Sender<Epoch> sender, Receiver<Epoch> receiver)
+  TelemetryWriter(Sender<std::unique_ptr<Epoch>> sender,
+          Receiver<std::unique_ptr<Epoch>> receiver)
     : sender_(std::move(sender))
     , receiver_(std::move(receiver))
     , last_swap_(std::chrono::steady_clock::now())
@@ -174,7 +175,7 @@ public:
     if (is_terminated_) return;
 
     is_terminated_ = true;
-    current_epoch_.terminated = true;
+    current_epoch_->terminated = true;
     sender_.send(std::move(current_epoch_));
   }
 
@@ -188,11 +189,11 @@ private:
 
   /// The sender channel for publishing the current epoch to the telemetry
   /// thread for processing.
-  Sender<Epoch> sender_;
+  Sender<std::unique_ptr<Epoch>> sender_;
 
   /// The receiver channel for receiving a fresh epoch from the telemetry
   /// thread.
-  Receiver<Epoch> receiver_;
+  Receiver<std::unique_ptr<Epoch>> receiver_;
 
   /// The timestamp of the last buffer swap, used to determine when to next swap
   /// the buffers.
@@ -207,7 +208,7 @@ private:
   uint64_t last_dropped_frames_ = 0;
 
   /// The currently active telemetry epoch for recording latency measurements.
-  Epoch current_epoch_;
+  std::unique_ptr<Epoch> current_epoch_;
 
   /// A flag indicating whether the telemetry thread has been signaled to
   /// terminate.
@@ -230,5 +231,5 @@ private:
 /// \returns A std::jthread representing the spawned telemetry thread.
 std::jthread
 spawn_telemetry_thread(const std::string_view& stream_name,
-  Sender<TelemetryWriter::Epoch> sender,
-  Receiver<TelemetryWriter::Epoch> receiver);
+  Sender<std::unique_ptr<TelemetryWriter::Epoch>> sender,
+  Receiver<std::unique_ptr<TelemetryWriter::Epoch>> receiver);
