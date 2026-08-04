@@ -11,6 +11,7 @@ spawn_fusion_thread(Receiver<ShmBuffer::Frame> receiver,
 {
   auto thread = std::jthread([stream_names,
                                receiver = std::move(receiver)]() mutable {
+    pthread_setname_np(pthread_self(), "fusion");
     auto telemetry_threads = std::vector<std::jthread>();
     auto telemetry_writers = std::vector<TelemetryWriter>();
 
@@ -165,8 +166,6 @@ spawn_fusion_thread(Receiver<ShmBuffer::Frame> receiver,
       thread.join();
     }
   });
-
-  pthread_setname_np(thread.native_handle(), "fusion");
 
   return thread;
 }

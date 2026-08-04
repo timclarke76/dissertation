@@ -19,6 +19,9 @@ spawn_bridge_thread(const std::string& shm_name,
   const Policy& policy)
 {
   auto thread = std::jthread([shm_name, stream_id, queue, policy]() {
+    pthread_setname_np(pthread_self(),
+      std::format("bridge_{}", shm_name).substr(0, 15).c_str());
+
     ShmBuffer shm_buffer(shm_name, stream_id);
     uint64_t decimation_counter = 0;
     ShmBuffer::Frame frame;
@@ -159,9 +162,6 @@ spawn_bridge_thread(const std::string& shm_name,
       // clang-format on
     }
   });
-
-  pthread_setname_np(thread.native_handle(),
-    std::format("bridge_{}", shm_name).substr(0, 15).c_str());
 
   return thread;
 }

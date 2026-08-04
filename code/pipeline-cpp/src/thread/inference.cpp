@@ -21,6 +21,9 @@ spawn_inference_thread(const std::string& stream_name,
     window_frames, frame_shape, item_size_bytes]() mutable {
     // clang-format on
 
+    pthread_setname_np(pthread_self(),
+      std::format("inference_{}", stream_name).substr(0, 15).c_str());
+
     const size_t window_size_items = static_cast<size_t>(std::accumulate(
       frame_shape.begin(), frame_shape.end(), 1LL, std::multiplies<int64_t>()));
     const size_t frame_size_items = window_size_items / window_frames;
@@ -88,9 +91,6 @@ spawn_inference_thread(const std::string& stream_name,
       }
     }
   });
-
-  pthread_setname_np(thread.native_handle(),
-    std::format("inference_{}", stream_name).substr(0, 15).c_str());
 
   return thread;
 }

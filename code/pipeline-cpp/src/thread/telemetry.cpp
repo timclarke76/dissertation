@@ -178,6 +178,9 @@ spawn_telemetry_thread(const std::string_view& stream_name,
 
   auto thread = std::jthread{
     [stream_name, sender, receiver = std::move(receiver)]() mutable {
+      pthread_setname_np(pthread_self(),
+        std::format("telemetry_{}", stream_name).substr(0, 15).c_str());
+
       const long PAGE_SIZE = sysconf(_SC_PAGESIZE);
       uint64_t last_allocated_bytes = 0;
       uint64_t last_allocation_count = 0;
@@ -251,9 +254,6 @@ spawn_telemetry_thread(const std::string_view& stream_name,
       }
     }
   };
-
-  pthread_setname_np(thread.native_handle(),
-    std::format("telemetry{}", stream_name).substr(0, 15).c_str());
 
   return thread;
 }
