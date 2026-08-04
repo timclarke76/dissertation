@@ -213,10 +213,13 @@ class TelemetryWriter:
         """Try to receive the fresh epoch from the telemetry thread. If the
         channel is empty, we skip the swap and continue recording into the
         current epoch."""
+
+        # Reset timer to guarantee one check per second.
+        self.last_swap = time.perf_counter_ns()
+
         epoch = self.receiver.try_receive()
 
         if epoch != None:
-            self.last_swap = time.perf_counter_ns()
             self.sender.send(self.current_epoch)
             self.current_epoch = epoch
 

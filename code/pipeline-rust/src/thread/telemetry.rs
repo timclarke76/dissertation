@@ -362,12 +362,13 @@ impl TelemetryWriter {
     /// the background thread. The populated buffer is sent to the background
     /// thread for processing, and the timestamp of the last swap is updated.
     fn swap_buffers(&mut self) -> Result<()> {
+        // Reset timer to guarantee one check per second.
+        self.last_swap = Instant::now();
+
         // Try to receive the fresh epoch from the telemetry thread. If the
         // channel is empty, we skip the swap and continue recording into the
         // current epoch.
         if let Ok(mut epoch) = self.receiver.try_recv() {
-            self.last_swap = Instant::now();
-
             // Using `std::mem::swap` to swap the populated epoch with the fresh
             // epoch, avoiding the need for cloning or moving the data.
             std::mem::swap(&mut self.current_epoch, &mut epoch);
