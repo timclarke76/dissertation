@@ -28,6 +28,10 @@ private:
   /// \brief The IO binding used to bind input and output tensors for inference.
   Ort::IoBinding io_binding_{ nullptr };
 
+  /// \brief The run options used to configure the ONNX Runtime session for
+  /// inference.
+  Ort::RunOptions run_options_;
+
   /// \brief A vector to hold the shape of the input tensor.
   std::vector<int64_t> input_shape_;
 
