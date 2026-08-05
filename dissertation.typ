@@ -2261,6 +2261,64 @@ incoming frames, the existing frames in the bounded buffer continue to age while
 waiting to be processed. Conversely, Drop Oldest drops the oldest data from the
 bounded buffer, guaranteeing that the freshest data survives.
 
+#colbreak()
+
+== Memory Overhead
+
+To investigate the impact of Python's automated memory management on deadline
+adherence, the maximum latency was plotted for all three implementations,
+alongside the recorded duration of Python's Garbage Collection (GC) pauses. A
+`load` multiplier of \0.05 was selected, with a policy of Exponential Backoff,
+as this was the maximum throughput measured that all three implementations were
+able to sustain without the loss of data. The initial 60-second window, as
+illustrated in @fig:MAXN_SUPER-python-gc, captures the initialisation phase and
+the subsequent steady-state, while retaining visual clarity.
+
+C++ and Rust demonstrated stable maximum latencies below the 100 ms deadline
+during the initialisation phase (\27.5 ms and \34.0 ms, respectively) and the
+subsequent steady-state phase (\36.8 ms and \46.1 ms, respectively), with ranges
+of \14.2 ms and \20.0 ms respectively during initialisation, and \32.0 ms and
+\41.4 ms respectively during steady-state.
+
+During the initialisation phase, Python exhibited a maximum latency of \683.1
+ms, with a range of \636.6 ms. During the subsequent steady-state phase, maximum
+latency increased to \2,652.9 ms, and the latency range increased to \2,627.3
+ms. Python's "stop-the-world" GC events were confined to only the first few
+seconds of the \60-second window.
+
+#figure(
+  pad(top: 1em)[
+    #image("code/results/img/python_gc_jitter.pdf", width: 85%)
+  ],
+  caption: [Maximum latency vs. GC pause duration over the first \60 seconds
+    of execution. #v(3em)],
+) <fig:MAXN_SUPER-python-gc>
+
+To further evaluate the resource efficiency of the runtime models, the Resident
+Set Size (RSS) was measured under the heaviest load conditions that both
+compiled languages were able to sustain without dropping frames (Exponential
+Backoff, `load` \5.5).
+
+As demonstrated in the left panel of @fig:memory_profiling, the overall memory
+footprint remained consistent across all three implementations, with C++, Rust,
+and Python stabilising at approximately \743.2 MB, \746.5 MB, and \782.0 MB
+respectively.
+
+The right panel of @fig:memory_profiling demonstrates the cumulative dynamic
+memory allocations of the C++ and Rust implementations in the pipeline.
+Following the 10-second initialisation phase, there was no dynamic memory
+allocation for either implementation.
+
+#figure(
+  pad(top: 2em)[
+    #image("code/results/img/MAXN_SUPER-memory-profiling.pdf", width: 95%)
+  ],
+  caption: [Memory profiling during steady-state execution. The left
+    panel compares the Resident Set Size (RSS) footprint. \
+    The right panel shows the total dynamic memory allocations by the C++ and
+    Rust implementations.],
+) <fig:memory_profiling>
+
 = Discussion
 
 == Compilation Times
