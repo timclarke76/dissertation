@@ -27,7 +27,7 @@ public:
   ~Histogram()
   {
     if (hist_) {
-      free(hist_);
+      hdr_close(hist_);
     }
   }
 
