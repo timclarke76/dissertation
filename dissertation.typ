@@ -2299,13 +2299,13 @@ Set Size (RSS) was measured under the heaviest load conditions that both
 compiled languages were able to sustain without dropping frames (Exponential
 Backoff, `load` \5.5).
 
-As demonstrated in the left panel of @fig:memory_profiling, the overall memory
-footprint remained consistent across all three implementations, with C++, Rust,
-and Python stabilising at approximately \743.2 MB, \746.5 MB, and \782.0 MB
-respectively.
+As demonstrated in the left panel of @fig:MAXN_SUPER-memory-profiling, the
+overall memory footprint remained consistent across all three implementations,
+with C++, Rust, and Python stabilising at approximately \743.2 MB, \746.5 MB,
+and \782.0 MB respectively.
 
-The right panel of @fig:memory_profiling demonstrates the cumulative dynamic
-memory allocations of the C++ and Rust implementations in the pipeline.
+The right panel of @fig:MAXN_SUPER-memory-profiling demonstrates the cumulative
+dynamic memory allocations of the C++ and Rust implementations in the pipeline.
 Following the 10-second initialisation phase, there was no dynamic memory
 allocation for either implementation.
 
@@ -2317,7 +2317,7 @@ allocation for either implementation.
     panel compares the Resident Set Size (RSS) footprint. \
     The right panel shows the total dynamic memory allocations by the C++ and
     Rust implementations.],
-) <fig:memory_profiling>
+) <fig:MAXN_SUPER-memory-profiling>
 
 = Discussion
 
