@@ -2198,6 +2198,69 @@ significantly slower than the compiled languages.
     `load` \0.05 using the Exponential Backoff backpressure policy.],
 ) <fig:MAXN_SUPER-latency-breakdown>
 
+#colbreak()
+
+== Flow Control vs. Load Shedding
+
+To compare the total number of dropped or lapped frames between flow-control and
+load-shedding policies, the most efficient flow-control policy (Exponential
+Backoff) was contrasted against the two most pure load-shedding policies: Drop
+Oldest and Drop Newest. These policies both drop frames when the bounded queue
+is full, without trying to prevent it filling to capacity by dynamically
+adjusting the flow-rate. Rust was the most efficient implementation, and so was
+selected for this comparison. A `load` multiplier of \2.5 was used as it is the
+lowest measured multiplier at which both load-shedding policies dropped frames.
+The power mode was set to MAXN_SUPER.
+
+As shown in @fig:MAXN_SUPER-dropped-frames, the Exponential Backoff flow-control
+policy was able to fully absorb the latency jitter by taking advantage of the
+\1-second unbounded buffer. In contrast, the load-shedding policies dropped
+frames to maintain the \100 ms latency deadline. The Drop Newest policy recorded
+a total of \21 dropped frames over the \600 second evaluation period, while the
+Drop Oldest policy recorded \56 dropped frames.
+
+#figure(
+  pad(top: 0.5em)[
+    #image("code/results/img/MAXN_SUPER-dropped-frames.pdf", width: 85%)
+  ],
+  caption: [Total dropped frames for Rust at `load` \2.5, comparing the
+    Exponential Backoff \
+    flow-control policy against the Drop Oldest and Drop Newest load-shedding
+    policies. #v(2em)],
+) <fig:MAXN_SUPER-dropped-frames>
+
+While flow-control policies excel at preventing data-loss when experiencing
+jitter, load-shedding policies sacrifice the data to meet the latency deadline.
+As shown in @fig:MAXN_SUPER-latency-comparison, the impact of retaining stale
+data to prevent loss caused forced the majority of epochs (\56.5%) to breach the
+100 ms latency deadline. Conversely, by dropping frames and preventing a growing
+backlog, the load-shedding policies guarantee that surviving frames are
+processed within the deadline.
+
+#figure(
+  pad(top: 0.5em)[
+    #image("code/results/img/MAXN_SUPER-latency-comparison.pdf", width: 85%)
+  ],
+  caption: [Latency comparison for Rust at `load` \7.0, comparing the
+    Exponential Backoff \
+    flow-control policy against the Drop Oldest, Drop Newest, and Adaptive
+    Decimation. #v(2em)],
+) <fig:MAXN_SUPER-latency-comparison>
+
+To mitigate the temporal data loss characteristic of load-shedding policies,
+while also avoiding the fast growth of stale frames within the unbounded buffer,
+the Adaptive Decimation policy was compared. By dynamically downsampling the
+incoming stream before the bounded buffer reaches full capacity, the policy
+reduces volume pressure while maintaining temporal continuity. However,
+preserving the temporal continuity sacrifices a substantial number of frames ---
+\675 frames were dropped over the 600 second evaluation period (not shown in
+@fig:MAXN_SUPER-dropped-frames to preserve visual clarity). In addition, total
+latency increased compared to the Drop Oldest policy, though was lower than that
+achieved by Drop Newest. Because Adaptive Decimation and Drop Newest both drop
+incoming frames, the existing frames in the bounded buffer continue to age while
+waiting to be processed. Conversely, Drop Oldest drops the oldest data from the
+bounded buffer, guaranteeing that the freshest data survives.
+
 = Discussion
 
 == Compilation Times
