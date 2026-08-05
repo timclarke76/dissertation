@@ -2109,6 +2109,67 @@ other monitoring tools.
 #wc[
 = Results
 
+== Baseline Performance (MAXN_SUPER)
+
+With MAXN SUPER mode enabled (@fig:MAXN_SUPER-baseline-performance), C++
+sustained ingestion without absolute saturation up to a `load` multiplier of
+\4.0 for the Bounded Queue policy, and \5.5 for Exponential Backoff. Rust was
+able to process both flow control policies at \5.5. For the load shedding
+policies (Drop Oldest and Drop Newest) and Adaptive Decimation, both compiled
+languages were able to process the data streams at \1.0, but reached absolute
+saturation at higher `load` multipliers.
+
+Conversely, Python was only able to process the data streams at \5% (`load`
+multiplier of \0.05) when Exponential Backoff was used. Absolute saturation was
+reached at < \0.01 for all other backpressure policies.
+
+#figure(
+  pad(top: 0em)[
+    #image("code/results/img/MAXN_SUPER-baseline-performance.pdf", width: 85%)
+  ],
+  caption: [Absolute pipeline saturation points for each language and
+    backpressure policy in MAXN_SUPER power mode. #v(3em)],
+) <fig:MAXN_SUPER-baseline-performance>
+
+The \99.9th percentile latency distribution was analysed using the Exponential
+Backoff backpressure policy, when every implementation was at its most efficient
+(@fig:MAXN_SUPER-cdf-5_5). This represents the maximum measured throughput
+sustained by both compiled languages, without breaching the \100 ms latency
+deadline. Despite using the same backpressure policy, and not dropping any
+frames, Python consistently breached the deadline --- typically operating at
+several times slower than required, and with a maximum latency of \778.0 ms.
+
+#figure(
+  pad(top: 1em)[
+    #image("code/results/img/MAXN_SUPER-latency-5.5.pdf", width: 85%)
+  ],
+  caption: [CDF of \99.9th percentile total latency for each language at `load`
+    \5.5, using the Exponential Backoff backpressure policy.],
+) <fig:MAXN_SUPER-cdf-5_5>
+
+#colbreak()
+
+The \99.9th latency distribution was also analysed using the Exponential Backoff
+backpressure policy at a `load` multiplier of \7.0 (@fig:MAXN_SUPER-cdf-7_0) ---
+the lowest measured throughput at which the compiled languages breached the 100
+ms latency deadline. Python was omitted as its maximum throughput measured
+without breaching the deadline was at a `load` multiplier of \0.05, making it
+incomparable when `load` is increased to \7.0.
+
+While the flow-control policy does prevent data loss (until the 1-second unbound
+circular buffer laps), it does so at the cost of increased queue accumulation
+and increasing the actual latency beyond the \100 ms deadline. \76.9% of the C++
+epochs breached the deadline with a maximum latency of \173.7 ms, compared to
+\56.5% of the Rust epochs with a maximum latency of \171.2 ms.
+
+#figure(
+  pad(top: 1em)[
+    #image("code/results/img/MAXN_SUPER-latency-7.0.pdf", width: 85%)
+  ],
+  caption: [CDF of \99.9th percentile total latency for both compiled languages
+    at `load` \7.0, using the Exponential Backoff backpressure policy. #v(5em)],
+) <fig:MAXN_SUPER-cdf-7_0>
+
 = Discussion
 
 == Compilation Times
