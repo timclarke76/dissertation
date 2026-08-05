@@ -46,7 +46,7 @@ TelemetryWriter::Csv::Csv(const std::string_view& filename)
     "fusion_exec_p50,fusion_exec_p99,fusion_exec_p99_9,fusion_exec_max,"
     "total_latency_p50,total_latency_p99,total_latency_p99_9,total_latency_max,"
     "lapped_frames,dropped_frames,allocated_bytes,allocation_count,"
-    "freed_bytes,rss_bytes,fordblks_bytes\n";
+    "freed_bytes,rss_bytes,fordblks_bytes,fan_pwm\n";
   // clang-format on
 
   if (write(fd_, header, std::strlen(header)) < 0) {
@@ -104,6 +104,7 @@ TelemetryWriter::Csv::write_epoch(const Epoch& epoch,
   append(epoch.freed_bytes);
   append(epoch.rss_bytes);
   append(epoch.fordblks_bytes);
+  append(epoch.fan_pwm);
 
   // Replace final comma with newline.
   *(ptr - 1) = '\n';
@@ -177,84 +178,98 @@ spawn_telemetry_thread(const std::string_view& stream_name,
     sender.send(std::make_unique<TelemetryWriter::Epoch>());
   }
 
-  auto thread = std::jthread{
-    [stream_name, sender, receiver = std::move(receiver)]() mutable {
-      pthread_setname_np(pthread_self(),
-        std::format("telemetry_{}", stream_name).substr(0, 15).c_str());
+  auto thread = std::jthread{ [stream_name,
+                                sender,
+                                receiver = std::move(receiver)]() mutable {
+    pthread_setname_np(pthread_self(),
+      std::format("telemetry_{}", stream_name).substr(0, 15).c_str());
 
-      const long PAGE_SIZE = sysconf(_SC_PAGESIZE);
-      uint64_t last_allocated_bytes = 0;
-      uint64_t last_allocation_count = 0;
-      uint64_t last_freed_bytes = 0;
+    const long PAGE_SIZE = sysconf(_SC_PAGESIZE);
+    uint64_t last_allocated_bytes = 0;
+    uint64_t last_allocation_count = 0;
+    uint64_t last_freed_bytes = 0;
 
-      // Telemtry is written to a CSV file for later analysis.
-      TelemetryWriter::Csv csv(std::format("telemetry_{}.csv", stream_name));
+    // Telemtry is written to a CSV file for later analysis.
+    TelemetryWriter::Csv csv(std::format("telemetry_{}.csv", stream_name));
 
-      for (;;) {
-        auto epoch = receiver.receive();
+    for (;;) {
         const uint64_t timestamp_ns =
-          std::chrono::duration_cast<std::chrono::nanoseconds>(
-            std::chrono::system_clock::now().time_since_epoch())
-            .count();
+      auto epoch = receiver.receive();
+      const uint64_t timestamp_ns =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+          std::chrono::system_clock::now().time_since_epoch())
+          .count();
 
-        // If the terminate flag is set, we break out of the loop and exit the
-        // telemetry thread gracefully.
-        if (epoch->terminated) {
-          break;
-        }
-
-        // Now the inference thread is no longer updating the completed epoch,
-        // we can save it.
-
-        const auto currently_allocated_bytes =
-          telemetry::allocated_bytes.load(std::memory_order_relaxed);
-        epoch->allocated_bytes =
-          saturating_sub(currently_allocated_bytes, last_allocated_bytes);
-        last_allocated_bytes = currently_allocated_bytes;
-
-        const auto currently_allocation_count =
-          telemetry::allocation_count.load(std::memory_order_relaxed);
-        epoch->allocation_count =
-          saturating_sub(currently_allocation_count, last_allocation_count);
-        last_allocation_count = currently_allocation_count;
-
-        const auto currently_freed_bytes =
-          telemetry::freed_bytes.load(std::memory_order_relaxed);
-        epoch->freed_bytes =
-          saturating_sub(currently_freed_bytes, last_freed_bytes);
-        last_freed_bytes = currently_freed_bytes;
-
-        const int statm_fd = open("/proc/self/statm", O_RDONLY);
-        if (statm_fd < 0) {
-          throw std::runtime_error("Failed to open /proc/self/statm");
-        }
-
-        char sbuf[128];
-        ssize_t n = read(statm_fd, sbuf, sizeof(sbuf) - 1);
-        close(statm_fd);
-
-        if (n > 0) {
-          char* p = sbuf;
-
-          // Ignore size.
-          while (p < sbuf + n && *p != ' ')
-            p++;
-          if (p < sbuf + n && *p == ' ')
-            p++;
-
-          long resident = 0;
-          std::from_chars(p, sbuf + n, resident);
-          epoch->rss_bytes = resident * PAGE_SIZE;
-        }
-
-        epoch->fordblks_bytes = mallinfo2().fordblks;
-
-        csv.write_epoch(*epoch, timestamp_ns);
-        epoch->reset();
-        sender.send(std::move(epoch));
+      // If the terminate flag is set, we break out of the loop and exit the
+      // telemetry thread gracefully.
+      if (epoch->terminated) {
+        break;
       }
+
+      // Now the inference thread is no longer updating the completed epoch,
+      // we can save it.
+
+      const auto currently_allocated_bytes =
+        telemetry::allocated_bytes.load(std::memory_order_relaxed);
+      epoch->allocated_bytes =
+        saturating_sub(currently_allocated_bytes, last_allocated_bytes);
+      last_allocated_bytes = currently_allocated_bytes;
+
+      const auto currently_allocation_count =
+        telemetry::allocation_count.load(std::memory_order_relaxed);
+      epoch->allocation_count =
+        saturating_sub(currently_allocation_count, last_allocation_count);
+      last_allocation_count = currently_allocation_count;
+
+      const auto currently_freed_bytes =
+        telemetry::freed_bytes.load(std::memory_order_relaxed);
+      epoch->freed_bytes =
+        saturating_sub(currently_freed_bytes, last_freed_bytes);
+      last_freed_bytes = currently_freed_bytes;
+
+      const int statm_fd = open("/proc/self/statm", O_RDONLY);
+      if (statm_fd < 0) {
+        throw std::runtime_error("Failed to open /proc/self/statm");
+      }
+
+      char sbuf[128];
+      ssize_t n = read(statm_fd, sbuf, sizeof(sbuf) - 1);
+      close(statm_fd);
+
+      if (n > 0) {
+        char* p = sbuf;
+
+        // Ignore size.
+        while (p < sbuf + n && *p != ' ')
+          p++;
+        if (p < sbuf + n && *p == ' ')
+          p++;
+
+        long resident = 0;
+        std::from_chars(p, sbuf + n, resident);
+        epoch->rss_bytes = resident * PAGE_SIZE;
+      }
+
+      const int fan_fd = open("/sys/class/hwmon/hwmon0/pwm1", O_RDONLY);
+      if (fan_fd < 0) {
+        throw std::runtime_error("Failed to open /sys/class/hwmon/hwmon0/pwm1");
+      }
+      char fbuf[16];
+      n = read(fan_fd, fbuf, sizeof(fbuf) - 1);
+      close(fan_fd);
+      if (n > 0) {
+        long pwm = 0;
+        std::from_chars(fbuf, fbuf + n, pwm);
+        epoch->fan_pwm = static_cast<uint64_t>(pwm);
+      }
+
+      epoch->fordblks_bytes = mallinfo2().fordblks;
+
+      csv.write_epoch(*epoch, timestamp_ns);
+      epoch->reset();
+      sender.send(std::move(epoch));
     }
-  };
+  } };
 
   return thread;
 }

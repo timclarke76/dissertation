@@ -43,6 +43,9 @@ pub struct TelemetryEpoch {
     /// The total number of allocated fordblks bytes during the epoch.
     pub fordblks_bytes: usize,
 
+    /// The current fan PWM value during the epoch.
+    fan_pwm: u64,
+
     /// A flag indicating whether the telemetry thread should terminate.
     terminated: bool,
 }
@@ -119,6 +122,7 @@ impl TelemetryEpoch {
             freed_bytes: 0,
             rss_bytes: 0,
             fordblks_bytes: 0,
+            fan_pwm: 0,
             terminated: false,
         })
     }
@@ -179,7 +183,7 @@ impl Csv {
             fusion_exec_p50,fusion_exec_p99,fusion_exec_p99_9,fusion_exec_max,\
             total_latency_p50,total_latency_p99,total_latency_p99_9,total_latency_max,\
             lapped_frames,dropped_frames,allocated_bytes,allocation_count,\
-            freed_bytes,rss_bytes,fordblks_bytes\n";
+            freed_bytes,rss_bytes,fordblks_bytes,fan_pwm\n";
 
         file.write_all(header).expect("Failed to write CSV header");
 
@@ -226,6 +230,7 @@ impl Csv {
         append(epoch.freed_bytes as u64);
         append(epoch.rss_bytes as u64);
         append(epoch.fordblks_bytes as u64);
+        append(epoch.fan_pwm);
 
         // Replace final comma with newline.
         let written = BUFFER_SIZE - cursor.len();
@@ -526,6 +531,9 @@ pub fn spawn_telemetry_thread(
 
                     epoch.rss_bytes = rss_pages * page_size;
                 }
+
+                let pwm_str = std::fs::read_to_string( "/sys/class/hwmon/hwmon0/pwm1").expect("Failed to read fan PWM value from /sys/class/hwmon/hwmon0/pwm1");
+                epoch.fan_pwm = pwm_str.trim().parse().expect("Failed to parse fan PWM value");
 
                 epoch.fordblks_bytes =
                     unsafe { libc::mallinfo2().fordblks as usize };

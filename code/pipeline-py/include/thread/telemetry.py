@@ -58,6 +58,9 @@ class TelemetryEpoch:
     rss_bytes: int = 0
     """The total number of allocated RSS bytes during the epoch."""
 
+    fan_pwm: int = 0
+    """The current fan PWM value during the epoch."""
+
     terminated: bool = False
     """A flag indicating whether the telemetry thread should terminate."""
 
@@ -272,6 +275,7 @@ class Csv:
                 'gc_pause_ns',
                 'gc_blocks',
                 'rss_bytes',
+                'fan_pwm',
             ]
         )
 
@@ -295,6 +299,7 @@ class Csv:
                 epoch.gc_pause_ns,
                 epoch.gc_blocks,
                 epoch.rss_bytes,
+                epoch.fan_pwm,
             ]
         )
 
@@ -356,6 +361,14 @@ def spawn_telemetry_thread(
             except Exception:
                 raise RuntimeError(
                     "Failed to read RSS bytes from /proc/self/statm"
+                ) from e
+
+            try:
+                with open('/sys/class/hwmon/hwmon0/pwm1', 'r') as f:
+                    epoch.fan_pwm = int(f.read().strip())
+            except Exception:
+                raise RuntimeError(
+                    "Failed to read RSS bytes from /sys/class/hwmon/hwmon0/pwm1"
                 ) from e
 
             try:

@@ -94,6 +94,9 @@ public:
     /// The total number of allocated fordblks bytes during the epoch.
     size_t fordblks_bytes = 0;
 
+    /// The current fan PWM value during the epoch.
+    uint64_t fan_pwm = 0;
+
     /// A flag indicating whether the telemetry thread should terminate.
     bool terminated = false;
   };
@@ -141,7 +144,7 @@ public:
   /// \param receiver The receiver channel for receiving a fresh epoch from the
   /// telemetry thread.
   TelemetryWriter(Sender<std::unique_ptr<Epoch>> sender,
-          Receiver<std::unique_ptr<Epoch>> receiver)
+    Receiver<std::unique_ptr<Epoch>> receiver)
     : sender_(std::move(sender))
     , receiver_(std::move(receiver))
     , last_swap_(std::chrono::steady_clock::now())
@@ -172,7 +175,8 @@ public:
   /// instead the termination epoch is sent directly.
   void terminate()
   {
-    if (is_terminated_) return;
+    if (is_terminated_)
+      return;
 
     is_terminated_ = true;
     current_epoch_->terminated = true;
