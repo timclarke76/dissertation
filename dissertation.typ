@@ -2319,6 +2319,49 @@ allocation for either implementation.
     Rust implementations.],
 ) <fig:MAXN_SUPER-memory-profiling>
 
+== Thermal Accumulation
+
+During the evaluations, the Jetson Orin Nano's emergency fan cooling prevented
+DVFS frequency scaling by engaging the fan at \74°C. However, analysis of the
+`tegrastats` telemetry revealed thermal accumulation differences between the
+runtime models.
+
+Figure @fig:MAXN_SUPER-thermals-native shows all three implementations subject
+to the natural stream rate (`load` \1.0) using the Exponential Backoff
+backpressure policy. C++ triggered the fan after \152 seconds, Rust at \179
+seconds, and Python at \180 seconds. By the end of the evaluation, the C++
+temperature had reached a steady-state approximately \4°C hotter than Rust, and
+\5°C hotter than Python.
+
+#figure(
+  pad(top: 1em)[
+    #image("code/results/img/MAXN_SUPER-thermals-native.pdf", width: 85%)
+  ],
+  caption: [Thermal accumulation at the natural stream rate using the
+    Exponential Backoff backpressure policy. #v(2em)],
+) <fig:MAXN_SUPER-thermals-native>
+
+@fig:MAXN_SUPER-thermals-saturated plots the temperature curves of each
+implementation at their respective maximum measured saturation points
+(Exponential Backoff, `load` \5.5 for the compiled languages, and \0.05 for
+Python). At maximum throughput, C++ and Rust triggered the fan after \91 seconds
+and \100 seconds respectively. The temperatures then settled to approximately
+\68.5°C and \67°C respectively. Conversely, at the maximum sustainable `load`
+multiplier of \0.05, the fan did not trigger for Python until \166 seconds, and
+the temperature then settled to approximately \57°C.
+
+#figure(
+  pad(top: 1em)[
+    #image("code/results/img/MAXN_SUPER-thermals-saturated.pdf", width: 85%)
+  ],
+  caption: [Thermal accumulation at the maximum sustainable throughput using the
+    Exponential Backoff backpressure policy.],
+) <fig:MAXN_SUPER-thermals-saturated>
+]
+
+#colbreak()
+
+#columns(2, gutter: 16pt)[
 = Discussion
 
 == Compilation Times
