@@ -2170,6 +2170,34 @@ epochs breached the deadline with a maximum latency of \173.7 ms, compared to
     at `load` \7.0, using the Exponential Backoff backpressure policy. #v(5em)],
 ) <fig:MAXN_SUPER-cdf-7_0>
 
+== Latency Breakdown
+
+The overall pipeline latency was broken down into its five stages, and the
+average median (p50) calculated. Summing the deep tail percentiles (e.g. the
+\99.9th) across all stages would be misleading, as it would assume that the
+worst-case latency of each stage occurs for a single frame, which would
+misrepresent the actual latency of the typical frame. The Exponential Backoff
+policy was selected, with a `load` of \0.05, as this was the maximum throughput
+speed that all three implementations were able to sustain without dropping
+frames. The MAXN_SUPER power mode was selected.
+
+As @fig:MAXN_SUPER-latency-breakdown shows, C++ and Rust both completed the
+pipeline well within the \100 ms deadline (\7.8 ms and \7.3 ms respectively),
+with the Inference Execution stage taking the majority of that time (\5.9 ms for
+C++, and \5.2 ms for Rust). Conversely, Python's total average median latency
+breached the \100 ms deadline (\105.2 ms), with the majority of that time spent
+with frames waiting in the unbounded circular buffer (\31.9 ms) or the bounded
+queue buffer (\28.2 ms). The Inference Execution stage (\22.5 ms) was also
+significantly slower than the compiled languages.
+
+#figure(
+  pad(top: 1em)[
+    #image("code/results/img/MAXN_SUPER-latency-breakdown.pdf", width: 85%)
+  ],
+  caption: [Stage-by-stage median (p50) latency breakdown for the RGB stream at
+    `load` \0.05 using the Exponential Backoff backpressure policy.],
+) <fig:MAXN_SUPER-latency-breakdown>
+
 = Discussion
 
 == Compilation Times
