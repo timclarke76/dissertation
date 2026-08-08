@@ -2115,11 +2115,19 @@ other monitoring tools.
   caption: [Capturing the duration spent in the Python Garbage \
     Collector (GC) using the `gc.callbacks` hook.#v(1em)]
 ) <lst:gc-callback>
+]
+#pagebreak()
+#columns(1)[
 
 #wc[
 = Results
 
-== Baseline Performance (MAXN_SUPER)
+To prevent cold-start initialisation from skewing the steady-state measurements,
+the first 10 seconds of all telemetry logs were excluded from the diagrams and
+analyses unless otherwise stated. Similarly, unless other stated all evaluations
+were performed in MAXN_SUPER power mode (`nvpmodel -m 2`).
+
+== Baseline Performance (MAXN_SUPER) <sec:baseline-performance>
 
 With MAXN SUPER mode enabled (@fig:MAXN_SUPER-baseline-performance), C++
 sustained ingestion without absolute saturation up to a `load` multiplier of
@@ -2138,7 +2146,7 @@ reached at < \0.01 for all other backpressure policies.
     #image("code/results/img/MAXN_SUPER-baseline-performance.pdf", width: 85%)
   ],
   caption: [Absolute pipeline saturation points for each language and
-    backpressure policy in MAXN_SUPER power mode. #v(3em)],
+    backpressure policy. #v(2em)],
 ) <fig:MAXN_SUPER-baseline-performance>
 
 The \99.9th percentile latency distribution was analysed using the Exponential
@@ -2189,7 +2197,7 @@ worst-case latency of each stage occurs for a single frame, which would
 misrepresent the actual latency of the typical frame. The Exponential Backoff
 policy was selected, with a `load` of \0.05, as this was the maximum throughput
 speed that all three implementations were able to sustain without dropping
-frames. The MAXN_SUPER power mode was selected.
+frames.
 
 As @fig:MAXN_SUPER-latency-breakdown shows, C++ and Rust both completed the
 pipeline well within the \100 ms deadline (\7.8 ms and \7.3 ms respectively),
@@ -2220,7 +2228,6 @@ is full, without trying to prevent it filling to capacity by dynamically
 adjusting the flow-rate. Rust was the most efficient implementation, and so was
 selected for this comparison. A `load` multiplier of \2.5 was used as it is the
 lowest measured multiplier at which both load-shedding policies dropped frames.
-The power mode was set to MAXN_SUPER.
 
 As shown in @fig:MAXN_SUPER-dropped-frames, the Exponential Backoff flow-control
 policy was able to fully absorb the latency jitter by taking advantage of the
@@ -2273,7 +2280,7 @@ bounded buffer, guaranteeing that the freshest data survives.
 
 #colbreak()
 
-== Memory Overhead
+== Memory Overhead <sec:memory-overhead>
 
 To investigate the impact of Python's automated memory management on deadline
 adherence, the maximum latency was plotted for all three implementations,
@@ -2294,14 +2301,16 @@ During the initialisation phase, Python exhibited a maximum latency of \683.1
 ms, with a range of \636.6 ms. During the subsequent steady-state phase, maximum
 latency increased to \2,652.9 ms, and the latency range increased to \2,627.3
 ms. Python's "stop-the-world" GC events were confined to only the first few
-seconds of the \60-second window.
+seconds of the \60-second window. This was confirmed by a Spearman's rank
+correlation across the steady-state window, which produced an undefined result
+(`NaN`) due to no GC events occurring during that time.
 
 #figure(
-  pad(top: 1em)[
+  pad(top: 1.5em)[
     #image("code/results/img/python_gc_jitter.pdf", width: 85%)
   ],
   caption: [Maximum latency vs. GC pause duration over the first \60 seconds
-    of execution. #v(3em)],
+    of execution. #v(3.5em)],
 ) <fig:MAXN_SUPER-python-gc>
 
 To further evaluate the resource efficiency of the runtime models, the Resident
@@ -2320,13 +2329,13 @@ Following the 10-second initialisation phase, there was no dynamic memory
 allocation for either implementation.
 
 #figure(
-  pad(top: 2em)[
+  pad(top: 2.5em)[
     #image("code/results/img/MAXN_SUPER-memory-profiling.pdf", width: 95%)
   ],
   caption: [Memory profiling during steady-state execution. The left
     panel compares the Resident Set Size (RSS) footprint. \
     The right panel shows the total dynamic memory allocations by the C++ and
-    Rust implementations.],
+    Rust implementations. #v(3.5em)],
 ) <fig:MAXN_SUPER-memory-profiling>
 
 == Thermal Accumulation
