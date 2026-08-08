@@ -1389,30 +1389,40 @@ the next RGB inference result was available.
     inference results. #v(0.5em)],
 )
 
-==== Thermal and Power Throttling
+==== Power Modes and Cooling
 
-The Jetson Orin Nano utilises reactive software thermal management (Dynamic
-Voltage and Frequency Scaling, or DVFS @jetsonLinuxDeveloperGuide) that
-constantly polls the temperature and throttles the performance of the high-power
-components (e.g. CPU and GPU) when the device exceeds operating temperature
-threshold @thermalGuide. While this prevents thermal shutdowns during normal
-operation, it introduces a confounder when comparing the performance of
-different runtime model implementations.
-To mitigate this, a baseline temperature was recorded before the evaluations
-were performed, and the device allowed to idle again between each pipeline
-execution until the baseline temperature was reached.
+When the Jetson Orin Nano reaches the `hot_surface_alert` trip point of \74°C,
+it automatically engages the cooling fan. This is a hardware-level protection
+that cannot be disabled. If the fan fails to provide enough cooling, the device
+utilises reactive software thermal management (Dynamic Voltage and Frequency
+Scaling, or DVFS @jetsonLinuxDeveloperGuide) that constantly polls the
+temperature and throttles the performance of the high-power components (e.g. CPU
+and GPU) when the device exceeds operating temperature threshold at 99°C (see
+@app:thermal-zones).
 
-To force the Dynamic Voltage and Frequency Scaling (DVFS) to engage, the cooling
-daemon (`nvfancontrol`) was disabled, allowing the device to reach its maximum
-operating temperature forcing DVFS to throttle the CPU and GPU frequencies.
-Kernel console logging was disabled to prevent I/O interrupts from affecting the
-evaluation measurements.
+The Jetson was configured to use the unconstrained power mode (MAXN_SUPER) using
+`nvpmodel -m 0`, and maximum clock overrides were enabled using `jetson_clocks`.
+This allows the device to operate at its maximum performance. Kernel console
+logging was disabled (using `dmesg -n 1`) to prevent I/O interrupts from
+affecting the measurements. Temperature, power draw, and clock frequencies were
+recorded to a `.log` file using the `tegrastats` utility, and converted to a CSV
+file for analysis after the evaluation using `awk`.
 
-Temperatures during testing were measured using the `tegrastats` utility, which
-provides monitoring of the CPU, GPU, and overall temperatures, CPU and GPU
-frequencies, and power consumption. This allows us to analyse the impact of the
-different runtime models on thermal behaviour, and to correlate throttling
-events with performance metrics.
+The baseline temperature was forced to 55°C by disabling user-space active
+cooling (`nvfancontrol`) and stopping the fan by echoing `0` to
+`/sys/class/hwmon/hwmon0/pwm1`. The Jetson was then kept busy
+(`cat /dev/urandom > /dev/null`) for periods of 2 seconds at a time, until the
+baseline temperature was reached or exceeded. The device was then allowed to
+idle with the fan speed set to 100% (`255`) until the baseline temperature was
+reached again, at which point the fan was stopped and the evaluation started.
+
+Initial attempts to engage DVFS were unsuccessful, as the Jetson's fan was able
+to cool the device fast enough to prevent the throttling temperature from being
+reached. Therefore, a second evaluation was performed after restricting the
+device to the 7-Watt power mode (using `nvpmodel -m 3`), and maximum clock
+overrides were disabled (`jetson_clocks`), forcing the device to throttle the
+CPU and GPU to adhere to the power budget, thus allowing an evaluation and
+comparison of the pipeline under constrained conditions.
 
 #wc[
 === Statistical Analysis
@@ -2701,6 +2711,41 @@ NVPM VERB: EMC MAX_FREQ 2133000000
 NVPM VERB:
 ```
 #colbreak()
+
+= Hardware Thermal Configurations <app:thermal-zones>
+
+Raw configuration output from the Jetson Linux `sysfs` thermal zones, detailing
+the hardware trip points for active cooling, software thermal throttling (DVFS),
+and critical hardware shutdowns. Temperatures are represented in millidegrees
+Celsius.
+
+```text
+tim@jetson:~$ grep "" /sys/class/thermal/thermal_zone*/type
+/sys/class/thermal/thermal_zone0/type:cpu-thermal
+/sys/class/thermal/thermal_zone1/type:gpu-thermal
+/sys/class/thermal/thermal_zone2/type:cv0-thermal
+/sys/class/thermal/thermal_zone3/type:cv1-thermal
+/sys/class/thermal/thermal_zone4/type:cv2-thermal
+/sys/class/thermal/thermal_zone5/type:soc0-thermal
+/sys/class/thermal/thermal_zone6/type:soc1-thermal
+/sys/class/thermal/thermal_zone7/type:soc2-thermal
+/sys/class/thermal/thermal_zone8/type:tj-thermal
+
+tim@jetson:~$ grep "" /sys/class/thermal/thermal_zone*/trip_point*_temp
+/sys/class/thermal/thermal_zone0/trip_point_0_temp:99000
+/sys/class/thermal/thermal_zone0/trip_point_1_temp:104500
+/sys/class/thermal/thermal_zone0/trip_point_2_temp:70000
+/sys/class/thermal/thermal_zone1/trip_point_0_temp:99000
+/sys/class/thermal/thermal_zone1/trip_point_1_temp:104500
+/sys/class/thermal/thermal_zone1/trip_point_2_temp:70000
+/sys/class/thermal/thermal_zone8/trip_point_0_temp:35000
+/sys/class/thermal/thermal_zone8/trip_point_1_temp:74000
+/sys/class/thermal/thermal_zone8/trip_point_2_temp:95000
+/sys/class/thermal/thermal_zone8/trip_point_3_temp:104500
+```
+]
+#colbreak()
+#columns(2, gutter: 16pt)[
 #set par(justify: false)
 #bibliography("refs.bib", title: "References", style: "ieee")
 ]
