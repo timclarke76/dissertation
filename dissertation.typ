@@ -2188,6 +2188,30 @@ epochs breached the deadline with a maximum latency of \173.7 ms, compared to
     at `load` \7.0, using the Exponential Backoff backpressure policy. #v(5em)],
 ) <fig:MAXN_SUPER-cdf-7_0>
 
+== Individual Stream Saturation
+
+Using the Exponential Backoff policy, the individual sensor streams were
+analysed to determine the maximum `load` multiplier that each stream could
+sustain without dropping frames. As a whole, both compiled implementations
+achieved a maximum `load` of \5.5 (@sec:baseline-performance).
+
+As demonstrated in @fig:MAXN_SUPER-stream-saturation, this failure is isolated
+to the RGB stream. While the pipelines began to drop frames from the \30 Hz RGB
+stream when the `load` exceeded \5.5, both the \1.6 kHz Accelerometer stream and
+\2.0 kHz Gyroscope stream successfully sustained ingestion without data loss up
+to the maximum tested `load` multiplier of \8.5.
+
+#figure(
+  pad(top: 1em)[
+    #image("code/results/img/MAXN_SUPER-stream-saturation.pdf", width: 85%)
+  ],
+  caption: [Maximum `load` multiplier sustained by each individual stream
+    without dropping frames, using the Exponential Backoff backpressure
+    policy.],
+) <fig:MAXN_SUPER-stream-saturation>
+
+#colbreak()
+
 == Latency Breakdown
 
 The overall pipeline latency was broken down into its five stages, and the
@@ -2216,8 +2240,6 @@ significantly slower than the compiled languages.
     `load` \0.05 using the Exponential Backoff backpressure policy.],
 ) <fig:MAXN_SUPER-latency-breakdown>
 
-#colbreak()
-
 == Flow Control vs. Load Shedding
 
 To compare the total number of dropped or lapped frames between flow-control and
@@ -2245,6 +2267,8 @@ Drop Oldest policy recorded \56 dropped frames.
     flow-control policy against the Drop Oldest and Drop Newest load-shedding
     policies. #v(2em)],
 ) <fig:MAXN_SUPER-dropped-frames>
+
+#colbreak()
 
 While flow-control policies excel at preventing data-loss when experiencing
 jitter, load-shedding policies sacrifice the data to meet the latency deadline.
@@ -2555,6 +2579,45 @@ stored directly in the frame itself, with no friction or risk of premature
 unmapping. Rust's ownership model also prevents premature unmapping, but
 `unsafe` marker traits (`Send` and `Sync`) were required to satisfy the compiler
 and allow the memory addresses to be shared across threads.
+
+== Asymmetrical Stream Saturation
+
+Analysis of the individual data streams of the compiled implementations revealed
+a significant difference in the maximum sustainable ingestion speed, with the
+RGB stream failing at a `load` multiplier of \7.0, and the Accelerometer and
+Gyroscope streams not dropping or lapping any frames at the maximum measured
+`load` multiplier of \8.5.
+
+Little's Law ($L = lambda W$) was used to enforce the \100 ms end-to-end latency
+deadline. Because the RGB stream's native speed is low at \30 Hz, its bounded
+buffer capacity is only \3 frames. In contrast, the \1.6 kHz Accelerometer
+stream buffer has a capacity of \160 frames, and the \2.0 kHz Gyroscope stream
+buffer has a capacity of \200 frames. Consequently, these high-frequency stream
+buffers have more elasticity to absorb latency spikes, while the RGB stream
+buffer is almost immediately saturated.
+
+This asymmetry is exacerbated by both the inference thread and the late-fusion
+thread --- the latter of which uses a Multi-Producer Single-Consumer (MPSC)
+channel anchored to the RGB stream. While the Accelerometer and Gyroscope
+inferences only occur every \53 and \66 frames respectively, inference is
+triggered for every RGB frame, which in turn triggers late-fusion, substantially
+increasing the average workload per frame for the RGB stream.
+
+When the pipeline processes a high enough ingestion rate, the late-fusion thread
+will struggle to process the inference results from the MPSC channel. This
+causes the inference threads to block while attempting to push their results
+into the saturated channel. Because each frame in the IMU bounded buffers
+represent a shorter period of time, and each buffer represents the same period
+of time, the IMU buffers have the flexibility to absorb the temporary MPSC
+blockage without dropped or lapped frames. Conversely, because the RGB bounded
+buffer has a capacity of only \3 frames, each of which represents a longer
+period of time, the RGB bounded buffer is quickly saturated. This triggers the
+active backpressure policy, resulting in dropped or lapped frames, and/or the
+latency deadline to be breached.
+
+Ultimately, this demonstrates that in Edge-AI pipelines, the synchronisation
+anchor forms the bottleneck that dictates the maximum capacity and stability of
+the system as a whole.
 
 = Conclusion
 
