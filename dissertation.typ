@@ -2725,7 +2725,75 @@ buffer capacity is only \3 frames. In contrast, the \1.6 kHz Accelerometer
 stream buffer has a capacity of \160 frames, and the \2.0 kHz Gyroscope stream
 buffer has a capacity of \200 frames. Consequently, these high-frequency stream
 buffers have more elasticity to absorb latency spikes, while the RGB stream
-buffer is almost immediately saturated.
+buffer is almost immediately saturated (see @fig:mpsc-bottleneck).
+
+#figure(
+  pad(top: 1em)[
+    #set text(size: 8pt)
+
+    #let rgb_col = rgb("#FFF4B3")
+    #let rgb_grad = gradient.linear(dir: ttb, rgb_col, white)
+
+    #let accel_col = rgb("FCE7F3")
+    #let accel_grad = gradient.linear(dir: ttb, accel_col, white)
+
+    #let gyro_col = rgb("#C8BCE0")
+    #let gyro_grad = gradient.linear(dir: ttb, gyro_col, white)
+
+    #let start(x, t, f) = {
+      node(enclose: ((x, 0.3), (x, 2.5)), fill: f, stroke: none, layer: -1,
+        corner-radius: 4pt)
+      node((x, 0.3), [#set text(size: 11pt); *#t*], stroke: none)
+    }
+
+    #let n(x, y, name, t, f, s, ..args) = node((x,y), name: name,
+      align(center)[#t], fill: f, shape: s, ..args)
+    #let r(x, y, name, t, ..args) = n(x, y, name, t, pale_green, rect, ..args)
+    #let c(x, y, name, t, ..args) = n(x, y, name, t, pale_blue, cylinder,
+      ..args)
+
+    #let e(p1, p2, t, ..args) = edge(p1, p2, "-|>", mark-scale: 175%,
+      label: align(center)[#t], label-side: left, label-sep: 0.2em, ..args)
+    #let de(p1, p2, t, ..args) = e(p1, p2, t, stroke: (dash: "dashed"), ..args)
+
+    #diagram(
+      node-stroke: 0.5pt + charcoal,
+      node-corner-radius: 2pt,
+      node-inset: 6pt,
+      spacing: (23pt, 35pt),
+
+      c(0, 4, <mpsc>, [MPSC\ Channel], stroke: pure_red),
+      r(0, 5.5, <fusion>, [Late-Fusion\ Thread\ (Anchored to RGB)],
+        stroke: pure_red),
+      e(<mpsc>, <fusion>, [Receive\ #text(pure_red)[(Blocks on overload)]],
+        stroke: pure_red, label-side: center),
+
+      start(-1, [RGB\ #text(8pt)[(30 Hz)]], rgb_grad),
+      c(-1, 1, <rgb-bq>, [Bounded\ Queue\ #text(pure_red)[*Cap.:* 3]],
+        stroke: pure_red),
+      r(-1, 2, <rgb-inf>, [Inference]),
+      e(<rgb-bq>, <rgb-inf>, [Pop], label-side: right),
+      de(<rgb-inf>, <mpsc>, [Send 1:1\ #text(pure_red)[(Instantly blocks)]],
+        label-side: right, stroke: pure_red),
+
+      start(0, [Accel\ #text(8pt)[(1.6 kHz)]], accel_grad),
+      c(0, 1, <accel-bq>, [Bounded\ Queue\ *Cap.:* 160]),
+      r(0, 2, <accel-inf>, [Inference]),
+      e(<accel-bq>, <accel-inf>, [Pop], label-side: center),
+      de(<accel-inf>, <mpsc>, [Send 1:53\ (Absorbs delay)], label-side: center),
+
+      start(1, [Gyro\ #text(8pt)[(2.0 kHz)]], gyro_grad),
+      c(1, 1, <gyro-bq>, [Bounded\ Queue\ *Cap.:* 200]),
+      r(1, 2, <gyro-inf>, [Inference]),
+      e(<gyro-bq>, <gyro-inf>, [Pop]),
+      de(<gyro-inf>, <mpsc>, [Send 1:66\ (Absorbs delay)]),
+    )
+  ],
+  caption: [Visualisation of the MPSC late-fusion anchor bottleneck. The RGB
+    stream's 3-frame capacity offers virtually no buffer elasticity, causing
+    immediate upstream saturation when the MPSC channel blocks under heavy
+    late-fusion load. #v(1em)],
+) <fig:mpsc-bottleneck>
 
 This asymmetry is exacerbated by both the inference thread and the late-fusion
 thread --- the latter of which uses a Multi-Producer Single-Consumer (MPSC)
