@@ -2374,6 +2374,52 @@ allocation rates of \0.0 Bytes/second, this proves that both implementations
 were able to sustain the load without memory churn or fragmentation.
 
 #colbreak()
+
+== Impact of Hardware Power Constraints (7W Mode)
+
+A second evaluation was executed using the Jetson Orin Nano's 7-Watt power
+profile (`nvpmodel -m 3`) which disables two of the six CPU cores, caps the CPU
+frequency at \960 MHz, and restricts the GPU clock to a maximum of \408 MHz (see
+@app:power-profiles). This is in comparison to the unconstrained limits of the
+MAXN_SUPER power mode).
+
+As shown in @fig:saturation_7w, this reduction in available resources reduced
+the maximum throughput across all implementations. Both C++ and Rust achieved a
+maximum sustained `load` multiplier of \2.5 using Exponential Backoff, and \1.0
+using the Bounded Queue and load-shedding policies. Python was absle to sustain
+a `load` multiplier of \0.03 for Exponential Backoff, and \0.01 for Bounded
+Queue and Drop Newest, but was unable to sustain a `load` multiplier of \0.01
+for Drop Oldest and Adaptive Decimation.
+
+#figure(
+  pad(top: 1em)[
+    #image("code/results/img/07-watt-baseline-performance.pdf", width: 85%)
+  ],
+  caption: [Absolute pipeline saturation points of each language and
+    backpressure policy under the 7-Watt power constraint. #v(2em)],
+) <fig:saturation_7w>
+
+Latency was also impacted when utilising the \7-Watt power profile. Using an
+Exponential Backoff policy with a `load` multiplier of \5.5 was the maximum
+ingestion rate that _both_ C++ and Rust were able to sustain in MAXN_SUPER mode
+without dropping frames. However, as demonstrated in @fig:power_constraint_cdf,
+when the power was constrained to \7 Watts, the \99.9th percentile latency times
+of both implementations increased from maximums of \68.4 ms and \48.3 ms to
+\288.4 ms and \296.2 ms respectively, with every epoch breaching the \100 ms
+deadline.
+
+#figure(
+  pad(top: 1em)[
+    #image("code/results/img/latency-comparison.pdf", width: 85%)
+  ],
+  caption: [CDF of \99.9th percentile total latency for both compiled languages
+    at `load` \5.5, using the Exponential Backoff \
+    backpressure policy comparing MAXN_SUPER (unconstrained) and 7-Watt
+    (constrained) power profiles. #v(2em)],
+) <fig:power_constraint_cdf>
+
+#colbreak()
+
 == Thermal Accumulation
 
 During the evaluations, the Jetson Orin Nano's emergency fan cooling prevented
