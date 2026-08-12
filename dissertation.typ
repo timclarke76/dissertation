@@ -1633,7 +1633,7 @@ inference results from all three streams into one prediction.
 
       c(0, 5, <mpsc>, [MPSC\ Channel]),
       r(0, 6, <fusion>, [Late-Fusion\ Thread]),
-      e(<mpsc>, <fusion>, [Receive]),
+      e(<mpsc>, <fusion>, [Receive], label-side: center),
 
       node(enclose: ((-1.4, 2.2), (1.4, 2.7)), corner-radius: 4pt, layer: 0,
         stroke: (paint: rgb("EF4444"), thickness: 1pt, dash: "dashed")),
@@ -1662,12 +1662,12 @@ inference results from all three streams into one prediction.
       r(0, 4, <accel-inf>, [Inference\ Threads]),
       r(0, 7, <accel-tel>, [Telemetry\ Thread]),
       c(0, 8, <accel-csv>, [Telemetry\ CSV]),
-      e(<accel-shm>, <accel-bridge>, [Spin]),
-      e(<accel-bridge>, <accel-bq>, [Push]),
-      e(<accel-bq>, <accel-inf>, [Pop]),
-      de(<accel-inf>, <mpsc>, [Send]),
-      e(<fusion>, <accel-tel>, [Record]),
-      e(<accel-tel>, <accel-csv>, [Save]),
+      e(<accel-shm>, <accel-bridge>, [Spin], label-side: center),
+      e(<accel-bridge>, <accel-bq>, [Push], label-side: center),
+      e(<accel-bq>, <accel-inf>, [Pop], label-side: center),
+      de(<accel-inf>, <mpsc>, [Send], label-side: center),
+      e(<fusion>, <accel-tel>, [Record], label-side: center),
+      e(<accel-tel>, <accel-csv>, [Save], label-side: center),
       end(0, [Accel], accel_grad_inverse),
 
       start(1, [Gyro], gyro_grad),
