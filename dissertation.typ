@@ -2891,19 +2891,65 @@ sustain \5.5 across both flow-control policies.
 
 When using Bounded Queue, a saturated queue forces the bridge thread into a
 tight spin-loop, continuously acquiring and releasing the queue's mutex to check
-capacity. In C++ on Linux, the bridge quickly reacquires the `std::mutex` lock
-before the inference thread is able to, preventing the latter from removing a
-frame from the queue and creating the space that the bridge is waiting for. Rust
-\1.62.0 replaced its previous mutex implementation --- which was backed by the
-pthreads library, which has higher overhead from supporting features not
-required by the Rust API --- with a lightweight implementation that directly
-employs Linux futex system calls @rust1620 @github-rust-93740. In a tight
-spin-loop, acquiring and releasing Rust's more efficient lock in the bridge
-thread takes a smaller proportion of the total time for one loop, and acquiring
-the lock in the inference thread is quicker, reducing the probability of
-encountering a contested state, and increasing the likelihood of the inference
-thread removing a frame from the queue to make space for the bridge's next
-spin-loop.
+capacity (see @fig:mutex-contention). In C++ on Linux, the bridge quickly
+reacquires the `std::mutex` lock before the inference thread is able to,
+preventing the latter from removing a frame from the queue and creating the
+space that the bridge is waiting for. Rust \1.62.0 replaced its previous mutex
+implementation --- which was backed by the pthreads library, which has higher
+overhead from supporting features not required by the Rust API --- with a
+lightweight implementation that directly employs Linux futex system calls
+@rust1620 @github-rust-93740. In a tight spin-loop, acquiring and releasing
+Rust's more efficient lock in the bridge thread takes a smaller proportion of
+the total time for one loop, and acquiring the lock in the inference thread is
+quicker, reducing the probability of encountering a contested state, and
+increasing the likelihood of the inference thread removing a frame from the
+queue to make space for the bridge's next spin-loop.
+
+#figure(
+  pad(top: 1em)[
+    #set text(size: 8pt)
+
+    #let n(x, y, name, t, f, s, ..args) = node((x,y), name: name,
+      align(center)[#t], fill: f, shape: s, ..args)
+    #let r(x, y, name, t, ..args) = n(x, y, name, t, pale_green, rect, ..args)
+    #let c(x, y, name, t, ..args) = n(x, y, name, t, pale_blue, cylinder,
+      ..args)
+    #let e(p1, p2, t, ..args) = edge(p1, p2, "-|>", mark-scale: 175%,
+      label: align(center)[#t], label-side: center, ..args)
+    #let de(p1, p2, t, ..args) = e(p1, p2, t, stroke: (dash: "dashed"), ..args)
+
+    #diagram(
+      node-stroke: 0.5pt + charcoal,
+      node-corner-radius: 2pt,
+      node-inset: 6pt,
+      spacing: (45pt, 55pt),
+
+      n(0, 0, <bq-bridge>, [*Bridge Thread*\ (Spin-Loop)], light_red, rect,
+        stroke: pure_red),
+      c(0, 1, <bq-mutex>, [Queue Mutex\ (Contended)], stroke: pure_red),
+      n(0, 2, <bq-inf>, [*Inference Thread*\ (Starved)], light_red, rect,
+      stroke: (paint: pure_red, dash: "dashed")),
+      e(<bq-bridge>, <bq-mutex>, text(pure_red)[Continuous\ locking],
+        stroke: pure_red),
+      e(<bq-inf>, <bq-mutex>, text(pure_red)[Acquire\ fails],
+        stroke: (paint: pure_red, dash: "dashed")),
+
+      n(1, 0, <eb-bridge>, text(dark_grey)[*Bridge Thread*\ (Timed Sleep)],
+        light_grey, rect, stroke: dark_grey),
+      c(1, 1, <eb-mutex>, [Queue Mutex\ (Available)], stroke: pure_green),
+      r(1, 2, <eb-inf>, [*Inference Thread*\ (Draining)], stroke: pure_green),
+      e(<eb-bridge>, <eb-mutex>, text(dark_grey)[Yields lock],
+        stroke: (dash: "dashed", paint: dark_grey)),
+      e(<eb-inf>, <eb-mutex>, text(pure_green)[Acquire\ succeeds],
+      stroke: pure_green),
+    )
+  ],
+  caption: [Comparison of mutex contention under queue saturation. On the left,
+    Bounded Queue's continuous spin-loop causes severe lock contention,
+    starving the inference thread. On the right, Exponential Backoff yields the
+    lock, granting the consumer uncontested access to drain the backlog.
+    #v(1em)],
+) <fig:mutex-contention>
 
 By forcing the bridge thread into a timed sleep when the queue is full,
 Exponential Backoff prevents the contention of the queue's mutex, increasing the
