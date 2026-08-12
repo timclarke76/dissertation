@@ -2912,6 +2912,18 @@ quickly they can drain a saturated queue, and the choice of compiled language
 has little impact on the performance of the pipeline when memory allocation is
 not a confounder.
 
+== Resident Set Size (RSS)
+
+Analysis of the RSS of each implementation (@fig:MAXN_SUPER-memory-profiling)
+revealed that all three languages had memory footprints within \50 MB of each
+other. This suggests that the RSS can be mostly attributed to the shared AI
+dependencies (ONNX Runtime, CUDA, and TensorRT), rather than overhead of the
+runtime models themselves. Consequently, despite Python's interpreted nature and
+automated memory management, its memory overhead was only marginally higher
+(less than \8%) than both compiled languages, proving that in Edge-AI pipelines,
+the choice of runtime model has little impact on the memory footprint of the
+overall system.
+
 = Conclusion
 
 Total words: #total-words
