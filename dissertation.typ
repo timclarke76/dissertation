@@ -2843,6 +2843,55 @@ inference thread's opportunity to remove a frame from the queue and make space
 for the bridge. Consequently, both C++ and Rust were able to achieve parity of
 the maximum sustainable `load` multiplier of \5.5 for this flow-control policy.
 
+=== The Python GIL and Concurrency
+
+The data gathered in this report reveals poor performance when utilising CPython
+\3.10.12 for a multi-threaded, real-time Edge-AI pipeline. As demonstrated in
+the unconstrained baseline performance results (@sec:baseline-performance),
+Python was only able to sustain a `load` multiplier of \0.05 (i.e. \5% of the
+natural sensor speed) when using the Exponential Backoff backpressure policy,
+and reached saturation point even at `load` multipliers of \0.01 for all other
+policies, severely lagging behind the performance of the compiled languages.
+
+Automated memory management via the Garbage Collector (GC) was initially
+suspected to be the cause of this extreme latency. However, the GC overhead
+analysis graph (@fig:MAXN_SUPER-python-gc) shows garbage collection pauses were
+confined to the 10-second initialisation window. Consequently, the GC could not
+be the cause of Python's deadline breaches during the steady-state phase.
+
+Instead, the deadline breaches were likely caused by CPython's Global
+Interpreter Lock (GIL). The HAR pipeline uses multiple threads (bridge, AI
+inference, late-fusion, and telemetry) which would usually run concurrently
+across the multi-core CPU of the Jetson Orin Nano. However, the GIL is designed
+to prevent more than one Python thread from executing at any one time,
+effectively serialising the pipeline.
+
+This was made worse by the use of Python's `pass` statement. C++ and Rust
+utilise micro-architectural CPU hints (`__asm__ volatile("yield" ::: "memory")`
+and `std::hint::spin_loop()` respectively) to pause speculative execution and
+yield resources without yielding to the OS kernel. Python lacks an equivalent
+mechanism, and instead empty `pass` spin-loops must be used --- specifically at
+the IPC boundary when waiting for data from the unbounded buffer, in the
+inference thread when waiting for data from the bounded queue, and while waiting
+for space to be available in the bounded buffer (if the Bounded Queue policy is
+in use).
+
+With three concurrent data streams, a total of six or nine `pass` spin-loops are
+used simultaneously depending on the active backpressure policy. These each
+aggressively hold the GIL, starving the other threads of execution time,
+including the threads responsible for fetching the data or making available
+space that the spin-loops are waiting for, and creating an effective deadlock.
+This is evidenced in @fig:MAXN_SUPER-baseline-performance, where both C++ and
+Rust have the same or similar saturation points for the Bounded Queue and
+Exponential Backoff policies, but Python's saturation point is significantly
+lower for the Bounded Queue policy because of the additional spin-loops
+required, while the Exponential Backoff policy uses a timed wait which releases
+the GIL.
+
+As a consequence of this thread starvation, the Python implementation was unable
+to feed data fast enough to the ONNX runtime on the GPU, resulting in
+underutilisation of resources and persistent breaches of the \100 ms deadline.
+
 = Conclusion
 
 Total words: #total-words
