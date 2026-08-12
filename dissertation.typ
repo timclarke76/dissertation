@@ -3096,6 +3096,17 @@ is not substantially changed by the choice of programming language.
 
 = Conclusion
 
+== Summary
+
+This dissertation presents an analysis of three functionally identical HAR
+AI-Edge pipelines implemented in C++20, Rust \1.97.1, and CPython \3.10.12, and
+deployed to a resource-constrained NVIDIA Jetson Orin Nano platform. Empirical
+data was collected by executing the evaluation at increasingly high rates of
+velocity, and using various backpressure policies and power constraints. The
+collected data provided an insight into the impact of manual memory management,
+compiler-enforced memory safety, and automated garbage collection on the
+real-time latency, throughput, and system stability.
+
 Total words: #total-words
 
 #columns(1)[
