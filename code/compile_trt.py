@@ -4,6 +4,9 @@ import os
 import sys
 import numpy as np
 
+# Prevent a wall of diagnostic messages from being printed, that are not
+# relevant and can be safely ignored. This is a workaround for a known issue in
+# ONNX Runtime.
 fd_stderr = sys.stderr.fileno()
 saved_stderr = os.dup(fd_stderr)
 devnull = os.open(os.devnull, os.O_WRONLY)
