@@ -2364,6 +2364,16 @@ allocation for either implementation.
     Rust implementations. #v(3.5em)],
 ) <fig:MAXN_SUPER-memory-profiling>
 
+
+Heap fragmentation using the `fordblks` field from `mallinfo2()` was also
+measured to evaluate the long-term stability of the runtime models and the
+effectiveness of the zero-allocation architecture. The recorded telemetry showed
+that heap fragmentation was negligible for both C++ (\8.2 KB) and Rust (\9.9
+KB). Both coupled with RSS footprints of over \740 MB, and steady-state dynamic
+allocation rates of \0.0 Bytes/second, this proves that both implementations
+were able to sustain the load without memory churn or fragmentation.
+
+#colbreak()
 == Thermal Accumulation
 
 During the evaluations, the Jetson Orin Nano's emergency fan cooling prevented
