@@ -2750,6 +2750,69 @@ Ultimately, this demonstrates that in Edge-AI pipelines, the synchronisation
 anchor forms the bottleneck that dictates the maximum capacity and stability of
 the system as a whole.
 
+== Flow Control vs. Load Shedding <sec:flow-control-vs-load-shedding>
+
+When choosing a backpressure policy, the empirical data collected in this
+evaluation highlights a trade-off between temporal continuity and data
+preservation. Analysis of the number of dropped or lapped frames (see
+@sec:baseline-performance and @fig:MAXN_SUPER-dropped-frames) showed that the
+flow-control policies (Bounded Queue, Exponential Backoff) successfully
+preserved data frames at far higher ingestion rates than any of the policies
+that shed data (Drop Oldest, Drop Newest, Adaptive Decimation).
+
+The pipelines are fast enough on average to process the incoming data at higher
+ingestion rates. However, micro-jitter stemming from system fluctuations causes
+the bounded queue to temporarily fill to its maximum capacity. Flow-control
+policies manage these short-lived fluctuations by taking advantage of the
+1-second unbounded buffer's capacity --- when the bounded queue is full, the
+bridge leaves the unprocessed frames in the unbounded queue until space is
+available. This successfully absorbs the fluctuation without the loss of data,
+but at the cost of a temporary increase in latency.
+
+Conversely, load-shedding policies aggressively drop frames when temporary
+jitter occurs. Because they are designed to adhere to temporal deadlines, they
+lack the flexibility to leverage the unbounded buffer's capacity no matter how
+temporary the increase in latency may be. While this almost guarantees that
+surviving frames are processed within the latency deadline (particularly the
+Drop Oldest policy, which evicts the oldest frame in favour of the newest), this
+may result in a significant loss of data even at ingestion rates far below what
+the pipeline can typically sustain.
+
+Adaptive Decimation attempts to bridge the gap between the flow-control policies
+(Bounded Queue, Exponential Backoff) and the load-shedding policies (Drop
+Oldest, Drop Newest). By dynamically downsampling the data stream at a linearly
+increasing rate as the bounded queue approaches full capacity (after entering a
+predefined threshold), the policy reduces pressure while preserving temporal
+continuity of the surviving frames. While this prevents bursts of dropped frames
+characteristic of the Drop Oldest and Drop Newest policies, its mechanism to
+drop frames _before_ saturation is _potentially_ reached results in substantial
+data loss that is often unnecessary, particularly at ingestion rates far below
+the pipeline's maximum sustainable throughput.
+
+At terminal saturation (e.g. `load` \7.0), the advantages are reversed. Because
+flow-control policies do not drop frames, the unbounded circular buffer fills to
+maximum capacity. This pushes tail latencies beyond the deadline (see
+@fig:MAXN_SUPER-cdf-7_0) and potentially beyond the temporal capacity of the
+unbounded buffer. In contrast, by aggressively dropping frames, the
+load-shedding policies are able to adhere to the latency deadline even under
+unyielding load, proving that data preservation must be sacrificed to guarantee
+deadline adherence (@fig:MAXN_SUPER-latency-comparison).
+
+When selecting a load-shedding backpressure policy, the data revealed a
+trade-off between throughput efficiency and temporal relevance. As shown in
+@fig:MAXN_SUPER-dropped-frames, Drop Newest dropped fewer frames than Drop
+Oldest. Because the former simply does not queue new frames when the bounded
+buffer is full, it avoids the computational overhead of Drop Oldest which must
+modify the queue while obtaining a mutex lock. However, though fewer frames are
+dropped and the pipeline is more computationally efficient, Drop Newest
+preserves stale frames which may have already exceeded the latency deadline and
+have become temporally irrelevant. Conversely, Drop Oldest ejects stale frames
+in favour of the freshest data, ensuring that surviving frames maintain temporal
+relevance and adhere to the latency deadline. Alternatively, Adaptive Decimation
+can be used to preserve temporal continuity if that is a pipeline priority, but
+at the cost of a greater loss of data even at ingestion rates below what the
+pipeline can typically sustain.
+
 = Conclusion
 
 Total words: #total-words
