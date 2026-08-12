@@ -5,6 +5,7 @@
   title: "Assignment Title",
   assignment: "Assignment Name",
   abstractTitle: "Abstract title",
+  abstract: "Abstract text",
   body) = [
   #set page(
     margin: (x: 1.5cm, y: 2cm),
@@ -102,10 +103,11 @@
     United Kingdom \
     2712139\@dundee.ac.uk
     #v(0.5em)
-    // *Abstract*
+    *Abstract*
   ]
-  // #pad(x: 2em)[
-  // ]
+  #pad(x: 2em)[
+    #abstract
+  ]
 
   #align(center)[
     #line(stroke: (0.7pt + gray), length: 75%)
