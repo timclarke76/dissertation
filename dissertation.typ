@@ -2892,6 +2892,26 @@ As a consequence of this thread starvation, the Python implementation was unable
 to feed data fast enough to the ONNX runtime on the GPU, resulting in
 underutilisation of resources and persistent breaches of the \100 ms deadline.
 
+== Zero-Allocation (C++ vs Rust)
+
+An implementation objective was to eliminate memory churn as a confounder when
+comparing the compiled runtime models. As demonstrated in
+@fig:MAXN_SUPER-memory-profiling, this was successfully achieved with
+zero-allocation during the steady-state phase.
+
+With memory allocation removed as a possible confounder, both compiled
+implementations achieved near-parity in baseline performance under moderate
+loads, easily satisfying the 100 ms latency deadline. Both also performed
+similarly at terminal saturation (`load` \7.0), with C++ processing \12.4% of
+frames within the 100 ms deadline, Rust processing \15.6% of frames within the
+deadline, and both languages converging to a maximum tail latency of \176 ms.
+Because Python recorded maximum latencies far beyond this duration, this \176 ms
+ceiling is not a limit caused by the pipeline's buffer capacity, revealing that
+under extreme load, both compiled languages share a performance limit in how
+quickly they can drain a saturated queue, and the choice of compiled language
+has little impact on the performance of the pipeline when memory allocation is
+not a confounder.
+
 = Conclusion
 
 Total words: #total-words
