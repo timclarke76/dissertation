@@ -3227,9 +3227,41 @@ nth frame before saturation is reached, at the expense of a significantly higher
 drop rate as the data ingestion rate approaches the pipeline's maximum
 sustainable throughput.
 
-Total words: #total-words
+== Future Work
 
-#columns(1)[
+While this dissertation evaluated the interaction between runtime models and
+backpressure policies, several areas of future investigative work have been
+identified:
+
++ *GIL Profiling and Truly Concurrent Python:* Having eliminated Garbage
+  Collection as the cause of Python's poor maximum sustainable performance,
+  future work might investigate the impact of the Global Interpreter Lock (GIL)
+  and its serialisation of thread execution, alongside the consequential thread
+  contention. A low-level profiling tool could be used to provide more
+  visibility into thread starvation. Furthermore, alternative Python
+  implementations, such as the PyPy-STM (Software Transactional Memory) variant,
+  could determine if Python can achieve parity with compiled languages in
+  real-time Edge-AI pipelines.
+
++ *Fanless Platforms:* The active cooling of the Jetson Orin Nano Developer Kit
+  automatically starts the cooling fan when the temperature reaches \74°C,
+  preventing the system from reaching its \99°C DVFS throttling threshold.
+  Future work should evaluate these pipelines when deployed to fanless,
+  passively cooled platforms. Forcing the hardware to reach thermal limits would
+  provide visibility into how the implementations interact with dynamic thermal
+  throttling when under sustained load.
+
++ *Backpressure Policies and Accuracy:* Future work should evaluate the impact
+  of different backpressure policies on the accuracy of the HAR predictions.
+  While this dissertation has evaluated latency and throughput using different
+  runtime models and backpressure policies, it has treated the HAR AI models
+  strictly as test harnesses. Future research may quantify the exact trade-off
+  between the different backpressure policies and the prediction accuracy of the
+  overall HAR system.
+
+Total words: #total-words
+]
+#colbreak()
 #counter(heading).update(0)
 #set heading(numbering: "A.1", supplement: [Appendix])
 
