@@ -3193,6 +3193,40 @@ returned when calculating $rho$ for the impact of dynamic memory allocation (in
 the C++ and Rust implementations) on CPU temperature, confirming that no memory
 was dynamically allocated during the steady-state phase of the evaluation.
 
+== Recommendations for Edge-AI Deployments
+
+Based on the findings of this dissertation, Rust is highly recommended for
+multi-threaded, real-time pipelines deployed to Edge-AI platforms such as the
+Jetson Orin Nano. It offers the zero-allocation performance and execution speed
+of C++, with a more efficient mutex implementation to help prevent thread
+starvation during extreme lock contention. Importantly, Rust swaps developer
+discipline and vigilance for compiler-enforced memory safety, reducing
+intermittent memory-safety bugs and the long-term maintenance overhead of
+complex concurrent systems.
+
+CPython's reduced Lines of Code (LoC) and eradication of compile-time overhead
+may make it suitable for initial pipeline prototyping. However, contrary to
+common assumption, its automatic memory management may increase developer
+friction when employed for systems-engineering tasks in a multi-threaded
+architecture. In addition, it demonstrated concurrency limitations for
+high-speed multi-stream ingestion systems. This is due to both the Global
+Interpreter Lock (GIL), which restricts the number of actively executing threads
+to just one, and the absence of a CPU micro-architectural hint to yield
+resources without yielding to the OS kernel.
+
+When selecting a backpressure policy for a high-speed pipeline, the architect
+must choose based on a trade-off between data preservation, temporal relevance,
+and temporal continuity. Flow-control policies (Bounded Queue, Exponential
+Backoff) should be considered if the preservation of data is the priority and
+computational resources are sufficient for the expected maximum load. However,
+if temporal relevance is the priority, the Drop Oldest load-shedding policy
+ejects stale frames in favour of fresh data when the data ingestion rate exceeds
+the pipeline's ability to process data within the latency deadline. Finally, if
+temporal continuity is the priority, Adaptive Decimation proactively drops every
+nth frame before saturation is reached, at the expense of a significantly higher
+drop rate as the data ingestion rate approaches the pipeline's maximum
+sustainable throughput.
+
 Total words: #total-words
 
 #columns(1)[
