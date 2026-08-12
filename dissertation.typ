@@ -2813,6 +2813,36 @@ can be used to preserve temporal continuity if that is a pipeline priority, but
 at the cost of a greater loss of data even at ingestion rates below what the
 pipeline can typically sustain.
 
+== Mutex Contention <sec:mutex-contention>
+
+It is notable that in the baseline performance (@sec:baseline-performance),
+while both C++ and Rust achieved a maximum sustained `load` of \5.5 using
+Exponential Backoff, the C++ implementation was only able to achieve a maximum
+`load` of \4.0 when using the Bounded Queue policy, while Rust was able to
+sustain \5.5 across both flow-control policies.
+
+When using Bounded Queue, a saturated queue forces the bridge thread into a
+tight spin-loop, continuously acquiring and releasing the queue's mutex to check
+capacity. In C++ on Linux, the bridge quickly reacquires the `std::mutex` lock
+before the inference thread is able to, preventing the latter from removing a
+frame from the queue and creating the space that the bridge is waiting for. Rust
+\1.62.0 replaced its previous mutex implementation --- which was backed by the
+pthreads library, which has higher overhead from supporting features not
+required by the Rust API --- with a lightweight implementation that directly
+employs Linux futex system calls @rust1620 @github-rust-93740. In a tight
+spin-loop, acquiring and releasing Rust's more efficient lock in the bridge
+thread takes a smaller proportion of the total time for one loop, and acquiring
+the lock in the inference thread is quicker, reducing the probability of
+encountering a contested state, and increasing the likelihood of the inference
+thread removing a frame from the queue to make space for the bridge's next
+spin-loop.
+
+By forcing the bridge thread into a timed sleep when the queue is full,
+Exponential Backoff prevents the contention of the queue's mutex, increasing the
+inference thread's opportunity to remove a frame from the queue and make space
+for the bridge. Consequently, both C++ and Rust were able to achieve parity of
+the maximum sustainable `load` multiplier of \5.5 for this flow-control policy.
+
 = Conclusion
 
 Total words: #total-words
