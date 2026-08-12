@@ -1,0 +1,79 @@
+================================================
+  NLOC    CCN   token  PARAM  length  location  
+------------------------------------------------
+       2      2     20      2      14 saturating_sub@1-14@include/os/os.py
+       2      1     29      2       7 __init__@11-17@include/os/channel.py
+       2      1     18      2       8 __init__@24-31@include/os/channel.py
+       2      1     24      2       8 send@33-40@include/os/channel.py
+       2      1     18      2       8 __init__@47-54@include/os/channel.py
+       2      1     21      1       7 receive@56-62@include/os/channel.py
+       5      2     33      1      12 try_receive@64-75@include/os/channel.py
+       3      1     40      1      13 make_channel@78-90@include/os/channel.py
+       6      3     42      2       9 gc_callback@9-17@include/os/gc.py
+      16      1     85      7      69 __init__@61-129@include/os/shm.py
+      23      4    137      3      40 __init__@198-237@include/os/shm.py
+       3      1     18      1       4 close@239-242@include/os/shm.py
+      30      5    181      1      68 next_frame@244-311@include/os/shm.py
+      11      1     51      1      17 __init__@15-31@include/config/args.py
+      19      2    141      2      33 __init__@57-89@include/config/settings.py
+      22      6    113      2      31 _parse_policy@91-121@include/config/settings.py
+      76     16    378      0     134 spawn_bridge_thread.bridge_thread@26-159@include/thread/bridge.py
+      14      2     67      4     162 spawn_bridge_thread@10-171@include/thread/bridge.py
+     119     19    592      0     158 spawn_fusion_thread.fusion_thread@15-172@include/thread/fusion.py
+      15      2     61      2     174 spawn_fusion_thread@11-184@include/thread/fusion.py
+      60      8    323      0      79 spawn_inference_thread.inference_thread@43-121@include/thread/inference.py
+      22      2     84      7     123 spawn_inference_thread@13-135@include/thread/inference.py
+      13      3     68      1      19 __init__@67-85@include/thread/telemetry.py
+       8      2     43      1      11 reset@87-97@include/thread/telemetry.py
+      10      1     63      3      19 __init__@137-155@include/thread/telemetry.py
+      33      6    198      4      52 record@157-208@include/thread/telemetry.py
+       6      2     45      1      18 swap_buffers@210-227@include/thread/telemetry.py
+       6      2     34      1      14 terminate@229-242@include/thread/telemetry.py
+      29      3    144      2      34 __init__@250-283@include/thread/telemetry.py
+      20      2    132      3      23 write_record@285-307@include/thread/telemetry.py
+      46      7    217      0      61 spawn_telemetry_thread.telemetry_thread@329-389@include/thread/telemetry.py
+      28      4    114      3      94 spawn_telemetry_thread@310-403@include/thread/telemetry.py
+      29      1    171      3      42 __init__@20-61@include/inference/inference_engine.py
+       3      1     33      1       8 run@63-70@include/inference/inference_engine.py
+       9      1     58      2      17 __init__@11-27@include/queue.py
+       7      2     52      2      17 try_push@29-45@include/queue.py
+       4      1     46      2      11 overwrite_oldest@47-57@include/queue.py
+       7      2     49      1      15 pop@59-73@include/queue.py
+       2      1     22      2      10 _advance_index@75-84@include/queue.py
+      22      1     93      8      46 spawn_bridge_and_inference_threads@36-81@pipeline.py
+      41      6    229      0      48 main@84-131@pipeline.py
+19 file analyzed.
+==============================================================
+NLOC    Avg.NLOC  AvgCCN  Avg.token  function_cnt    file
+--------------------------------------------------------------
+      2       2.0     2.0       20.0         1     include/os/os.py
+     24       2.6     1.1       26.1         7     include/os/channel.py
+     12       6.0     3.0       42.0         1     include/os/gc.py
+      3       0.0     0.0        0.0         0     include/os/__init__.py
+    116      18.0     2.8      105.2         4     include/os/shm.py
+     16      11.0     1.0       51.0         1     include/config/args.py
+     21       0.0     0.0        0.0         0     include/config/__init__.py
+     30       0.0     0.0        0.0         0     include/config/policy.py
+     67      20.5     4.0      127.0         2     include/config/settings.py
+      8       0.0     0.0        0.0         0     include/thread/__init__.py
+     95      45.0     9.0      222.5         2     include/thread/bridge.py
+    139      67.0    10.5      326.5         2     include/thread/fusion.py
+     89      41.0     5.0      203.5         2     include/thread/inference.py
+    237      19.9     3.2      105.8        10     include/thread/telemetry.py
+      1       0.0     0.0        0.0         0     include/inference/__init__.py
+     46      16.0     1.0      102.0         2     include/inference/inference_engine.py
+      1       0.0     0.0        0.0         0     include/__init__.py
+     33       5.8     1.4       45.4         5     include/queue.py
+     91      31.5     3.5      161.0         2     pipeline.py
+
+===========================================================================================================
+!!!! Warnings (cyclomatic_complexity > 15 or length > 1000 or nloc > 1000000 or parameter_count > 100) !!!!
+================================================
+  NLOC    CCN   token  PARAM  length  location  
+------------------------------------------------
+      76     16    378      0     134 spawn_bridge_thread.bridge_thread@26-159@include/thread/bridge.py
+     119     19    592      0     158 spawn_fusion_thread.fusion_thread@15-172@include/thread/fusion.py
+==========================================================================================
+Total nloc   Avg.NLOC  AvgCCN  Avg.token   Fun Cnt  Warning cnt   Fun Rt   nloc Rt
+------------------------------------------------------------------------------------------
+      1031      19.0     3.2      104.6       41            2      0.05    0.25
