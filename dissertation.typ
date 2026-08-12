@@ -17,16 +17,20 @@
 #show "C++20": box[C++20]
 
 #let red = rgb("F8D7DA")
+#let pure_red = rgb(255, 0, 0)
 #let dark_red = rgb("#E56C76")
 #let light_red = rgb("#fce7f3")
 #let blue = rgb("CCE5FF")
 #let light_blue = rgb("#DBEDFF")
 #let pale_blue = rgb("#EBF4FF")
 #let green = rgb("D4EDDA")
+#let pure_green = rgb(22, 163, 74)
 #let pale_green = rgb("#EDF8EF")
 #let cream = rgb("FFFBEB")
 #let pale_cream = rgb("#FFFEF9")
 #let grey = luma(150)
+#let dark_grey = luma(90)
+#let light_grey = luma(250)
 #let charcoal = rgb("#2D3748")
 
 #let wc(body) = word-count(total => [
