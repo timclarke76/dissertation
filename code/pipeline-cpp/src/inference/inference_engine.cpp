@@ -2,6 +2,8 @@
 #include <numeric>
 #include <stdexcept>
 
+#include <os/allocator.h>
+
 #include "inference_engine.h"
 
 InferenceEngine::InferenceEngine(const std::string& model_path,
@@ -11,6 +13,8 @@ InferenceEngine::InferenceEngine(const std::string& model_path,
   , output_shape_{ 1, 4 }
   , output_data_(4, 0.0f)
 {
+  telemetry::ScopedToggle telemetry_toggle;
+
   static Ort::Env env(ORT_LOGGING_LEVEL_ERROR, "pipeline");
   static std::mutex trt_init_mutex;
 
@@ -58,6 +62,7 @@ InferenceEngine::InferenceEngine(const std::string& model_path,
 const std::vector<float>&
 InferenceEngine::run()
 {
+  telemetry::ScopedToggle telemetry_toggle;
   session_.Run(run_options_, io_binding_);
   return output_data_;
 }

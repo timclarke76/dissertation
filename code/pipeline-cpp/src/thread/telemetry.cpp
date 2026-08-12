@@ -193,7 +193,7 @@ spawn_telemetry_thread(const std::string_view& stream_name,
     TelemetryWriter::Csv csv(std::format("telemetry_{}.csv", stream_name));
 
     for (;;) {
-        const uint64_t timestamp_ns =
+      telemetry::ScopedToggle telemetry_toggle;
       auto epoch = receiver.receive();
       const uint64_t timestamp_ns =
         std::chrono::duration_cast<std::chrono::nanoseconds>(

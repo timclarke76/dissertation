@@ -12,7 +12,7 @@ use std::{
 use anyhow::{Context, Result};
 use hdrhistogram::Histogram;
 
-use crate::os::{ALLOCATED_BYTES, ALLOCATION_COUNT, FREED_BYTES};
+use crate::os::{ALLOCATED_BYTES, ALLOCATION_COUNT, FREED_BYTES, ScopedToggle};
 
 /// A telemetry epoch that contains six `HdrHistogram` instances for recording
 /// latency measurements in nanoseconds. Each histogram tracks latency for a
@@ -469,6 +469,7 @@ pub fn spawn_telemetry_thread(
             let mut last_freed = 0;
 
             while let Ok(mut epoch) = receiver.recv() {
+                let _toggle = ScopedToggle::new();
                 let timestamp_ns = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .expect("Error getting current time")

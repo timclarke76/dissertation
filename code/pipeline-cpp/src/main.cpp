@@ -8,6 +8,7 @@
 #include <os/shm.h>
 
 #include <queue.h>
+#include <os/allocator.h>
 #include <thread/bridge.h>
 #include <thread/fusion.h>
 #include <thread/inference.h>

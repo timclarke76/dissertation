@@ -1,3 +1,4 @@
+use crate::os::ScopedToggle;
 use anyhow::{Context, Result};
 use ndarray::Array;
 use ort::{
@@ -29,6 +30,7 @@ impl InferenceEngine {
     /// Returns an instance of InferenceEngine on success, or an error if the
     /// session could not be created.
     pub fn try_new(model_path: &str, input_shape: Vec<i64>) -> Result<Self> {
+        let _toggle = ScopedToggle::new();
         let _lock = TRT_INIT_MUTEX.lock().map_err(|e| {
             anyhow::anyhow!("Failed to acquire TRT_INIT_MUTEX: {}", e)
         })?;
@@ -108,6 +110,8 @@ impl InferenceEngine {
     /// Returns an array of 4 f32 values representing the output of the
     /// inference, or an error if the inference fails.
     pub fn run(&mut self) -> Result<[f32; 4]> {
+        let _toggle = ScopedToggle::new();
+
         self.io_binding
             .synchronize_inputs()
             .context("Failed to synchronise inputs")?;
