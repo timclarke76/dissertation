@@ -1490,10 +1490,12 @@ performance measurements.
 
 The Kruskal-Wallis H test @kruskalWallis1952, a non-parametric method that is
 robust to non-normal distributions and outliers, was used to compare the latency
-and throughput distributions from the three runtime models. Dunn's test
-@dunn1964 was used for post-hoc analysis to identify which implementations
-differed significantly, with a Bonferroni correction @dunn1961 to control the
-error rate and to prevent false positives.
+and throughput distributions from the three runtime models. Because of the large
+sample sizes, the epsilon-squared ($epsilon^2$) effect size @tomczak2014 was
+calculated to determine how much of the latency variance could be attributed to
+the runtime model. Dunn's test @dunn1964 was then used for post-hoc analysis to
+identify which implementations differed significantly, with a Bonferroni
+correction @dunn1961 to control the error rate and to prevent false positives.
 
 Spearman's rank correlation coefficient ($rho$) @spearman1904 was used to
 identify statistically significant correlations between the latency and
