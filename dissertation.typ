@@ -2680,9 +2680,15 @@ analysis.
 
 Python's GC automatically handles the lifetime of the variable, preventing the
 dangling reference vulnerabilities of C++, without the steep learning curve of
-Rust's borrowing mechanism.
+Rust's borrowing mechanism. However, this swaps developer convenience for
+runtime overhead, and removes the developer's ability to determine when
+resources are reclaimed. This becomes problematic when sharing memory-mapped
+pointers between threads --- as detailed in @sec:memory_management, if the GC
+reclaims an object in a terminating thread, it can unmap areas of memory that
+active threads are still using, resulting in segmentation faults and undefined
+behaviour.
 
-== Memory Management Friction
+== Memory Management Friction <sec:memory_management>
 
 It is generally believed that a runtime model Garbage Collector (GC) reduces
 cognitive burden when compared to manual memory management (C++), or an
