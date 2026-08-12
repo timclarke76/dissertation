@@ -3107,6 +3107,92 @@ collected data provided an insight into the impact of manual memory management,
 compiler-enforced memory safety, and automated garbage collection on the
 real-time latency, throughput, and system stability.
 
+== Answering the Research Questions
+
+#v(0.5em)
+
+*RQ1: Runtime Performance* \ The empirical data gathered during the evaluation
+revealed near-parity between the C++ and Rust implementations
+(@sec:baseline-performance). Both pipelines were implemented with
+zero-allocation, and comfortably adhered to the \100 ms latency deadline with no
+dropped or lapped frames up to a `load` multiplier of \5.5.
+
+No garbage collection "stop-the-world" events occurred after the initial
+\10-second initialisation window in the Python implementation. However, due to
+contention with the automated memory management, a second shared memory buffer
+was required. In addition, the Python implementation only achieved a maximum
+sustainable `load` multiplier of \0.05 (i.e. \5% of the natural sensor speed).
+
+Furthermore, analysis of the Resident Set Size (RSS)
+(@fig:MAXN_SUPER-memory-profiling) revealed that all three implementations were
+within \50 MB of each other (approximately \800 MB). This reveals that in
+Edge-AI deployments, the memory requirements are predominantly determined by
+shared AI dependencies (ONNX Runtime, CUDA, TensorRT), rather than the language
+runtime models themselves.
+
+A measured discrepancy between the C++ and Rust implementations' maximum
+sustainable `load` multipliers existed only when using Bounded Queue. This
+backpressure policy uses a spin-loop and checks the bounded queue for space
+during every iteration, for which the queue's mutex must be acquired and
+released. Research showed that Rust \1.62.0 stopped relying on the same pthreads
+library as C++ to implement its mutex, and replaced it with a lightweight,
+faster alternative that directly uses Linux futex system calls
+(@sec:mutex-contention).
+
+#v(0.5em)
+
+*RQ2: Backpressure Interaction* \ The evaluation of backpressure policies
+(@sec:flow-control-vs-load-shedding) revealed a notable trade-off between data
+loss, temporal continuity, and deadline adherence. The flow-control policies
+successfully mitigated micro-jitter by using the capacity of the unbounded
+buffers, allowing the number of unprocessed frames to temporarily increase under
+moderate load, guaranteeing no data loss. However, as load increased, allowing
+unprocessed frames to accumulate pushed the tail latency up and severely
+breached the \100 ms deadline (@fig:MAXN_SUPER-cdf-7_0).
+
+Conversely, the load-shedding policies aggressively dropped frames even at
+moderate loads, sacrificing data preservation and temporal continuity for
+deadline adherence. By _only_ dropping stale frames in favour of fresh data,
+Drop Oldest is most likely to adhere to the latency deadline even under heavy
+loads.
+
+If temporal continuity is a priority for the pipeline, Adaptive Decimation drops
+every nth frame in an attempt to prevent total saturation, but does so at the
+expense of significantly more dropped frames even during very temporary moderate
+load or micro-jitter that the pipeline would be otherwise able to sustain
+without any loss of data.
+
+By isolating the saturation points of the individual streams
+(@fig:MAXN_SUPER-stream-saturation), it was shown that synchronisation anchors
+(such as the RGB frames during late-fusion) bottleneck upstream processing,
+dictating the pipeline's overall capacity.
+
+#v(0.5em)
+
+*RQ3: Dynamic Profiling vs. Runtime Behaviour* \ Statistical analysis, using
+Kruskal-Wallis and Spearman's rank correlation, was effective in diagnosing
+runtime behaviour. Performing a Kruskal-Wallis H-test confirmed that performance
+was related to the runtime models, and not random system noise. When using
+Exponential Backoff, the Dunn's post-hoc pairwise comparison with a Bonferroni
+correction (@tab:dunns-test) revealed that there was no significant difference
+between C++ and Rust, but that Python was significantly slower.
+
+Spearman's rank correlation revealed that there was no relationship between CPU
+temperature and latency. Because the Jetson Orin Nano's thermal management
+triggered the cooling fan at \74°C, DVFS throttling did not occur. This
+confirmed that performance degradation when using the constrained 7-Watt power
+mode (@sec:power-constraints), instead of the unconstrained MAXN_SUPER mode, was
+a result of reduced computational resources (i.e. a reduced number of CPU cores
+and lower clock frequencies), rather than the DVFS throttling.
+
+An undefined result (`NaN`) was returned when calculating Spearman's rank
+correlation ($rho$) for the impact of Python's Garbage Collection (GC) pauses on
+latency, confirming that no GC events took place in the pipeline after the
+\10-second initialisation window. Similarly, an undefined result was also
+returned when calculating $rho$ for the impact of dynamic memory allocation (in
+the C++ and Rust implementations) on CPU temperature, confirming that no memory
+was dynamically allocated during the steady-state phase of the evaluation.
+
 Total words: #total-words
 
 #columns(1)[
