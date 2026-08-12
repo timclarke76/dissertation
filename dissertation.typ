@@ -2121,7 +2121,6 @@ other monitoring tools.
 #pagebreak()
 #columns(1)[
 
-#wc[
 = Results
 
 To prevent cold-start initialisation from skewing the steady-state measurements,
@@ -2328,8 +2327,8 @@ ms, with a range of \636.6 ms. During the subsequent steady-state phase, maximum
 latency increased to \2,652.9 ms, and the latency range increased to \2,627.3
 ms. Python's "stop-the-world" GC events were confined to only the first few
 seconds of the \60-second window. This was confirmed by a Spearman's rank
-correlation across the steady-state window, which produced an undefined result
-(`NaN`) due to no GC events occurring during that time.
+correlation ($rho$) across the steady-state window, which produced an undefined
+result (`NaN`) due to no GC events occurring during that time.
 
 #figure(
   pad(top: 1.5em)[
@@ -2347,7 +2346,10 @@ Backoff, `load` \5.5).
 As demonstrated in the left panel of @fig:MAXN_SUPER-memory-profiling, the
 overall memory footprint remained consistent across all three implementations,
 with C++, Rust, and Python stabilising at approximately \743.2 MB, \746.5 MB,
-and \782.0 MB respectively.
+and \782.0 MB respectively. This was confirmed by a Spearman's rank correlation
+($rho$) comparing dynamic memory allocation and CPU temerature across the
+steady-state window , which produced an undefined result (`NaN`) for both
+implementations due to no dynamic memory allocation occurring during that time.
 
 The right panel of @fig:MAXN_SUPER-memory-profiling demonstrates the cumulative
 dynamic memory allocations of the C++ and Rust implementations in the pipeline.
@@ -2458,7 +2460,72 @@ the temperature then settled to approximately \57°C.
   caption: [Thermal accumulation at the maximum sustainable throughput using the
     Exponential Backoff backpressure policy.],
 ) <fig:MAXN_SUPER-thermals-saturated>
-]
+
+#colbreak()
+
+== Statistical Analysis of Latency
+
+To evaluate how much latency can be attributed to the runtime models, a
+Kruskal-Wallis H-test was performed on the steady-state median (p50) latency
+measurements. This determines how likely it is that latency differences were
+caused by the choice of language, and not operating system interrupts. A `load`
+multiplier of \0.05 using the Exponential Backoff policy was used, as this was
+the maximum ingestion rate that all three implementations were able to sustain
+without data loss.
+
+The test revealed a significant difference in performance between the languages
+($H = 850.56, p < 0.001$). Furthermore, the effect size ($epsilon^2 = 0.6558$)
+revealed that approximately \65.6% of the variance in processing speed was
+caused by the runtime model itself, and not by random system noise.
+
+A Dunn's post-hoc pairwise comparison with a Bonferroni correction
+(@tab:dunns-test) was performed to identify which languages differed. The
+results showed no significant difference between C++ and Rust ($p = 1.000$),
+proving that baseline performance between these two languages is statistically
+identical. Conversely, Python was significantly slower than both C++ and Rust
+($p < 0.001$), confirming that the choice of runtime model has a significant
+impact on the overall latency of the pipeline.
+
+#figure(
+  pad(top: 2em)[
+    #table(
+      columns: 4,
+      align: (x, y) => if x == 0 { left } else { center },
+      stroke: none,
+      table.hline(),
+      table.header([*Runtime Model*], [*C++*], [*Rust*], [*Python*]),
+      table.hline(),
+      [*C++*],     [---],          [$p = 1.000$],  [$p < 0.001$],
+      [*Rust*],    [$p = 1.000$],  [---],          [$p < 0.001$],
+      [*Python*],  [$p < 0.001$],  [$p < 0.001$],  [---],
+      table.hline()
+    )
+  ],
+  caption: [Dunn's post-hoc pairwise comparison. The Kruskal-Wallis test \
+    indicated a statistically significant difference in median latency \
+    between runtime models ($H = 850.56, p < 0.001, epsilon^2 = 0.6558$).],
+) <tab:dunns-test>
+
+#v(3em)
+
+== Impact of Hardware Power Constraints (7W Mode) <sec:power-constraints>
+
+Severe latency degradation was recorded when the Jetson Orin Nano's power mode
+was restricted to \7 Watts (`nvpmodel -m 3`). A Spearman's rank correlation was
+performed on both compiled implementations to determine if increasing CPU
+temperature also increased latency. A `load` multiplier of \5.5 was used with
+the Exponential Backoff policy, as this was the maximum ingestion rate that both
+compiled languages were able to sustain without dropping frames.
+
+The calculated results showed no significant correlation for either C++ or Rust.
+$rho$ was very close to zero for both languages (\0.0123 and -\0.0099
+respectively), indicating no relationship between CPU temperature and latency.
+This was further confirmed by the high proof scores ($p$) of \0.767 and \0.811
+respectively. Because the Jetson's fail-safe thermal management forcefully
+triggered the cooling fan at \74°C, DVFS throttling was prevented. Therefore,
+the results confirm that the performance degradation was a result of static
+resource constraints (i.e. a reduced number of CPU cores and lower clock
+frequencies), and not DVFS throttling caused by thermal accumulation.
 
 #colbreak()
 
