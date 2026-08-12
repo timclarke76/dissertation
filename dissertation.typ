@@ -725,13 +725,15 @@ state, and the process was given a real-time scheduling policy. The generator
 and pipelines were prevented from running on core \0 to avoid contention with
 the Linux kernel and background processes.
 
-Before using the load generator, the HAR pipelines were tested with real sensor
-data to ensure that they were functionally correct and optimised. A lightweight
-harness was developed to read data from the sensors, and write to the same
-shared memory buffers as used by the generator. This decoupling ensures the same
-pipeline code is executed during both the functional testing and the performance
-evaluations, without modifying the pipelines or using conditional logic to
-change the path of execution.
+The deterministic load generator and HAR pipelines were designed to allow
+seamless substitution of the generator with a physical hardware harness, using
+shared memory (`/dev/shm`) ring buffers as the communication boundary. A
+physical hardware test was initially planned. However, damage to the Jetson Orin
+Nano Developer Kit's MIPI CSI-2 ZIF connector during assembly prevented the
+connection of the Waveshare IMX219-160 Camera Module. Investigation revealed
+that these ZIF connectors are notoriously fragile, further validating the need
+for a deterministic generator to execute the high-stress evaluations required
+for this dissertation's research.
 
 #figure(
   scope: "parent",
