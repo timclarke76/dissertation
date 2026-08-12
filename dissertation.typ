@@ -2924,6 +2924,62 @@ automated memory management, its memory overhead was only marginally higher
 the choice of runtime model has little impact on the memory footprint of the
 overall system.
 
+== Static Analysis
+
+Static code analysis was performed using the `lizard` complexity analyser to
+quantify the verbosity and complexity of the three functionally identical
+pipeline implementations. The analysis measured Non-Commented Lines of Code
+(NLOC) and average Cyclomatic Complexity Number (CCN). 
+
+As shown in @tab:static-analysis, the analysis revealed a higher NLOC count for
+the C++ implementation compared to Rust and Python. This reflects C++'s
+idiomatic boilerplate as the language mandates encapsulation, requiring header
+declarations, private members, and accessors and mutators. Conversely, Python
+(which achieved the lowest NLOC count) relies on implied typing, and
+public-by-default attributes using naming conventions to indicate client access
+rights --- reducing developer friction, but shifting validation to runtime.
+
+#figure(
+  pad(top: 1em)[
+    #table(
+      columns: (1fr, 1fr, 1fr, 1fr, 1fr),
+      align: (x, y) => if x == 0 { left } else { center },
+      stroke: none,
+      table.hline(),
+      table.header([*Pipeline\ Language*], [*Total\ NLOC*], [*Function\ Count*],
+      [*Average\ CCN*], [*Max.\ CCN*]),
+      table.hline(),
+      [*C++*],     [1,450],  [74],  [2.4],  [16],
+      [*Rust*],    [1,322],  [35],  [4.2],  [19],
+      [*Python*],  [1,031],  [41],  [3.2],  [19],
+      table.hline()
+    )
+  ],
+  caption: [Static analysis metrics demonstrating idiomatic verbosity and\
+    complexity across the three pipeline implementations. #v(1em)],
+) <tab:static-analysis>
+
+Interestingly, C++ had the lowest average CCN, while Rust had the highest. This
+reflects on the well-known limitation of using CCN to compare different
+programming paradigms. Rather than indicating that the C++ logic is simpler,
+this is the mathematical result of C++'s verbosity. The average CCN is
+calculated by dividing the total complexity by the number of functions. Because
+C++ requires many trivial methods not necessary in the other languages, these
+reduce the average CCN result. For example, while a simple destructor to release
+memory in C++ would increase the function count and thus reduce the average CCN,
+the same destructor is not required in Rust or Python (because of the automated
+resource management and garbage collection), thus artificially inflating the
+average CCN as the function count is consequently lower, despite the complexity
+of the overall code being lower.
+
+While the boilerplate code skews the average CCN, examining the individual
+function metrics reveals the similarity between all three implementations. The
+primary execution loops responsible for the pipelines' main execution logic
+(e.g. `spawn_fusion_thread` and `spawn_telemetry_thread`) register the highest
+CCN results between \16 and \19, regardless of the language paradigm. This
+suggests that complexity of the logic is tied to the system design itself, and
+is not substantially changed by the choice of programming language.
+
 = Conclusion
 
 Total words: #total-words
