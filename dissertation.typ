@@ -3281,32 +3281,10 @@ the hardware trip points for active cooling, software thermal throttling (DVFS),
 and critical hardware shutdowns. Temperatures are represented in millidegrees
 Celsius.
 
-```text
-tim@jetson:~$ grep "" /sys/class/thermal/thermal_zone*/type
-/sys/class/thermal/thermal_zone0/type:cpu-thermal
-/sys/class/thermal/thermal_zone1/type:gpu-thermal
-/sys/class/thermal/thermal_zone2/type:cv0-thermal
-/sys/class/thermal/thermal_zone3/type:cv1-thermal
-/sys/class/thermal/thermal_zone4/type:cv2-thermal
-/sys/class/thermal/thermal_zone5/type:soc0-thermal
-/sys/class/thermal/thermal_zone6/type:soc1-thermal
-/sys/class/thermal/thermal_zone7/type:soc2-thermal
-/sys/class/thermal/thermal_zone8/type:tj-thermal
-
-tim@jetson:~$ grep "" /sys/class/thermal/thermal_zone*/trip_point*_temp
-/sys/class/thermal/thermal_zone0/trip_point_0_temp:99000
-/sys/class/thermal/thermal_zone0/trip_point_1_temp:104500
-/sys/class/thermal/thermal_zone0/trip_point_2_temp:70000
-/sys/class/thermal/thermal_zone1/trip_point_0_temp:99000
-/sys/class/thermal/thermal_zone1/trip_point_1_temp:104500
-/sys/class/thermal/thermal_zone1/trip_point_2_temp:70000
-/sys/class/thermal/thermal_zone8/trip_point_0_temp:35000
-/sys/class/thermal/thermal_zone8/trip_point_1_temp:74000
-/sys/class/thermal/thermal_zone8/trip_point_2_temp:95000
-/sys/class/thermal/thermal_zone8/trip_point_3_temp:104500
-```
+#text(size: 7pt)[
+  #raw(read("terminal/thermal-zones.txt"), block: true, lang: "text")
 ]
-#colbreak()
+
 #columns(2, gutter: 16pt)[
 #set par(justify: false)
 #bibliography("refs.bib", title: "References", style: "ieee")
