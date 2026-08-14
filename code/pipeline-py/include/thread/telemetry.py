@@ -340,7 +340,7 @@ def spawn_telemetry_thread(
                 with open('/proc/self/statm', 'r') as f:
                     rss_pages = int(f.read().split()[1])
                     epoch.rss_bytes = rss_pages * PAGE_SIZE
-            except Exception:
+            except Exception as e:
                 raise RuntimeError(
                     "Failed to read RSS bytes from /proc/self/statm"
                 ) from e
@@ -348,7 +348,7 @@ def spawn_telemetry_thread(
             try:
                 with open('/sys/class/hwmon/hwmon0/pwm1', 'r') as f:
                     epoch.fan_pwm = int(f.read().strip())
-            except Exception:
+            except Exception as e:
                 raise RuntimeError(
                     "Failed to read RSS bytes from /sys/class/hwmon/hwmon0/pwm1"
                 ) from e
