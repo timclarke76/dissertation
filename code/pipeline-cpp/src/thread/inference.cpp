@@ -63,8 +63,8 @@ spawn_inference_thread(const std::string& stream_name,
           }
         } else {
           const size_t frame_size_bytes = frame_size_items * sizeof(float);
-          std::memcpy(tensor_data.data() + item_offset, 
-            item->payload_ptr, 
+          std::memcpy(tensor_data.data() + item_offset,
+            item->payload_ptr,
             frame_size_bytes);
         }
 

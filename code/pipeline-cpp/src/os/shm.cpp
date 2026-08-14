@@ -19,8 +19,7 @@ ShmBuffer::ShmBuffer(const std::string_view& name, const size_t stream_id)
 
   if (header_->magic != Header::MAGIC) {
     throw std::runtime_error(std::format(
-      "Memory corruption or invalid magic number in shared memory '{}'",
-      name));
+      "Memory corruption or invalid magic number in shared memory '{}'", name));
   }
 
   if (header_->version != Header::VERSION) {
@@ -86,8 +85,10 @@ ShmBuffer::next_frame()
       // The producer has finished writing data to the shared memory buffer, and
       // there are no more frames to read. Return a special frame with a
       // POISON_PILL to signal the end of the stream.
-      return Frame{ stream_id_, ShmBuffer::Header::POISON_PILL, nullptr,
-          { 0, 0, 0, 0, 0, 0 } };
+      return Frame{ stream_id_,
+        ShmBuffer::Header::POISON_PILL,
+        nullptr,
+        { 0, 0, 0, 0, 0, 0 } };
     }
 
     spin_loop();

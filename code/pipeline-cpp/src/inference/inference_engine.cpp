@@ -41,9 +41,11 @@ InferenceEngine::InferenceEngine(const std::string& model_path,
       Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
     io_binding_ = Ort::IoBinding(session_);
 
-    const size_t window_size_items = static_cast<size_t>(std::accumulate(
-      input_shape_.begin(), input_shape_.end(), 1LL,
-      std::multiplies<int64_t>()));
+    const size_t window_size_items =
+      static_cast<size_t>(std::accumulate(input_shape_.begin(),
+        input_shape_.end(),
+        1LL,
+        std::multiplies<int64_t>()));
     const size_t window_size_bytes = window_size_items * sizeof(float);
 
     io_binding_.BindInput("input",

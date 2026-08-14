@@ -135,7 +135,7 @@ public:
     uint64_t dropped_frames = 0;
 
     /// The inference result produced by the ONNX Runtime.
-    float inference_result[4] = {0.0f};
+    float inference_result[4] = { 0.0f };
   };
 
 public:

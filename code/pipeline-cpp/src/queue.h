@@ -88,8 +88,9 @@ public:
 
   /// \brief Increments the count of dropped frames by the specified amount.
   /// \param count The number of dropped frames to add to the total.
-  void increment_dropped_frames(const uint64_t count = 1) {
-      dropped_frames += count;
+  void increment_dropped_frames(const uint64_t count = 1)
+  {
+    dropped_frames += count;
   }
 
   /// \brief Returns the total number of dropped frames.
