@@ -321,23 +321,12 @@ impl Drop for ShmBuffer {
     /// logged to standard error.
     fn drop(&mut self) {
         unsafe {
-            match NonNull::new(self.header as *mut std::ffi::c_void) {
-                Some(ptr) => {
-                    let len = Self::HEADER_SIZE + self.capacity_bytes;
+            let ptr = NonNull::new_unchecked(
+                self.header as *mut std::ffi::c_void);
+            let len = Self::HEADER_SIZE + self.capacity_bytes;
 
-                    let _ = munmap(ptr, len).unwrap_or_else(|e| {
-                        eprintln!(
-                            "Failed to unmap shared memory '{}': {e}",
-                            self.name
-                        );
-                    });
-                }
-                None => {
-                    eprintln!(
-                        "Shared memory header pointer is null for '{}'",
-                        self.name
-                    );
-                }
+            if let Err(e) = munmap(ptr, len) {
+                eprintln!("Failed to unmap shared memory '{}': {e}", self.name);
             }
         }
 
