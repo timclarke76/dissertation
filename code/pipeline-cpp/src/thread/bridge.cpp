@@ -41,7 +41,7 @@ spawn_bridge_thread(const std::string& shm_name,
       if (frame.seq_num == ShmBuffer::Header::POISON_PILL) {
         // The generator stream has ended, so push the final
         // frame to the queue and exit the loop.
-        if (!queue->push(frame)) {
+        if (!queue->try_push(frame)) {
           queue->overwrite_oldest(frame);
         }
 
@@ -94,7 +94,7 @@ spawn_bridge_thread(const std::string& shm_name,
       }
 
       // clang-format off
-      if (!queue->push(frame)) {
+      if (!queue->try_push(frame)) {
         std::visit(
           overloaded{
             [&queue, &queue_lock, frame](const BoundedQueue&) mutable {
@@ -106,7 +106,7 @@ spawn_bridge_thread(const std::string& shm_name,
                 spin_loop();
                 queue_lock.lock();
 
-                if (queue->push(frame)) {
+                if (queue->try_push(frame)) {
                   break;
                 }
               }
@@ -129,7 +129,7 @@ spawn_bridge_thread(const std::string& shm_name,
                 std::this_thread::sleep_for(std::chrono::nanoseconds(backoff_nanos));
                 queue_lock.lock();
 
-                if (queue->push(frame)) {
+                if (queue->try_push(frame)) {
                   break;
                 }
 

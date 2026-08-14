@@ -27,7 +27,7 @@ public:
   /// \param item The item to push onto the queue.
   /// \return True if the item was successfully pushed, or false if the queue is
   /// full.
-  bool push(T const item)
+  bool try_push(T const item)
   {
     if (len_ == capacity_) {
       return false;
