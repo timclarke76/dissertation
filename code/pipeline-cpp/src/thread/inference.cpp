@@ -35,11 +35,11 @@ spawn_inference_thread(const std::string& stream_name,
     size_t samples_collected = 0;
 
     for (;;) {
-      std::unique_lock<std::mutex> transaction_lock(queue->mutex);
+      std::unique_lock<std::mutex> transaction_lock(queue->get_mutex());
       auto item = queue->pop();
       const auto t_pipeline_in = current_time_nanos();
-      auto lapped_frames = queue->lapped_frames;
-      auto dropped_frames = queue->dropped_frames;
+      auto lapped_frames = queue->get_lapped_frames();
+      auto dropped_frames = queue->get_dropped_frames();
       transaction_lock.unlock();
 
       if (item.has_value()) {

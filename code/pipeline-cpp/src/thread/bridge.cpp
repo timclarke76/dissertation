@@ -35,8 +35,8 @@ spawn_bridge_thread(const std::string& shm_name,
           "Failed to read next frame from shared memory");
       }
 
-      std::unique_lock<std::mutex> queue_lock(queue->mutex);
-      queue->lapped_frames += frame.lapped_frames;
+      std::unique_lock<std::mutex> queue_lock(queue->get_mutex());
+      queue->increment_lapped_frames(frame.lapped_frames);
 
       if (frame.seq_num == ShmBuffer::Header::POISON_PILL) {
         // The generator stream has ended, so push the final
@@ -84,7 +84,7 @@ spawn_bridge_thread(const std::string& shm_name,
           decimation_counter++;
 
           if (decimation_counter % ratio != 0) {
-            queue->dropped_frames++;
+            queue->increment_dropped_frames();
             continue; // drop
           }
         } else {
@@ -121,7 +121,7 @@ spawn_bridge_thread(const std::string& shm_name,
               for (;;) {
                 if (accumulated_nanos >= p.max_nanos) {
                   // drop
-                  queue->dropped_frames++;
+                  queue->increment_dropped_frames();
                   break;
                 }
 
@@ -142,12 +142,12 @@ spawn_bridge_thread(const std::string& shm_name,
                 // Drops the oldest data in the consumer buffer to make room for
                 // new data.
                 queue->overwrite_oldest(frame);
-                queue->dropped_frames++;
+                queue->increment_dropped_frames();
             },
 
             [&queue](const DropNewest&) {
                 // DropNewest drops incoming data when the buffer is full.
-                queue->dropped_frames++;
+                queue->increment_dropped_frames();
             },
 
             [&queue, frame](const AdaptiveDecimation&) {
@@ -155,7 +155,7 @@ spawn_bridge_thread(const std::string& shm_name,
                 // the queue from filling up, we drop the oldest frame to make
                 // room for the new frame.
                 queue->overwrite_oldest(frame);
-                queue->dropped_frames++;
+                queue->increment_dropped_frames();
             },
 
           }, policy);

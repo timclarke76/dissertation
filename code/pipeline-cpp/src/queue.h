@@ -78,6 +78,29 @@ public:
   /// \return The maximum number of items the queue can hold.
   size_t capacity() const { return capacity_; }
 
+  /// \brief Increments the count of lapped frames by the specified amount.
+  /// \param count The number of lapped frames to add to the total.
+  void increment_lapped_frames(const uint64_t count) { lapped_frames += count; }
+
+  /// \brief Returns the total number of lapped frames.
+  /// \return The total number of frames that have been lapped by the producer.
+  uint64_t get_lapped_frames() const { return lapped_frames; }
+
+  /// \brief Increments the count of dropped frames by the specified amount.
+  /// \param count The number of dropped frames to add to the total.
+  void increment_dropped_frames(const uint64_t count = 1) {
+      dropped_frames += count;
+  }
+
+  /// \brief Returns the total number of dropped frames.
+  /// \return The total number of frames that have been dropped due to the queue
+  /// being full and a backpressure policy being applied.
+  uint64_t get_dropped_frames() const { return dropped_frames; }
+
+  /// \brief Returns the queue's mutex.
+  /// \return A reference to the queue's mutex.
+  std::mutex& get_mutex() { return mutex; }
+
 private:
   /// \brief Advances the index in a circular manner.
   /// \param index The current index to be advanced.
@@ -100,7 +123,6 @@ private:
   /// The index where the next item will be pushed (the tail of the queue).
   size_t tail_ = 0;
 
-public:
   /// The number of frames that have been lapped by the producer.
   uint64_t lapped_frames = 0;
 
