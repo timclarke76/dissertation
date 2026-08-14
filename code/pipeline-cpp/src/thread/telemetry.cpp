@@ -130,13 +130,12 @@ TelemetryWriter::record(uint64_t ts[Epoch::NUM_LATENCY_MEASURES],
 
   for (size_t idx = 0; idx < (Epoch::NUM_LATENCY_MEASURES - 1); idx++) {
     const auto nanos = saturating_sub(ts[idx + 1], ts[idx]);
-    current_epoch_->latency_nanos[idx].record(std::max<uint64_t>(1, nanos));
+    current_epoch_->latency_nanos[idx].record(nanos);
   }
 
   const auto total_nanos =
     saturating_sub(ts[Epoch::TOTAL_LATENCY], ts[Epoch::UNBOUNDED_QUEUE_WAIT]);
-  current_epoch_->latency_nanos[Epoch::TOTAL_LATENCY].record(
-    std::max<uint64_t>(1, total_nanos));
+  current_epoch_->latency_nanos[Epoch::TOTAL_LATENCY].record(total_nanos);
 
   const auto newly_lapped = saturating_sub(lapped_frames, last_lapped_frames_);
   current_epoch_->lapped_frames += newly_lapped;

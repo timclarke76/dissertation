@@ -339,7 +339,7 @@ impl TelemetryWriter {
         }
 
         for idx in 0..(TelemetryEpoch::NUM_LATENCY_MEASURES - 1) {
-            let nanos = ts[idx + 1].saturating_sub(ts[idx]).max(1);
+            let nanos = ts[idx + 1].saturating_sub(ts[idx]);
             self.current_epoch.latency_nanos[idx]
                 .record(nanos)
                 .context("Failed to record latency")?;
