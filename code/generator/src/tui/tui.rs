@@ -216,23 +216,24 @@ fn render_events(frame: &mut Frame, area: Rect, report: &Report) {
 }
 
 /// Formats a byte size into a human-readable string with appropriate units (B,
-/// KB, MB, GB, TB, PB, EB).
+/// KB, MB, GB, TB).
 /// #Args
 /// * `bytes`: The size in bytes to format.
 /// #Returns
 /// A `String` representing the formatted byte size with units.
 fn format_bytes(bytes: usize) -> String {
-    let suffixes = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
-    let num = bytes as f64;
-    let base: f64 = 1024.0;
+    let suffixes = ["B", "KB", "MB", "GB", "TB"];
+    let mut size = bytes as f64;
+    let mut idx = 0;
 
-    let i = (num.ln() / base.ln()).floor() as usize;
-    let i = i.min(suffixes.len() - 1);
+    while size >= 1024.0 && idx < suffixes.len() - 1 {
+        size /= 1024.0;
+        idx += 1;
+    }
 
-    if i == 0 {
-        format!("{} {}", bytes, suffixes[i])
+    if idx == 0 {
+        format!("{} {}", bytes, suffixes[idx])
     } else {
-        let value = num / base.powi(i as i32);
-        format!("{:.2} {}", value, suffixes[i])
+        format!("{:.2} {}", size, suffixes[idx])
     }
 }
