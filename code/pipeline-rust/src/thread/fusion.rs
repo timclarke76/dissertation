@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use super::{TelemetryEpoch, TelemetryWriter, spawn_telemetry_thread};
 use crate::{
     inference::InferenceEngine,
-    os::{ShmBuffer, ShmFrame, now_nanos},
+    os::{ShmBuffer, ShmFrame, ShmHeader, now_nanos},
 };
 
 /// Spawns a thread for late fusion of frames from a shared memory queue. Fusion
@@ -73,7 +73,7 @@ pub fn spawn_fusion_thread(
             let mut eos_count = 0;
 
             while let Ok(mut frame) = receiver.recv() {
-                if frame.seq_num == u64::MAX {
+                if frame.seq_num == ShmHeader::POISON_PILL {
                     // A generator stream has ended. Terminate the corresponding
                     // telemetry writer and increment the end-of-stream count.
                     // If all streams have ended, exit the loop.

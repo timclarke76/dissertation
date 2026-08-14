@@ -85,8 +85,9 @@ ShmBuffer::next_frame()
         ShmBuffer::Header::FINISHED) {
       // The producer has finished writing data to the shared memory buffer, and
       // there are no more frames to read. Return a special frame with a
-      // sequence number of UINT64_max to signal the end of the stream.
-      return Frame{ stream_id_, UINT64_MAX, nullptr, { 0, 0, 0, 0, 0, 0 } };
+      // POISON_PILL to signal the end of the stream.
+      return Frame{ stream_id_, ShmBuffer::Header::POISON_PILL, nullptr,
+          { 0, 0, 0, 0, 0, 0 } };
     }
 
     spin_loop();

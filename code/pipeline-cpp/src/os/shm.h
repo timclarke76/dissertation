@@ -7,7 +7,7 @@
 /// Connects to a circular shared memory buffer and reads its frames.
 class ShmBuffer
 {
-private:
+public:
   /// \brief Represents the header of the shared memory buffer.
   ///
   /// Aligned to 64 bytes to ensure proper memory alignment for atomic
@@ -31,6 +31,9 @@ private:
 
     /// The generator has finished writing data to the shared memory buffer.
     static constexpr uint64_t FINISHED = 2;
+
+    /// A special sequence number used to signal the end of the stream.
+    static constexpr uint64_t POISON_PILL = UINT64_MAX;
 
     /// A magic number used to identify the shared memory buffer.
     uint32_t magic;

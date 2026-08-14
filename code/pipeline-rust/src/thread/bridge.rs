@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 
 use crate::{
     config::Policy,
-    os::{ShmBuffer, ShmFrame},
+    os::{ShmBuffer, ShmFrame, ShmHeader},
     queue::Queue,
 };
 
@@ -51,7 +51,7 @@ pub fn spawn_bridge_thread(
                     let mut q = queue.lock().unwrap();
                     q.lapped_frames += frame.lapped_frames;
 
-                    if frame.seq_num == u64::MAX {
+                    if frame.seq_num == ShmHeader::POISON_PILL {
                         // The generator stream has ended, so push the final
                         // frame to the queue and exit the loop.
                         if let Err(rejected) = q.try_push(frame) {

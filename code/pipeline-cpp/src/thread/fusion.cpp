@@ -1,5 +1,6 @@
 #include <inference/inference_engine.h>
 #include <os/os.h>
+#include <os/shm.h>
 #include <os/time.h>
 #include <thread/telemetry.h>
 
@@ -54,7 +55,7 @@ spawn_fusion_thread(Receiver<ShmBuffer::Frame> receiver,
     for (;;) {
       auto frame = receiver.receive();
 
-      if (frame.seq_num == UINT64_MAX) {
+      if (frame.seq_num == ShmBuffer::Header::POISON_PILL) {
         // A generator stream has ended. Terminate the corresponding
         // telemetry writer and increment the end-of-stream count.
         // If all streams have ended, exit the loop.

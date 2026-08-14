@@ -45,7 +45,7 @@ spawn_inference_thread(const std::string& stream_name,
         item->lapped_frames = lapped_frames;
         item->dropped_frames = dropped_frames;
 
-        if (item->seq_num == UINT64_MAX) {
+        if (item->seq_num == ShmBuffer::Header::POISON_PILL) {
           // The generator stream has ended, so we send the final
           // frame to the fusion thread and exit the loop.
           sender.send(std::move(item.value()));

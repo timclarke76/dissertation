@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 
 use crate::{
     inference::InferenceEngine,
-    os::{ShmBuffer, ShmFrame, now_nanos},
+    os::{ShmBuffer, ShmFrame, ShmHeader, now_nanos},
     queue::Queue,
 };
 
@@ -72,7 +72,7 @@ pub fn spawn_inference_thread(
                     frame.lapped_frames = lapped_frames;
                     frame.dropped_frames = dropped_frames;
 
-                    if frame.seq_num == u64::MAX {
+                    if frame.seq_num == ShmHeader::POISON_PILL {
                         // The generator stream has ended, so we send the final
                         // frame to the fusion thread and exit the loop.
                         sender.send(frame).expect(

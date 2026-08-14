@@ -20,7 +20,7 @@ use super::now_nanos;
 /// Represents the header of the shared memory buffer. Aligned to 64 bytes to
 /// ensure proper memory alignment for atomic operations.
 #[repr(C, align(64))]
-struct ShmHeader {
+pub struct ShmHeader {
     /// A magic number used to identify the shared memory buffer.
     pub magic: u32,
 
@@ -65,6 +65,9 @@ impl ShmHeader {
 
     /// The generator has finished writing data to the shared memory buffer.
     pub const FINISHED: u64 = 2;
+
+    /// A special sequence number used to signal the end of the stream.
+    pub const POISON_PILL: u64 = u64::MAX;
 }
 
 /// Represents a raw pointer to a frame's payload in the shared memory buffer.
@@ -332,11 +335,11 @@ impl ShmBuffer {
             if stage == ShmHeader::FINISHED {
                 // The producer has finished writing data to the shared memory
                 // buffer, and there are no more frames to read. Return a
-                // special frame with a sequence number of u64::MAX to signal
-                // the end of the stream.
+                // special frame with a POSION_PILL to signal the end of the
+                // stream.
                 return Ok(ShmFrame {
                     stream_id: self.stream_id,
-                    seq_num: u64::MAX,
+                    seq_num: ShmHeader::POISON_PILL,
                     payload_ptr: SafeRawPointer::new(std::ptr::null()),
                     timestamps: [0; ShmBuffer::NUM_TIMESTAMPS],
                     lapped_frames: 0,
