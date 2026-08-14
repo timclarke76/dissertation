@@ -8,6 +8,8 @@
 
 #include "bridge.h"
 
+// A utility struct to allow for visiting multiple types in a std::variant with
+// lambdas.
 // clang-format off
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;

@@ -198,7 +198,7 @@ impl Csv {
     ///
     /// Returns a `Result` indicating whether the record was successfully
     /// written, or an error if the operation failed.
-    fn write_record(
+    fn write_epoch(
         &mut self,
         epoch: &TelemetryEpoch,
         timestamp_ns: u64,
@@ -301,12 +301,12 @@ impl TelemetryWriter {
             .context("Failed to receive initial telemetry epoch")?;
 
         Ok(Self {
-            current_epoch,
             sender,
             receiver,
             last_swap: Instant::now(),
             last_lapped_frames: 0,
             last_dropped_frames: 0,
+            current_epoch,
             is_terminated: false,
         })
     }
@@ -534,16 +534,21 @@ pub fn spawn_telemetry_thread(
                     epoch.rss_bytes = rss_pages * page_size;
                 }
 
-                let pwm_str = std::fs::read_to_string( "/sys/class/hwmon/hwmon0/pwm1").expect("Failed to read fan PWM value from /sys/class/hwmon/hwmon0/pwm1");
-                epoch.fan_pwm = pwm_str.trim().parse().expect("Failed to parse fan PWM value");
+                let pwm_str =
+                    std::fs::read_to_string( "/sys/class/hwmon/hwmon0/pwm1")
+                    .expect("Failed to read fan PWM value from \
+                        /sys/class/hwmon/hwmon0/pwm1");
+                epoch.fan_pwm = pwm_str.trim().parse()
+                    .expect("Failed to parse fan PWM value");
 
                 epoch.fordblks_bytes =
                     unsafe { libc::mallinfo2().fordblks as usize };
 
-                csv.write_record(&epoch, timestamp_ns)
+                csv.write_epoch(&epoch, timestamp_ns)
                     .expect("Failed to write telemetry record to CSV");
 
                 epoch.reset();
+
                 sender
                     .send(epoch)
                     .expect("Failed to send clean telemetry epoch");

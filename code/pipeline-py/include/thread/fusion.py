@@ -45,13 +45,13 @@ def spawn_fusion_thread(
 
         """Required to save the latest accelerometer and gyrometer
         timestamps for fusion telemetry."""
-        latest_accel_timestamps: list[int] = [
+        latest_accel_ts: list[int] = [
             0 for _ in range(ShmBuffer.NUM_TIMESTAMPS)
         ]
         latest_accel_lapped_frames: int = 0
         latest_accel_dropped_frames: int = 0
 
-        latest_gyro_timestamps: list[int] = [
+        latest_gyro_ts: list[int] = [
             0 for _ in range(ShmBuffer.NUM_TIMESTAMPS)
         ]
         latest_gyro_lapped_frames: int = 0
@@ -85,14 +85,14 @@ def spawn_fusion_thread(
             if frame.stream_id == ShmBuffer.ACCEL_STREAM_ID:
                 """Only the most recent accelerometer timestamps are needed for
                 fusion, so we store them here."""
-                latest_accel_timestamps = frame.timestamps.copy()
+                latest_accel_ts = frame.timestamps.copy()
                 latest_accel_lapped_frames = frame.lapped_frames
                 latest_accel_dropped_frames = frame.dropped_frames
                 fusion_input[0, 4:8] = frame.inference_result
             elif frame.stream_id == ShmBuffer.GYRO_STREAM_ID:
                 """Only the most recent gyro timestamps are needed for
                 fusion, so we store them here."""
-                latest_gyro_timestamps = frame.timestamps.copy()
+                latest_gyro_ts = frame.timestamps.copy()
                 latest_gyro_lapped_frames = frame.lapped_frames
                 latest_gyro_dropped_frames = frame.dropped_frames
                 fusion_input[0, 8:12] = frame.inference_result
@@ -100,8 +100,8 @@ def spawn_fusion_thread(
                 # Do not fuse or record telemetry until all streams have
                 # provided at least one valid frame for ZoH.
                 if (
-                    latest_accel_timestamps[ShmBuffer.GENERATED_TS] == 0
-                    or latest_gyro_timestamps[ShmBuffer.GENERATED_TS] == 0
+                    latest_accel_ts[ShmBuffer.GENERATED_TS] == 0
+                    or latest_gyro_ts[ShmBuffer.GENERATED_TS] == 0
                 ):
                     continue
 
@@ -126,10 +126,10 @@ def spawn_fusion_thread(
                 except Exception as e:
                     raise RuntimeError("Failed to record RGB telemetry") from e
 
-                latest_accel_timestamps[ShmBuffer.FUSION_IN_TS] = (
+                latest_accel_ts[ShmBuffer.FUSION_IN_TS] = (
                     frame.timestamps[ShmBuffer.FUSION_IN_TS]
                 )
-                latest_accel_timestamps[ShmBuffer.FUSION_OUT_TS] = (
+                latest_accel_ts[ShmBuffer.FUSION_OUT_TS] = (
                     frame.timestamps[ShmBuffer.FUSION_OUT_TS]
                 )
 
@@ -137,7 +137,7 @@ def spawn_fusion_thread(
                     # Copy the fusion timestamps and record the accelerometer
                     # telemetry.
                     telemetry_writers[ShmBuffer.ACCEL_STREAM_ID].record(
-                        latest_accel_timestamps,
+                        latest_accel_ts,
                         latest_accel_lapped_frames,
                         latest_accel_dropped_frames,
                     )
@@ -146,10 +146,10 @@ def spawn_fusion_thread(
                         "Failed to record accelerometer telemetry"
                     ) from e
 
-                latest_gyro_timestamps[ShmBuffer.FUSION_IN_TS] = (
+                latest_gyro_ts[ShmBuffer.FUSION_IN_TS] = (
                     frame.timestamps[ShmBuffer.FUSION_IN_TS]
                 )
-                latest_gyro_timestamps[ShmBuffer.FUSION_OUT_TS] = (
+                latest_gyro_ts[ShmBuffer.FUSION_OUT_TS] = (
                     frame.timestamps[ShmBuffer.FUSION_OUT_TS]
                 )
 
@@ -157,7 +157,7 @@ def spawn_fusion_thread(
                     # Copy the fusion timestamps and record the gyrometer
                     # telemetry.
                     telemetry_writers[ShmBuffer.GYRO_STREAM_ID].record(
-                        latest_gyro_timestamps,
+                        latest_gyro_ts,
                         latest_gyro_lapped_frames,
                         latest_gyro_dropped_frames,
                     )

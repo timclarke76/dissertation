@@ -14,8 +14,8 @@
 void
 TelemetryWriter::Epoch::reset()
 {
-  for (size_t i = 0; i < NUM_LATENCY_MEASURES; ++i) {
-    latency_nanos[i].reset();
+  for (size_t idx = 0; idx < NUM_LATENCY_MEASURES; idx++) {
+    latency_nanos[idx].reset();
   }
 
   lapped_frames = 0;
@@ -88,7 +88,7 @@ TelemetryWriter::Csv::write_epoch(const Epoch& epoch,
 
   append(timestamp_ns);
 
-  for (size_t i = 0; i < Epoch::NUM_LATENCY_MEASURES; ++i) {
+  for (size_t i = 0; i < Epoch::NUM_LATENCY_MEASURES; i++) {
     append(
       static_cast<uint64_t>(epoch.latency_nanos[i].value_at_percentile(50.0)));
     append(
@@ -251,12 +251,15 @@ spawn_telemetry_thread(const std::string_view& stream_name,
       }
 
       const int fan_fd = open("/sys/class/hwmon/hwmon0/pwm1", O_RDONLY);
+
       if (fan_fd < 0) {
         throw std::runtime_error("Failed to open /sys/class/hwmon/hwmon0/pwm1");
       }
+
       char fbuf[16];
       n = read(fan_fd, fbuf, sizeof(fbuf) - 1);
       close(fan_fd);
+
       if (n > 0) {
         long pwm = 0;
         std::from_chars(fbuf, fbuf + n, pwm);

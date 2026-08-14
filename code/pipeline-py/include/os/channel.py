@@ -31,8 +31,7 @@ class Sender(Generic[T]):
         self._state = state
 
     def send(self, value: T):
-        """Sends a value of type T to the receiving end of the channel. Throws
-        an exception if the channel is full.
+        """Sends a value of type T to the receiving end of the channel.
 
         Args:
             value: The value to send."""

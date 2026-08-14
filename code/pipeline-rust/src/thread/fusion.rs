@@ -60,12 +60,12 @@ pub fn spawn_fusion_thread(
 
             // Required to save the latest accel and gyro
             // timestamps and results for fusion telemetry.
-            let mut latest_accel_timestamps = [0; ShmBuffer::NUM_TIMESTAMPS];
+            let mut latest_accel_ts = [0; ShmBuffer::NUM_TIMESTAMPS];
             let mut latest_accel_lapped_frames = 0;
             let mut latest_accel_dropped_frames = 0;
             let mut latest_accel_result = [0.0f32; 4];
 
-            let mut latest_gyro_timestamps = [0; ShmBuffer::NUM_TIMESTAMPS];
+            let mut latest_gyro_ts = [0; ShmBuffer::NUM_TIMESTAMPS];
             let mut latest_gyro_lapped_frames = 0;
             let mut latest_gyro_dropped_frames = 0;
             let mut latest_gyro_result = [0.0f32; 4];
@@ -97,7 +97,7 @@ pub fn spawn_fusion_thread(
                     ShmBuffer::ACCEL_STREAM_ID => {
                         // Only the most recent accelerometer timestamps are
                         // needed for fusion, so we store them here.
-                        latest_accel_timestamps = frame.timestamps;
+                        latest_accel_ts = frame.timestamps;
                         latest_accel_lapped_frames = frame.lapped_frames;
                         latest_accel_dropped_frames = frame.dropped_frames;
                         latest_accel_result = frame.inference_result;
@@ -106,7 +106,7 @@ pub fn spawn_fusion_thread(
                     ShmBuffer::GYRO_STREAM_ID => {
                         // Only the most recent gyro timestamps are
                         // needed for fusion, so we store them here.
-                        latest_gyro_timestamps = frame.timestamps;
+                        latest_gyro_ts = frame.timestamps;
                         latest_gyro_lapped_frames = frame.lapped_frames;
                         latest_gyro_dropped_frames = frame.dropped_frames;
                         latest_gyro_result = frame.inference_result;
@@ -115,8 +115,8 @@ pub fn spawn_fusion_thread(
                     ShmBuffer::RGB_STREAM_ID => {
                         // Do not fuse or record telemetry until all streams
                         // have provided at least one valid frame for ZoH.
-                        if latest_accel_timestamps[ShmBuffer::GENERATED_TS] == 0
-                            || latest_gyro_timestamps[ShmBuffer::GENERATED_TS]
+                        if latest_accel_ts[ShmBuffer::GENERATED_TS] == 0
+                            || latest_gyro_ts[ShmBuffer::GENERATED_TS]
                                 == 0
                         {
                             continue;
@@ -151,13 +151,13 @@ pub fn spawn_fusion_thread(
 
                         // Copy the fusion timestamps and record the
                         // accelerometer telemetry.
-                        latest_accel_timestamps[ShmBuffer::FUSION_IN_TS] =
+                        latest_accel_ts[ShmBuffer::FUSION_IN_TS] =
                             frame.timestamps[ShmBuffer::FUSION_IN_TS];
-                        latest_accel_timestamps[ShmBuffer::FUSION_OUT_TS] =
+                        latest_accel_ts[ShmBuffer::FUSION_OUT_TS] =
                             frame.timestamps[ShmBuffer::FUSION_OUT_TS];
                         telemetry_writers[ShmBuffer::ACCEL_STREAM_ID]
                             .record(
-                                latest_accel_timestamps,
+                                latest_accel_ts,
                                 latest_accel_lapped_frames,
                                 latest_accel_dropped_frames,
                             )
@@ -165,13 +165,13 @@ pub fn spawn_fusion_thread(
 
                         // Copy the fusion timestamps and record the gyrometer
                         // telemetry.
-                        latest_gyro_timestamps[ShmBuffer::FUSION_IN_TS] =
+                        latest_gyro_ts[ShmBuffer::FUSION_IN_TS] =
                             frame.timestamps[ShmBuffer::FUSION_IN_TS];
-                        latest_gyro_timestamps[ShmBuffer::FUSION_OUT_TS] =
+                        latest_gyro_ts[ShmBuffer::FUSION_OUT_TS] =
                             frame.timestamps[ShmBuffer::FUSION_OUT_TS];
                         telemetry_writers[ShmBuffer::GYRO_STREAM_ID]
                             .record(
-                                latest_gyro_timestamps,
+                                latest_gyro_ts,
                                 latest_gyro_lapped_frames,
                                 latest_gyro_dropped_frames,
                             )

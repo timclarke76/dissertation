@@ -262,11 +262,11 @@ class Csv:
         self.writer.writerow(headings)
         self.file.flush()
 
-    def write_record(self, epoch: TelemetryEpoch, timestamp_ns: int):
+    def write_epoch(self, epoch: TelemetryEpoch, timestamp_ns: int):
         record: list[float] = [timestamp_ns]
 
-        for i in range(TelemetryEpoch.NUM_LATENCY_MEASURES):
-            histogram = epoch.histograms[i]
+        for idx in range(TelemetryEpoch.NUM_LATENCY_MEASURES):
+            histogram = epoch.histograms[idx]
             record.append(histogram.get_value_at_percentile(50))
             record.append(histogram.get_value_at_percentile(99))
             record.append(histogram.get_value_at_percentile(99.9))
@@ -292,9 +292,8 @@ def spawn_telemetry_thread(
     sender: Sender[TelemetryEpoch],
     receiver: Receiver[TelemetryEpoch],
 ) -> threading.Thread:
-    for i in range(3):
-        epoch = TelemetryEpoch()
-        sender.send(epoch)
+    for idx in range(3):
+        sender.send(TelemetryEpoch())
 
     # Telemetry is written to a CSV file for later analysis.
     csv_filename = f"telemetry_{stream_name}.csv"
@@ -352,7 +351,7 @@ def spawn_telemetry_thread(
                 ) from e
 
             try:
-                csv.write_record(epoch, timestamp_ns)
+                csv.write_epoch(epoch, timestamp_ns)
             except Exception as e:
                 raise RuntimeError(
                     f"Failed to write telemetry record to CSV file "
