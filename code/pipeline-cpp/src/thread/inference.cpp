@@ -3,6 +3,7 @@
 
 #include <inference/inference_engine.h>
 #include <os/os.h>
+#include <os/shm.h>
 #include <os/time.h>
 
 #include "inference.h"
