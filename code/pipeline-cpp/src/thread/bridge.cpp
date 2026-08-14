@@ -4,6 +4,7 @@
 #include <numeric>
 
 #include <os/os.h>
+#include <os/shm.h>
 
 #include "bridge.h"
 
