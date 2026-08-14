@@ -2747,11 +2747,19 @@ evaluation, requiring `noop` patching of the `resource_tracker.register` and
 `unregister` methods.
 
 Conversely, C++ stipulates that the developer is responsible for all memory
-allocation and deallocation. Consequently a frame's payload address can be
+allocation and deallocation. Consequently, a frame's payload address can be
 stored directly in the frame itself, with no friction or risk of premature
 unmapping. Rust's ownership model also prevents premature unmapping, but
-`unsafe` marker traits (`Send` and `Sync`) were required to satisfy the compiler
-and allow the memory addresses to be shared across threads.
+explicit `unsafe` blocks are required to satisfy the compiler when handling raw
+pointers. To allow memory addresses to be shared across threads, `unsafe` marker
+traits (`Send` and `Sync`) were required. Elsewhere in the Rust code, `Box<T>`
+was required to allocate variables on the heap instead of the stack (equivalent
+to C++'s `new` operator), and `std::cell::Cell<T>` was required to mutate a
+variable when the compiler's borrowing rules prevented exclusive access
+(functionally similar to C++'s `mutable` keyword). While these requirements help
+to highlight potential memory-safety issues, they also increase cognitive
+overhead compared to the almost frictionless, albeit less safe, raw pointer
+manipulation of C++.
 
 == Asymmetrical Stream Saturation
 
