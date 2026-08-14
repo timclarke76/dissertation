@@ -78,12 +78,6 @@ class TelemetryEpoch:
         except Exception as e:
             raise RuntimeError("Failed to create HdrHistogram for epoch") from e
 
-        self.lapped_frames = 0
-        self.dropped_frames = 0
-        self.gc_pause_ns = 0
-        self.gc_blocks = 0
-        self.rss_bytes = 0
-
     def reset(self):
         """Resets the histograms and allocation statistics for the epoch."""
 
