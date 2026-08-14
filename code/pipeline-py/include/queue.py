@@ -68,8 +68,10 @@ class Queue(Generic[T]):
             return None
 
         item = self.data[self.head]
+        self.data[self.head] = None
         self.head = self._advance_index(self.head)
         self.len -= 1
+
         return item
 
     def _advance_index(self, index: int) -> int:
