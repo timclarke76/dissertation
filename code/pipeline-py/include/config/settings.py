@@ -76,7 +76,6 @@ class Settings:
             self.accel_queue_config = EventQueueConfig(
                 **data['accel_queue_config'],
             )
-            self.accel_policy = (self._parse_policy(data['accel_policy']),)
             self.accel_policy = self._parse_policy(data['accel_policy'])
 
             self.gyro_queue_config = EventQueueConfig(
