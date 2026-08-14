@@ -65,20 +65,26 @@ def spawn_bridge_and_inference_threads(
     Returns:
         A tuple containing the spawned bridge and inference threads."""
 
-    queue = Queue(queue_capacity)
+    try:
+        queue = Queue(queue_capacity)
 
-    bridge = spawn_bridge_thread(stream_name, stream_id, queue, policy)
-    inference = spawn_inference_thread(
-        stream_name,
-        queue,
-        inference_sender,
-        f"./models/{stream_name}_epctx.onnx",
-        inference_window,
-        frame_shape,
-        item_size_bytes,
-    )
+        bridge = spawn_bridge_thread(stream_name, stream_id, queue, policy)
+        inference = spawn_inference_thread(
+            stream_name,
+            queue,
+            inference_sender,
+            f"./models/{stream_name}_epctx.onnx",
+            inference_window,
+            frame_shape,
+            item_size_bytes,
+        )
 
-    return bridge, inference
+        return bridge, inference
+    except Exception as e:
+        raise RuntimeError(
+            "Failed to spawn bridge and inference "
+            f"threads for stream {stream_name}"
+        ) from e
 
 
 def main():

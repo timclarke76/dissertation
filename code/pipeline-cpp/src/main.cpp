@@ -59,17 +59,24 @@ spawn_bridge_and_inference_threads(const std::string& stream_name,
   const std::vector<int64_t>& frame_shape,
   const size_t item_size_bytes)
 {
-  auto queue = std::make_shared<Queue<ShmBuffer::Frame>>(queue_capacity);
-  auto bridge = spawn_bridge_thread(stream_name, stream_id, queue, policy);
-  auto inference = spawn_inference_thread(stream_name,
-    queue,
-    inference_sender,
-    std::string("./models/") + stream_name + "_epctx.onnx",
-    inference_window,
-    frame_shape,
-    item_size_bytes);
+  try {
+    auto queue = std::make_shared<Queue<ShmBuffer::Frame>>(queue_capacity);
+    auto bridge = spawn_bridge_thread(stream_name, stream_id, queue, policy);
+    auto inference = spawn_inference_thread(stream_name,
+      queue,
+      inference_sender,
+      std::string("./models/") + stream_name + "_epctx.onnx",
+      inference_window,
+      frame_shape,
+      item_size_bytes);
 
-  return { std::move(bridge), std::move(inference) };
+    return { std::move(bridge), std::move(inference) };
+  } catch (const std::exception& e) {
+    throw std::runtime_error(
+      std::format("Failed to spawn bridge and inference threads for '{}': {}",
+        stream_name,
+        e.what()));
+  }
 }
 
 int
