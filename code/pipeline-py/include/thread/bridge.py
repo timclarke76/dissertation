@@ -94,9 +94,9 @@ def spawn_bridge_thread(
                         if decimation_counter % ratio != 0:
                             queue.dropped_frames += 1
                             continue  # drop
-                        else:
-                            # reset
-                            decimation_counter = 0
+                    else:
+                        # reset
+                        decimation_counter = 0
 
             queue.lock.acquire()
 
