@@ -140,6 +140,7 @@ impl TelemetryEpoch {
         self.freed_bytes = 0;
         self.rss_bytes = 0;
         self.fordblks_bytes = 0;
+        self.fan_pwm = 0;
     }
 
     /// Creates a new HdrHistogram instance for recording latency measurements

@@ -95,6 +95,7 @@ class TelemetryEpoch:
         self.gc_pause_ns = 0
         self.gc_blocks = 0
         self.rss_bytes = 0
+        self.fan_pwm = 0
 
 
 class TelemetryWriter:

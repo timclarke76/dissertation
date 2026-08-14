@@ -25,6 +25,7 @@ TelemetryWriter::Epoch::reset()
   freed_bytes = 0;
   rss_bytes = 0;
   fordblks_bytes = 0;
+  fan_pwm = 0;
 }
 
 TelemetryWriter::Csv::Csv(const std::string_view& filename)
