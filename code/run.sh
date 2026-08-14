@@ -44,7 +44,7 @@ VOLUME="$(pwd)/results"
 rm -rf "$VOLUME"
 mkdir -p "$VOLUME"
 
-TARGET_TEMP=55
+TARGET_TEMP=60
 GEN_PRIORITY="99"
 RUNTIME_SECS="600"
 
