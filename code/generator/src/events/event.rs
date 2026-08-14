@@ -167,7 +167,14 @@ where
 
         // Round the frame size up to the nearest multiple of 64 bytes for cache
         // line alignment.
-        let frame_size_bytes = (frame_size_bytes + 63) & !63;
+        let frame_size_bytes = frame_size_bytes.checked_next_multiple_of(64)
+            .with_context(|| {
+                format!(
+                    "Requested frame size ({frame_size_bytes} bytes) larger \
+                    than usize::MAX when rounded up to the nearest multiple of \
+                    64 bytes"
+                )
+            })?;
 
         // RandomPool knows nothing about the frame size, so we calculate the
         // total pool capacity, in terms of the total number of data elements of
