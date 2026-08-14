@@ -39,7 +39,7 @@ pub trait EventTrait {
     /// Returns whether the pipeline is ready for the next event execution.
     fn is_pipeline_ready(&self) -> bool;
 
-    /// Executes the event, generating random data and writing it to the shared
+    /// Executes the event, writing pre-generated random data to the shared
     /// memory buffer. This method also updates the next scheduled run time and
     /// increments the run count.
     /// #Returns
@@ -203,7 +203,7 @@ where
                 .with_context(|| {
                     format!(
                         "Failed to create ShmBuffer of \
-                {buffer_capacity_frames} frames for event '{name}'"
+                        {buffer_capacity_frames} frames for event '{name}'"
                     )
                 })?;
 
@@ -324,6 +324,7 @@ where
     }
 
     /// Returns whether the pipeline is ready for the next event execution.
+    #[inline]
     fn is_pipeline_ready(&self) -> bool {
         self.buffer.is_pipeline_ready()
     }
@@ -333,6 +334,7 @@ where
     /// method checks if the run count has reached or exceeded that limit. If no
     /// runtime is specified, the event is considered to be running indefinitely
     /// and this method will always return `false`.
+    #[inline]
     fn is_finished(&self) -> bool {
         if let Some(runtime_frames) = self.runtime_frames {
             self.run_count() >= runtime_frames

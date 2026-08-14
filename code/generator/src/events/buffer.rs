@@ -219,6 +219,8 @@ impl ShmBuffer {
         unsafe {
             std::ptr::write_bytes(shm_ptr, 0, size_bytes);
 
+            // Use `NonNull` to create a pointer that is guaranteed to be
+            // non-null. Required by the `mlock` function.
             let lock_ptr =
                 NonNull::new_unchecked(shm_ptr as *mut std::ffi::c_void);
 
@@ -330,8 +332,8 @@ impl Drop for ShmBuffer {
             }
         }
 
-        shm_unlink(self.c_name.as_c_str()).unwrap_or_else(|e| {
+        if let Err(e) = shm_unlink(self.c_name.as_c_str()) {
             eprintln!("Failed to unlink shared memory '{}': {e}", self.name);
-        });
+        }
     }
 }

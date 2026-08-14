@@ -49,6 +49,9 @@ pub struct Events {
     // will run virtually indefinitely until interrupted.
     runtime_seconds: Option<usize>,
 
+    // An atomic boolean flag that indicates whether the application has been
+    // interrupted by a signal (Ctrl-C). Used to exit the main loop and drain
+    // any remaining events before exiting.
     is_interrupted: Arc<AtomicBool>,
 }
 
