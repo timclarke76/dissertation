@@ -178,27 +178,14 @@ class TelemetryWriter:
 
         for i in range(TelemetryEpoch.NUM_LATENCY_MEASURES - 1):
             nanos = saturating_sub(ts[i + 1], ts[i])
-
-            try:
-                self.current_epoch.histograms[i].record_value(nanos)
-            except Exception as e:
-                raise RuntimeError(
-                    f"Failed to record latency value {nanos} ns for measure {i}"
-                ) from e
+            self.current_epoch.histograms[i].record_value(nanos)
 
         total_nanos = saturating_sub(
             ts[TelemetryEpoch.TOTAL_LATENCY],
             ts[TelemetryEpoch.UNBOUNDED_QUEUE_WAIT],
         )
 
-        try:
-            self.current_epoch.histograms[
-                TelemetryEpoch.TOTAL_LATENCY
-            ].record_value(total_nanos)
-        except Exception as e:
-            raise RuntimeError(
-                f"Failed to record total latency value {total_nanos} ns"
-            ) from e
+        self.current_epoch.histograms[TelemetryEpoch.TOTAL_LATENCY].record_value(total_nanos)
 
         newly_lapped = saturating_sub(lapped_frames, self.last_lapped_frames)
         self.current_epoch.lapped_frames += newly_lapped
