@@ -3309,6 +3309,16 @@ identified:
   between the different backpressure policies and the prediction accuracy of the
   overall HAR system.
 
++ *Heterogeneous Backpressure:* Asymmetrical saturation was identified on the
+  RGB stream, caused by the late-fusion synchronisation anchor. Future research
+  could evaluate the impact of using different backpressure policies on the
+  anchored RGB stream and the two flexible IMU streams. Applying a load-shedding
+  policy (e.g. Drop Oldest) to the RGB stream could guarantee latency deadline
+  adherence, while applying a flow-control policy (e.g. Exponential Backoff) to
+  the IMU streams could maximise data preservation. Using a heterogeneous
+  backpressure approach may offer a balance between pipeline stability and the
+  accuracy of the AI predictions.
+
 Total words: #total-words
 ]
 #colbreak()
