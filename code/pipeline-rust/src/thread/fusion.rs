@@ -116,8 +116,7 @@ pub fn spawn_fusion_thread(
                         // Do not fuse or record telemetry until all streams
                         // have provided at least one valid frame for ZoH.
                         if latest_accel_ts[ShmBuffer::GENERATED_TS] == 0
-                            || latest_gyro_ts[ShmBuffer::GENERATED_TS]
-                                == 0
+                            || latest_gyro_ts[ShmBuffer::GENERATED_TS] == 0
                         {
                             continue;
                         }

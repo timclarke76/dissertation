@@ -535,10 +535,14 @@ pub fn spawn_telemetry_thread(
                 }
 
                 let pwm_str =
-                    std::fs::read_to_string( "/sys/class/hwmon/hwmon0/pwm1")
-                    .expect("Failed to read fan PWM value from \
-                        /sys/class/hwmon/hwmon0/pwm1");
-                epoch.fan_pwm = pwm_str.trim().parse()
+                    std::fs::read_to_string("/sys/class/hwmon/hwmon0/pwm1")
+                        .expect(
+                            "Failed to read fan PWM value from \
+                            /sys/class/hwmon/hwmon0/pwm1",
+                        );
+                epoch.fan_pwm = pwm_str
+                    .trim()
+                    .parse()
                     .expect("Failed to parse fan PWM value");
 
                 epoch.fordblks_bytes =
