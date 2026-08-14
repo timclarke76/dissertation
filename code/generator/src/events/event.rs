@@ -310,10 +310,8 @@ where
         self.run_count += 1;
         self.next_run_nanos += self.interval_nanos;
 
-        if let Some(runtime_frames) = self.runtime_frames {
-            if self.run_count() >= runtime_frames {
-                self.buffer.set_pipeline_finished();
-            }
+        if self.is_finished() {
+            self.buffer.set_pipeline_finished();
         }
 
         Ok(())
