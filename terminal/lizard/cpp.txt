@@ -12,27 +12,23 @@
       17      2    121      1      21 Settings::Settings@5-25@src/config/settings.cpp
       44      8    346      2      50 Settings::parse_event_queue_config@28-77@src/config/settings.cpp
       35      8    331      2      40 Settings::parse_policy@80-119@src/config/settings.cpp
-      94     15    601      4     152 spawn_bridge_thread@16-167@src/thread/bridge.cpp
-      66      8    536      7      86 spawn_inference_thread@11-96@src/thread/inference.cpp
-     121     16    849      2     163 spawn_fusion_thread@9-171@src/thread/fusion.cpp
        8      1     68      2       8 TelemetryWriter::TelemetryWriter@146-153@src/thread/telemetry.h
        8      2     33      0       9 TelemetryWriter::terminate@176-184@src/thread/telemetry.h
-      13      2     62      0      14 TelemetryWriter::Epoch::reset@15-28@src/thread/telemetry.cpp
-      24      3    121      1      29 TelemetryWriter::Csv::Csv@30-58@src/thread/telemetry.cpp
-       6      2     22      0       6 TelemetryWriter::Csv::~Csv@60-65@src/thread/telemetry.cpp
-      37      4    289      2      49 TelemetryWriter::Csv::write_epoch@68-116@src/thread/telemetry.cpp
-      25      4    200      3      30 TelemetryWriter::record@119-148@src/thread/telemetry.cpp
+     121     16    853      2     163 spawn_fusion_thread@10-172@src/thread/fusion.cpp
+      14      2     66      0      15 TelemetryWriter::Epoch::reset@15-29@src/thread/telemetry.cpp
+      24      3    121      1      29 TelemetryWriter::Csv::Csv@31-59@src/thread/telemetry.cpp
+       6      2     22      0       6 TelemetryWriter::Csv::~Csv@61-66@src/thread/telemetry.cpp
+      37      4    289      2      49 TelemetryWriter::Csv::write_epoch@69-117@src/thread/telemetry.cpp
+      24      4    180      3      29 TelemetryWriter::record@120-148@src/thread/telemetry.cpp
        9      2     63      0      12 TelemetryWriter::swap_buffers@151-162@src/thread/telemetry.cpp
-      79     12    580      3     111 spawn_telemetry_thread@165-275@src/thread/telemetry.cpp
+      79     12    580      3     114 spawn_telemetry_thread@165-278@src/thread/telemetry.cpp
+      94     15    613      4     152 spawn_bridge_thread@19-170@src/thread/bridge.cpp
+      66      8    546      7      86 spawn_inference_thread@12-97@src/thread/inference.cpp
        6      1     38      0       6 current_time_nanos@10-15@src/os/time.h
        1      1      9      0       1 spin_loop@10-10@src/os/os.h
        1      1     14      0       1 spin_loop@12-12@src/os/os.h
        1      1      5      0       1 spin_loop@14-14@src/os/os.h
        5      2     41      2       5 saturating_sub@29-33@src/os/os.h
-      22      3    136      2      26 ShmBuffer::ShmBuffer@15-40@src/os/shm.cpp
-      31      5    216      0      52 ShmBuffer::next_frame@43-94@src/os/shm.cpp
-      25      4    180      1      32 ShmBuffer::open_shm_file@97-128@src/os/shm.cpp
-      14      1     70      1      44 ShmBuffer::alignas@15-58@src/os/shm.h
        5      1     18      1       5 ChannelState::ChannelState@20-24@src/os/channel.h
        4      1     20      1       4 Sender::Sender@37-40@src/os/channel.h
        4      1     21      1       4 Sender::Sender@44-47@src/os/channel.h
@@ -56,15 +52,12 @@
        4      1     26      2       4 operator new [ ]@127-130@src/os/allocator.cpp
        9      2     53      3      10 operator delete@141-150@src/os/allocator.cpp
        4      1     32      3       4 operator delete [ ]@159-162@src/os/allocator.cpp
-      44      1    309      3      52 InferenceEngine::InferenceEngine@9-60@src/inference/inference_engine.cpp
-       6      1     24      0       6 InferenceEngine::run@63-68@src/inference/inference_engine.cpp
-       5      1     21      1       5 Queue::Queue@17-21@src/queue.h
-      10      2     39      1      12 Queue::push@30-41@src/queue.h
-       6      1     29      1       6 Queue::overwrite_oldest@48-53@src/queue.h
-      10      2     51      0      12 Queue::pop@60-71@src/queue.h
-       1      1      9      0       1 Queue::len@75-75@src/queue.h
-       1      1      9      0       1 Queue::capacity@79-79@src/queue.h
-       1      1     17      1       1 Queue::advance_index@85-85@src/queue.h
+      21      3    136      2      25 ShmBuffer::ShmBuffer@15-39@src/os/shm.cpp
+      34      5    220      0      55 ShmBuffer::next_frame@42-96@src/os/shm.cpp
+      25      4    180      1      32 ShmBuffer::open_shm_file@99-130@src/os/shm.cpp
+      15      1     77      1      47 ShmBuffer::alignas@15-61@src/os/shm.h
+      52      2    342      3      60 InferenceEngine::InferenceEngine@10-69@src/inference/inference_engine.cpp
+      11      2     57      0      11 InferenceEngine::run@72-82@src/inference/inference_engine.cpp
       11      3     48      1      13 Histogram::operator =@4-16@src/histogram.cpp
        8      2     49      3       8 Histogram::Histogram@17-24@src/histogram.h
        6      2     16      0       6 Histogram::~Histogram@27-32@src/histogram.h
@@ -73,8 +66,20 @@
        1      1     10      0       1 Histogram::reset@59-59@src/histogram.h
        4      1     17      1       4 Histogram::value_at_percentile@65-68@src/histogram.h
        1      1     12      0       1 Histogram::max@73-73@src/histogram.h
-      20      1    128      8      21 spawn_bridge_and_inference_threads@53-73@src/main.cpp
-      48      4    342      2      61 main@76-136@src/main.cpp
+       5      1     21      1       5 Queue::Queue@17-21@src/queue.h
+      10      2     39      1      12 Queue::try_push@30-41@src/queue.h
+       6      1     29      1       6 Queue::overwrite_oldest@48-53@src/queue.h
+      10      2     51      0      12 Queue::pop@60-71@src/queue.h
+       1      1      9      0       1 Queue::len@75-75@src/queue.h
+       1      1      9      0       1 Queue::capacity@79-79@src/queue.h
+       1      1     12      1       1 Queue::increment_lapped_frames@83-83@src/queue.h
+       1      1      9      0       1 Queue::get_lapped_frames@87-87@src/queue.h
+       4      1     14      1       4 Queue::increment_dropped_frames@91-94@src/queue.h
+       1      1      9      0       1 Queue::get_dropped_frames@99-99@src/queue.h
+       1      1      8      0       1 Queue::get_mutex@103-103@src/queue.h
+       1      1     17      1       1 Queue::advance_index@109-109@src/queue.h
+      27      2    163      8      28 spawn_bridge_and_inference_threads@53-80@src/main.cpp
+      48      4    342      2      61 main@83-143@src/main.cpp
 26 file analyzed.
 ==============================================================
 NLOC    Avg.NLOC  AvgCCN  Avg.token  function_cnt    file
@@ -87,32 +92,32 @@ NLOC    Avg.NLOC  AvgCCN  Avg.token  function_cnt    file
       8       0.0     0.0        0.0         0     src/thread/fusion.h
      12       0.0     0.0        0.0         0     src/thread/bridge.h
      13       0.0     0.0        0.0         0     src/thread/inference.h
-    103      94.0    15.0      601.0         1     src/thread/bridge.cpp
-     73      66.0     8.0      536.0         1     src/thread/inference.cpp
-    127     121.0    16.0      849.0         1     src/thread/fusion.cpp
      86       8.0     1.5       50.5         2     src/thread/telemetry.h
-    208      27.6     4.1      191.0         7     src/thread/telemetry.cpp
+    128     121.0    16.0      853.0         1     src/thread/fusion.cpp
+    208      27.6     4.1      188.7         7     src/thread/telemetry.cpp
+    104      94.0    15.0      613.0         1     src/thread/bridge.cpp
+     74      66.0     8.0      546.0         1     src/thread/inference.cpp
       9       6.0     1.0       38.0         1     src/os/time.h
      13       2.0     1.2       17.2         4     src/os/os.h
-     91      26.0     4.0      177.3         3     src/os/shm.cpp
-     57      14.0     1.0       70.0         1     src/os/shm.h
      90       5.5     1.3       27.7        11     src/os/channel.h
      20       3.0     1.0       11.5         2     src/os/allocator.h
      83       6.4     1.6       41.2        10     src/os/allocator.cpp
+     93      26.7     4.0      178.7         3     src/os/shm.cpp
+     58      15.0     1.0       77.0         1     src/os/shm.h
      18       0.0     0.0        0.0         0     src/inference/inference_engine.h
-     56      25.0     1.0      166.5         2     src/inference/inference_engine.cpp
-     53       4.9     1.3       25.0         7     src/queue.h
+     70      31.5     2.0      199.5         2     src/inference/inference_engine.cpp
      13      11.0     3.0       48.0         1     src/histogram.cpp
      37       3.7     1.3       20.0         7     src/histogram.h
-     90      34.0     2.5      235.0         2     src/main.cpp
+     60       3.5     1.2       18.9        12     src/queue.h
+     97      37.5     3.0      252.5         2     src/main.cpp
 
 ===========================================================================================================
 !!!! Warnings (cyclomatic_complexity > 15 or length > 1000 or nloc > 1000000 or parameter_count > 100) !!!!
 ================================================
   NLOC    CCN   token  PARAM  length  location  
 ------------------------------------------------
-     121     16    849      2     163 spawn_fusion_thread@9-171@src/thread/fusion.cpp
+     121     16    853      2     163 spawn_fusion_thread@10-172@src/thread/fusion.cpp
 ==========================================================================================
 Total nloc   Avg.NLOC  AvgCCN  Avg.token   Fun Cnt  Warning cnt   Fun Rt   nloc Rt
 ------------------------------------------------------------------------------------------
-      1450      14.0     2.4       94.3       74            1      0.01    0.12
+      1484      13.5     2.3       90.5       79            1      0.01    0.11
