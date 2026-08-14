@@ -51,9 +51,7 @@ def spawn_fusion_thread(
         latest_accel_lapped_frames: int = 0
         latest_accel_dropped_frames: int = 0
 
-        latest_gyro_ts: list[int] = [
-            0 for _ in range(ShmBuffer.NUM_TIMESTAMPS)
-        ]
+        latest_gyro_ts: list[int] = [0 for _ in range(ShmBuffer.NUM_TIMESTAMPS)]
         latest_gyro_lapped_frames: int = 0
         latest_gyro_dropped_frames: int = 0
 
@@ -126,12 +124,12 @@ def spawn_fusion_thread(
                 except Exception as e:
                     raise RuntimeError("Failed to record RGB telemetry") from e
 
-                latest_accel_ts[ShmBuffer.FUSION_IN_TS] = (
-                    frame.timestamps[ShmBuffer.FUSION_IN_TS]
-                )
-                latest_accel_ts[ShmBuffer.FUSION_OUT_TS] = (
-                    frame.timestamps[ShmBuffer.FUSION_OUT_TS]
-                )
+                latest_accel_ts[ShmBuffer.FUSION_IN_TS] = frame.timestamps[
+                    ShmBuffer.FUSION_IN_TS
+                ]
+                latest_accel_ts[ShmBuffer.FUSION_OUT_TS] = frame.timestamps[
+                    ShmBuffer.FUSION_OUT_TS
+                ]
 
                 try:
                     # Copy the fusion timestamps and record the accelerometer
@@ -146,12 +144,12 @@ def spawn_fusion_thread(
                         "Failed to record accelerometer telemetry"
                     ) from e
 
-                latest_gyro_ts[ShmBuffer.FUSION_IN_TS] = (
-                    frame.timestamps[ShmBuffer.FUSION_IN_TS]
-                )
-                latest_gyro_ts[ShmBuffer.FUSION_OUT_TS] = (
-                    frame.timestamps[ShmBuffer.FUSION_OUT_TS]
-                )
+                latest_gyro_ts[ShmBuffer.FUSION_IN_TS] = frame.timestamps[
+                    ShmBuffer.FUSION_IN_TS
+                ]
+                latest_gyro_ts[ShmBuffer.FUSION_OUT_TS] = frame.timestamps[
+                    ShmBuffer.FUSION_OUT_TS
+                ]
 
                 try:
                     # Copy the fusion timestamps and record the gyrometer

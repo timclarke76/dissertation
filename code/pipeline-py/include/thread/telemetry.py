@@ -179,7 +179,9 @@ class TelemetryWriter:
             ts[TelemetryEpoch.UNBOUNDED_QUEUE_WAIT],
         )
 
-        self.current_epoch.histograms[TelemetryEpoch.TOTAL_LATENCY].record_value(total_nanos)
+        self.current_epoch.histograms[
+            TelemetryEpoch.TOTAL_LATENCY
+        ].record_value(total_nanos)
 
         newly_lapped = saturating_sub(lapped_frames, self.last_lapped_frames)
         self.current_epoch.lapped_frames += newly_lapped
