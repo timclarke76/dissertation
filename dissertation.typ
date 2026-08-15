@@ -281,8 +281,8 @@ could be cached on servers located closer to end-users, thus reducing latency
 and bandwidth usage, especially during periods of high demand.
 
 \2007 saw the release of the iPhone, followed by the Android operating system in
-\2008, and the Windows Phone in \2010. These marked a rapid increase in the use
-of mobile devices, and created user demand for computationally intensive
+\2008, and the iPad and Windows Phone in \2010. These marked a rapid increase in
+the use of mobile devices, and created user demand for computationally intensive
 applications. However, as Satyanarayanan et al. (2009) @satyanarayanan2009
 established, "considerations such as weight, size, battery life, ergonomics, and
 heat dissipation exact a severe penalty in computational resources such as
@@ -294,17 +294,16 @@ software using hardware VM technology, thus allowing mobile devices to act as
 thin clients, overcoming hardware constraints without unacceptable latency and
 bandwidth usage that would be introduced if remote cloud servers were used.
 
-The next decade saw an explosive growth of the Internet of Things (IoT), fuelled
-by the adoption in areas such as Fitness Wearables (the first Fitbit Tracker
-launched in \2009), Smart Home devices (Google acquired Nest Labs in \2014, and
-Amazon acquired Ring LLC in \2018), and "dockless" bicycle-sharing schemes (Lime
-launched in \2017). Remote devices were no longer just data consumers, but had
-also become data producers. Shi et al. (2016) @shi2016 defined "edge" not as a
-specific device, but as any computing and networking resource along the path
-between the data source and the data centre. They recognised that the data
-bandwidth and centralised processing in traditional cloud computing were
-bottlenecks, arguing that data should be processed at the proximity of the data
-source.
+The next decade saw an explosive growth of the IoT, fuelled by the adoption in
+areas such as Fitness Wearables (the first Fitbit Tracker launched in \2009),
+Smart Home devices (Google acquired Nest Labs in \2014, and Amazon acquired Ring
+LLC in \2018), and "dockless" bicycle-sharing schemes (Lime launched in \2017).
+Remote devices were no longer just data consumers, but had also become data
+producers. Shi et al. (2016) @shi2016 defined "edge" not as a specific device,
+but as any computing and networking resource along the path between the data
+source and the data centre. They recognised that the data bandwidth and
+centralised processing in traditional cloud computing were bottlenecks, arguing
+that data should be processed at the proximity of the data source.
 
 At the same time, the integration of AI rapidly accelerated. While some
 applications were designed to run on remote cloud servers (e.g. ChatGPT,
@@ -314,38 +313,41 @@ processing to ensure safety and reduce dependence on available network bandwidth
 
 This transition to _Edge-AI_ required overcoming the hardware obstacles
 identified by Satyanarayanan et al. @satyanarayanan2009 and the network
-bottlenecks identified by Shi et al. (2016) @shi2016 and Zhou et al. (2019)
-@zhou2019 provided a comprehensive survey of recent research efforts in Edge
-Intelligence, and identified that physical proximity to the data source is
-critical to reducing monetary costs, latency, and the risk of privacy leakage.
-For evaluating the quality of Edge-AI inference, they highlighted latency,
-accuracy, energy consumption, privacy, and memory footprint. While communication
-overhead is eliminated by offline edge processing, latency, energy consumption,
-and memory overhead remain relevant to this dissertation. For example,
-backpressure policies may intentionally drop data to ensure system stability,
-sacrificing model accuracy to satisfy strict latency deadlines.
+bottlenecks identified by Shi et al. (2016) @shi2016. Building on this, Zhou et
+al. (2019) @zhou2019 provided a comprehensive survey of recent research efforts
+in Edge Intelligence, and identified that physical proximity to the data source
+is critical to reducing monetary costs, latency, and the risk of privacy
+leakage. For evaluating the quality of Edge-AI inference, they highlighted
+latency, accuracy, energy consumption, privacy, and memory footprint. While
+communication overhead is eliminated by offline edge processing, latency, energy
+consumption, and memory overhead remain relevant to this dissertation. For
+example, backpressure policies may intentionally drop data to ensure system
+stability, sacrificing model accuracy to satisfy latency deadlines.
 
-== Heterogeneous Devices and DVFS
+== Heterogeneous Devices and Power Constraints
 
 Heterogeneous devices combine different types of processing units, such as a CPU
 and a GPU, onto a single chip and are an increasingly common solution for
-Edge-AI deployments. Modern heterogeneous SoCs, such as the NVIDIA Jetson Orin
-Nano, integrate dedicated CUDA cores for general-purpose GPU computing, and
-Tensor cores for AI acceleration. These allow optimised engines like TensorRT to
-efficiently execute AI pipelines, such as HAR, locally without depending on
-remote cloud servers. Furthermore, they support the enabling technologies
-identified by Zhou et al. @zhou2019, such as model compression (e.g.
-quantisation and pruning), to maximise inference speed.
+Edge-AI deployments. Modern heterogeneous Systems-on-Chips (SoCs), such as the
+NVIDIA Jetson Orin Nano, integrate dedicated Compute Unified Device Architecture
+(CUDA) cores for general-purpose GPU computing, and Tensor cores for AI
+acceleration. These allow optimised engines like TensorRT to efficiently execute
+AI pipelines, such as HAR, locally without depending on remote cloud servers.
+Furthermore, they support the enabling technologies identified by Zhou et al.
+@zhou2019, such as model compression (e.g. quantisation and pruning), to
+maximise inference speed.
 
 However, embedded devices with a small form factor generate significant heat
 when under sustained heavy load such as that generated by Edge-AI pipelines. To
-prevent hardware failure, the Jetson Orin Nano relies on _Dynamic Voltage and
-Frequency Scaling_ (DVFS) to reactively throttle the CPU and GPU speeds when
-thermal limits are reached. Peluso et al. (2019) @peluso2019 demonstrated that
-this introduces non-deterministic pipeline performance degradation. It can be
-concluded that to minimise premature throttling, the software architecture and
-language runtime model must be efficient by minimising unnecessary CPU and
-memory overhead.
+prevent hardware failure, the Jetson Orin Nano relies on Dynamic Voltage and
+Frequency Scaling (DVFS) to reactively throttle the CPU and GPU speeds when
+thermal limits are reached. Furthermore, to adhere to power budgets, devices
+employ static power profiles that cap maximum clock frequencies. Peluso et al.
+(2019) @peluso2019 demonstrated that dynamic throttling introduces
+non-deterministic pipeline performance degradation, while power capping starves
+computational throughput. It can be concluded that to minimise premature
+throttling, the software architecture and language runtime model must be
+efficient by minimising unnecessary CPU and memory overhead.
 
 == AI Acceleration
 
@@ -355,12 +357,12 @@ hardware. A software stack on the device is responsible for executing the model,
 while the client, or _host_, manages the data transfer and inference
 orchestration.
 
-As visualised in @fig:cuda-arch, *CUDA* (Compute Unified Device Architecture)
-@cuda provides a parallel execution environment and programming model for
-heterogeneous computing systems with NVIDIA GPUs, using a Single Instruction
-Multiple Threads (SIMT) architecture. In CUDA, the CPU is referred to as the
-_host_, and the GPU is referred to as the _device_. CUDA clients are responsible
-for managing the transfer of data between _host memory_ and _device memory_.
+As visualised in @fig:cuda-arch, *CUDA* @cuda provides a parallel execution
+environment and programming model for heterogeneous computing systems with
+NVIDIA GPUs, using a Single Instruction Multiple Threads (SIMT) architecture. In
+CUDA, the CPU is referred to as the _host_, and the GPU is referred to as the
+_device_. CUDA clients are responsible for managing the transfer of data between
+_host memory_ and _device memory_.
 
 CUDA allows developers to write a _kernel_ function that is launched
 asynchronously from the host code and executed in parallel across many threads
@@ -443,20 +445,24 @@ that are executed in lock step on a single device _Streaming Multiprocessor_.
     device.#v(1em)]
 ) <fig:cuda-arch>
 
-*cuDNN* (CUDA Deep Neural Network) @cudnn is a GPU-accelerated library of
+CUDA Deep Neural Network (*cuDNN*) @cudnn is a GPU-accelerated library of
 primitives for deep neural networks, that sits on top of CUDA and runs on the
 device to provide higher-level abstractions and optimised implementations of
 common deep learning operations (e.g. normalisation, matrix multiplication,
 softmax, etc.).
 
-*TensorRT* @tensorRT is responsible for compiling an *ONNX* (Open Neural Network
-Exchange) @onnx model into a _.engine_ file, optimised to run on the Jetson GPU.
+*TensorRT* @tensorRT is responsible for compiling an Open Neural Network
+Exchange (*ONNX*) @onnx model into an optimised, hardware-specific execution
+engine. When the model is loaded by ONNX Runtime, this compiled engine can be
+cached to disk as an Execution Provider Context (`_epctx.onnx`) file, preventing
+the need for recompilation and decreasing startup times on the Jetson GPU.
 
 == Language Runtimes & Memory Models
 
-To mitigate the thermal throttling inherent in Edge-AI hardware, the pipeline
-implementation must be highly efficient. This dissertation compares the impact
-of three language runtime models on Edge-AI performance: C++, Rust, and Python.
+To maximise computational throughput under the power and resource constraints
+inherent in Edge-AI hardware, the pipeline implementation must be highly
+efficient. This dissertation compares the impact of three language runtime
+models on Edge-AI performance: C++, Rust, and Python.
 
 C++ is an Ahead-of-Time (AOT) compiled (i.e. compiled to native machine code
 before execution) general-purpose language, designed for high performance and
@@ -479,14 +485,14 @@ interpreted at runtime. It emphasises simplicity and ease of both writing and
 reading. CPython (the reference implementation) has a Foreign Function Interface
 (FFI) that allows it to interface with other languages, such as C/C++ libraries.
 Python is often used to automate tasks and for data analysis and machine
-learning. It utilises a Garbage Collector (GC), abstracting memory management to
-reduce cognitive load and the risk of memory-safety bugs, but at the cost of
-increased latency and unpredictable latency jitter due to "stop-the-world" GC
-events which pause the executable's threads to safely clean up memory. Latency
-is further impacted by CPython's Global Interpreter Lock (GIL), which prevents
-true concurrency across multiple CPU cores by ensuring only one thread is
-executed at any given time. However, C-extensions (such as ONNX) are able to
-bypass the GIL, allowing them to run concurrently on multiple cores.
+learning. It utilises a GC, abstracting memory management to reduce cognitive
+load and the risk of memory-safety bugs, but at the cost of increased latency
+and unpredictable latency jitter due to "stop-the-world" GC events which pause
+the executable's threads to safely clean up memory. Latency is further impacted
+by CPython's Global Interpreter Lock (GIL), which prevents true concurrency
+across multiple CPU cores by ensuring only one thread is executed at any given
+time. However, C-extensions (such as ONNX) are able to bypass the GIL, allowing
+them to run concurrently on multiple cores.
 
 == Stream Processing & Backpressure
 
@@ -496,11 +502,14 @@ exceeds the system's processing capacity, backpressure builds up within the
 pipeline as the number of unprocessed data items increases. This can lead to
 memory exhaustion and system instability if not managed effectively.
 
-However, because the pipeline cannot request the sensors to slow down their rate
-of transmission, traditional backpressure mechanisms are impossible. Instead,
-_load shedding_ policies are necessary. Policies such as dropping data (e.g.
-dropping the oldest, newest, or every $n$-th frames) are commonly used to manage
-backpressure, but introduce an accuracy trade-off as data is lost.
+However, because the pipeline cannot request physical sensors to slow down their
+rate of transmission, traditional hardware flow-control is impossible. Instead,
+software-level backpressure policies are necessary. When internal buffers reach
+capacity, these policies typically employ one of two strategies: flow-control
+mechanisms that temporarily pause ingestion to preserve data, or load-shedding
+techniques that discard data (e.g. dropping the oldest, newest, or every $n$-th
+frame). While load shedding guarantees system stability and deadline adherence,
+it introduces a trade-off as temporal continuity is lost.
 
 = Literature Review
 
