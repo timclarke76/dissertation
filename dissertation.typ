@@ -118,8 +118,8 @@ A language's runtime model dictates memory management and thread synchronisation
 under load, which directly impacts latency, throughput, and resource usage. For
 example, manual memory management offers fine-grained control and increased
 performance, but simultaneously increases the risk of memory leaks and undefined
-behaviour. Conversely, memory management may be automated through garbage
-collection (GC) at the cost of execution overhead and unpredictable latency
+behaviour. Conversely, memory management may be automated through Garbage
+Collection (GC) at the cost of execution overhead and unpredictable latency
 jitter.
 
 This dissertation focuses on the performance metrics at the system level.
