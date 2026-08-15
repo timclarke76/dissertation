@@ -110,8 +110,9 @@
   ]
 
   #align(center)[
+    #v(0.5em)
     #line(stroke: (0.7pt + gray), length: 75%)
-    #v(1em)
+    #v(0.5em)
   ]
 
   #body

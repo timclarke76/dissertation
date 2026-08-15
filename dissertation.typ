@@ -12,49 +12,6 @@
   #align(right)[#{total.words - 1}]
 ])
 
-#show: template.with(
-  title: [AC52010 - MSc Project],
-  assignment: [A Comparative Analysis of Memory Management, Concurrency, and
-    Performance in Edge-AI],
-  abstractTitle: [A Comparative Analysis of Memory Management, Concurrency, and
-    Performance in Edge-AI],
-  abstract: wc[
-    This dissertation  presents a systems-engineering comparison of C++20, Rust
-    \1.97.1, and CPython \3.10.12. Three tri-stream Human Activity Recognition
-    (HAR) pipelines were implemented on an NVIDIA Jetson Orin Nano, utilising a
-    wait-free, zero-allocation architecture. The implementations were evaluated
-    under varying ingestion rates, flow-control and load-shedding backpressure
-    policies, and hardware power constraints to isolate runtime latency, maximum
-    throughput, and thermal degradation.
-
-    The results revealed that C++ and Rust achieve similar performance results,
-    sustaining ingestion rates up to \5.5 times the natural sensor rate with no
-    dynamic memory allocation. However, a faster ingestion rate was recorded for
-    the Bounded Queue flow control policy when using Rust than for C++, due to
-    the former's more efficient mutex implementation. Python reached terminal
-    saturation at 5% of the natural sensor rate. Statistical analysis ruled out
-    Garbage Collection as the cause of Python's poor performance, indicating
-    that Global Interpreter Lock (GIL) contention was the primary bottleneck.
-
-    Analysis of the backpressure policies revealed an important trade-off:
-    flow-control policies prevent data-loss but suffer from latency deadline
-    breaches at terminal saturation, whereas load-shedding policies accept
-    data-loss to guarantee deadline adherence. Alternatively, Adaptive
-    Decimation attempts to prevent saturation being reached, and retaining
-    temporal continuity, but at the expense of significantly higher data loss
-    even with moderate ingestion rates which the pipeline would otherwise be
-    able to sustain without any loss of data or deadline breaches. Furthermore,
-    the evaluation confirmed that latency degradation recorded under a
-    constrained 7-Watt power profile was caused by limited computational
-    resources, and not because of thermal throttling.
-
-    This study recommends Rust for real-time Edge-AI deployments. It matches the
-    zero-allocation efficiency of C++, benefits from a more performant mutex
-    implementation, and provides compiler-enforced memory safety and
-    error-checking.
-  ],
-)
-
 #show "C++": box[C++]
 #show "C++20": box[C++20]
 
@@ -74,6 +31,50 @@
 #let dark_grey = luma(90)
 #let light_grey = luma(250)
 #let charcoal = rgb("#2D3748")
+
+#show: template.with(
+  title: [AC52010 - MSc Project],
+  assignment: [A Comparative Analysis of Memory Management, Concurrency, and
+    Performance in Edge-AI],
+  abstractTitle: [A Comparative Analysis of Memory Management, Concurrency, and
+    Performance in Edge-AI],
+  abstract: [
+    This dissertation  presents a systems-engineering comparison of C++20, Rust
+    \1.97.1, and CPython \3.10.12. A functionally identical tri-stream Human
+    Activity Recognition (HAR) pipeline was implemented in each language on an
+    NVIDIA Jetson Orin Nano, utilising a wait-free, zero-allocation
+    architecture. The implementations were evaluated under varying ingestion
+    rates, backpressure policies, and hardware power constraints to isolate
+    runtime latency, maximum throughput, and thermal degradation.
+
+    The evaluation revealed that C++ and Rust achieve similar performance
+    results, sustaining ingestion rates up to \5.5 times the natural sensor rate
+    with no dynamic memory allocation. However, a faster ingestion rate was
+    recorded for the Bounded Queue flow-control policy when using Rust than for
+    C++, due to the former's more efficient mutex implementation. Python reached
+    terminal saturation at 5% of the natural sensor rate. Statistical analysis
+    ruled out garbage collection as the cause of Python's poor performance,
+    indicating that Global Interpreter Lock (GIL) contention was the primary
+    bottleneck.
+
+    Analysis of the backpressure policies revealed a trade-off: flow-control
+    policies prevent data loss but suffer from latency deadline breaches at
+    terminal saturation, whereas load-shedding policies accept data loss to
+    guarantee deadline adherence. Alternatively, Adaptive Decimation attempts to
+    prevent saturation and retain temporal continuity, but at the expense of
+    higher data loss even at moderate ingestion rates that the pipeline could
+    otherwise sustain without data loss or deadline breaches. Furthermore, the
+    evaluation showed that deploying the pipeline under a constrained 7-Watt
+    power profile increases latency degradation due to limited computational
+    resources, confirming that the performance of Edge-AI pipelines is impacted
+    by the power constraints of the hardware.
+
+    This study recommends Rust for real-time Edge-AI deployments. It matches the
+    zero-allocation efficiency of C++, benefits from a more performant mutex
+    implementation, and provides compiler-enforced memory safety and
+    error-checking.
+  ],
+)
 
 // #set text(size: 12pt)
 #columns(2, gutter: 16pt)[
