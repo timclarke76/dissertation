@@ -82,7 +82,7 @@
 
 == Background and Context
 
-In recent years, Edge-AI (Edge Artificial Intelligence) has begun to move the
+In recent years, Edge Artificial Intelligence (Edge-AI ) has begun to move the
 deployment of AI models from centralised cloud-based servers to local devices,
 such as sensors, mobile phones, and other embedded systems. This
 decentralisation of AI processing offers several advantages over traditional
@@ -95,32 +95,32 @@ analysis; (3) it enhances _privacy and security_ by ensuring that sensitive
 information, such as healthcare monitoring or smart home video feeds, is
 processed locally and not transmitted across the internet; and (4) by removing
 the need for continuous data transmission, Edge-AI can improve overall _energy
-efficiency_ in battery-powered IoT deployments. These advantages are helping to
-drive the expansion of large-scale Edge-AI projects, such as in smart city
-infrastructure, where Edge-AI is increasingly deployed directly into municipal
-infrastructure to improve efficiency and sustainability, such as in the control
-of "smart" traffic lights or street lighting.
+efficiency_ in battery-powered Internet of Things (IoT) deployments. These
+advantages are driving the expansion of large-scale Edge-AI projects, such as in
+smart city infrastructure, where Edge-AI is increasingly deployed directly into
+municipal systems to improve efficiency and sustainability in areas like the
+control of "smart" traffic lights or street lighting.
 
 While recent advancements in heterogeneous System-on-Chips (SoCs) have made
 Edge-AI deployments practical by integrating dedicated AI accelerators into
 small form factors, these devices do bring challenges in terms of resource
-constraints, such as limited memory, power consumption, and thermal limits.
-Furthermore, remote software updates to maintain Edge-AI applications also come
-at a cost, as they can be expensive and time-consuming, especially when dealing
-with a large number of devices. The software must make maximum use of the
-limited hardware resources, while also remaining stable over the long term,
-making programming language selection an important design decision for Edge-AI
-pipelines.
+constraints, such as limitations in memory, power availability, and heat
+dissipation. Furthermore, remote software updates to maintain Edge-AI
+applications also come at a cost, as they can be expensive and time-consuming,
+especially when dealing with a large number of devices. The software must make
+maximum use of the limited hardware resources, while also remaining stable over
+the long term, making programming language selection an important design
+decision for Edge-AI pipelines.
 
 == Problem Statement <sec:problem-statement>
 
-A language's runtime model dictates memory management, concurrency, and
-scheduling behaviour under load, which directly impacts latency, throughput, and
-resource usage. For example, manual memory management offers fine-grained
-control and increased performance, but simultaneously increases the risk of
-memory leaks and undefined behaviour. Conversely, memory management may be
-automated through garbage collection (GC) at the cost of execution overhead and
-unpredictable latency jitter.
+A language's runtime model dictates memory management and thread synchronisation
+under load, which directly impacts latency, throughput, and resource usage. For
+example, manual memory management offers fine-grained control and increased
+performance, but simultaneously increases the risk of memory leaks and undefined
+behaviour. Conversely, memory management may be automated through garbage
+collection (GC) at the cost of execution overhead and unpredictable latency
+jitter.
 
 This dissertation focuses on the performance metrics at the system level.
 _Latency_ does not refer to network transmission time, but rather the processing
@@ -132,29 +132,31 @@ latency for effective real-time coaching feedback. _Throughput_ measures how
 many sensor events the pipeline can process per unit of time (e.g. per second)
 when under sustained load.
 
-Selecting a language for Edge-AI pipelines is often guided by familiarity or
-generalised benchmarks, rather than the evaluation of runtime models under
-stress with the constraints of embedded hardware. When deploying on Edge
-hardware, the aforementioned challenges amplify the impact of programming
-language choice. There is a lack of empirical evidence of how specific memory
-management and concurrency models interact with backpressure policies under
-heavy, fluctuating loads. Additionally, resource contention and thermal
-throttling confounders can introduce noise that limits the validity of naive
+Selecting a programming language for Edge-AI pipelines is often guided by
+developer familiarity or generalised benchmarks, rather than the evaluation of
+runtime models under stress with the constraints of embedded hardware. When
+deploying on Edge hardware, the aforementioned challenges amplify the impact of
+programming language choice. There is a lack of empirical evidence of how
+specific memory management and concurrency models interact with backpressure
+policies under heavy, fluctuating loads. Additionally, resource contention and
+other confounders can introduce noise that limits the validity of naive
 comparisons.
 
-This dissertation addresses the gap by providing empirical evidence and an
+This dissertation addresses this gap by providing empirical evidence and an
 evaluation of pipelines deployed on resource-constrained hardware, with a focus
 on the trade-offs among C++20 (with GCC \15.2.0), Rust (\1.97.1), and Python
 (CPython \3.10.12) implementations of a tri-stream Human Activity Recognition
 (HAR) pipeline on industry-standard Edge-AI hardware. It focuses on three
-confounders: (\1) language runtime models, (\2) backpressure policies under
-various loads, and (\3) thermal/power throttling.
+variables: (\1) language runtime models, (\2) backpressure policies under
+various ingestion rates, and (\3) hardware power constraints.
+
+#colbreak()
 
 == Research Questions and Objectives
 
 The primary research questions are:
 
-#text[
+#pad(top: 0.15em, bottom: 0.5em)[
   #set enum(indent: 0em, numbering: n => [*RQ#n*])
 
   + *Runtime Performance:* How do the runtime models of C++, Rust, and Python
@@ -173,7 +175,7 @@ The primary research questions are:
 
 The primary research objectives are:
 
-#text[
+#pad(top: 0.15em, bottom: 0.5em)[
   #set enum(indent: 0em, numbering: n => [*RO#n*])
 
   + Implement a functionally identical tri-stream HAR pipeline in C++, Rust, and
@@ -181,8 +183,9 @@ The primary research objectives are:
 
   + Evaluate the performance of each implementation under controlled conditions,
     using a shared deterministic load generator, to quantify how backpressure
-    policies and runtime models impact latency, throughput, memory consumption,
-    and thermal/power dynamics under load.
+    policies and runtime models impact latency, throughput, and memory
+    consumption under both constrained and unconstrained hardware power
+    profiles.
 
   + Analyse runtime model overhead to explain performance differences, and
     derive empirically grounded guidance for language selection in constrained
@@ -194,7 +197,7 @@ The primary research objectives are:
 This dissertation offers the following contributions to software engineering for
 Edge-AI systems:
 
-#text[
+#pad(top: 0.15em)[
   #set enum(indent: 0em, numbering: n => [*C#n*])
 
   + *Cross-Language Runtime Evaluation:* Addressing RQ1, this work delivers an
@@ -209,7 +212,7 @@ Edge-AI systems:
 
   + *Root-Cause Identification:* Addressing RQ3, this work presents empirical
     evidence linking dynamic memory allocation churn, GC pause duration, and
-    scheduling overhead to system latency and throughput.
+    concurrency overhead to system latency and throughput.
 
   + *Evidence-Based Guidelines:* Addressing findings across all research
     questions, this dissertation offers empirically grounded recommendations for
@@ -222,8 +225,9 @@ The focus of this dissertation is on the interaction of three language runtime
 models (C++, Rust, and Python) with system latency and throughput, using
 standardised, idiomatic implementations of a tri-stream HAR pipeline on
 industry-standard Edge-AI hardware. The scope is limited to a standardised
-implementation representative of real-world multi-modal processing, with
-confounders limited to thermal/power throttling and backpressure policies.
+implementation representative of real-world multi-modal processing, with the
+experimental variables limited to the choice of language runtime model, the
+applied backpressure policy, and the hardware power profile.
 
 The pipeline architecture, deterministic load generator, and backpressure
 implementations are designed for portability across Linux environments. However,
@@ -237,7 +241,7 @@ of the HAR prediction results. To ensure the data is both deterministic and
 reproducible for each implementation, a synthetic load generator is used.
 Pre-recorded data is not used to avoid confounding the results with disk I/O
 bottlenecks, ensuring the data is available to the pipeline at a consistent
-rate. It is acknowledged that the choice of load shedding policy would impact
+rate. It is acknowledged that the choice of backpresssure policy would impact
 prediction accuracy and usefulness of the results, due to the dropping of data
 and temporal discontinuity. However, this dissertation is strictly concerned
 with performance measurements of latency, throughput, and memory efficiency at
