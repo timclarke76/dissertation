@@ -635,28 +635,26 @@ SSD, and the Jetson Orin Nano module itself. This provides the following
 specifications @jetson-orin-nano @a78RefManual:
 - 6-core Arm Cortex-A78AE 64-bit CPU (clocked to 1.7 GHz) for general-purpose
   concurrent processing
-- up to 67 TOPS (Tera Operations Per Second) of AI performance
+- up to 67 Tera Operations Per Second (TOPS) of AI performance
 - 8 GB of 128-bit LPDDR5 memory with a bandwidth of 102 GB/s
 - 1024 CUDA cores for general-purpose GPU computing
 - 32 Tensor cores for AI acceleration
 - L1 and L2 caches with 64-byte cache lines
 
-The Jetson came pre-flashed with NVIDIA’s JetPack 6.2 SDK @jetpack-6-2 which
-provides _Super Mode_ and uncapped _SUPER MAXN_ power mode that enables the
-highest number of cores and clock frequency across the SoC.
+The Jetson came pre-flashed with NVIDIA’s JetPack 6.2 SDK @jetpack-6-2, which
+provides the uncapped `MAXN_SUPER` power profile that enables the highest number
+of CPU/GPU cores and maximum clock frequencies across the SoC.
 
-A Waveshare IMX219-160 Camera Module @imx219-160 was used to deliver the RGB
-video stream, configured to capture at 1920×1080 RGB frames at \30 FPS, and
-connected via MIPI CSI-2 (Mobile Industry Processor Interface Camera Serial
-Interface \2). The camera captures images with a field of view (FOV) of
-160#sym.degree, making it suitable for capturing a wide area for human activity
-recognition after undistortion.
-
-A Bosch Sensortec BMI088 IMU Shuttle Board 3.0 @bmi088 was used to provide
-inertial measurement data, configured to capture 6-axis data, and connected via
-SPI for maximum throughput. The BMI088 combines a 3-axis accelerometer and a
-3-axis gyroscope, providing two complementary data streams at up to 1.6 kHz
-(accelerometer) and 2.0 kHz (gyroscope).
+The pipeline architecture was designed to process data from a Waveshare
+IMX219-160 Camera Module @imx219-160, configured to capture 1920x1080 RGB frames
+at \30 FPS via Mobile Industry Processor Interface Camera Serial Interface \2
+(MIPI CSI-2). Inertial measurement data was modelled on a Bosch Sensortec BMI088
+Inertial Measurement Unit (IMU) Shuttle Board \3.0 @bmi088, which combines a
+\3-axis accelerometer (\1.6 kHz) and a 3-axis gyroscope (\2.0 kHz) connected via
+Serial Peripheral Interface (SPI). While these physical sensors dictated the
+architectural data structures, ingestion frequencies, and shared memory
+boundaries, the physical modules themselves were substituted for the
+deterministic load generator during evaluation due to hardware attrition.
 
 To ensure that disk I/O did not cause bottlenecks or confound performance
 comparisons, all implementations were executed from a 1TB Samsung \990 PRO PCIe
@@ -680,13 +678,7 @@ for analysis of memory fragmentation.
 All implementations interact with the ONNX Runtime 1.24.0 to load and execute
 the AI model, which is responsible for the data transfer and inference
 orchestration on the host, and hands off responsibility to TensorRT for
-inference execution on the device. To ensure a consistent baseline, functionally
-identical TensorRT context files (`_epctx.onnx`) were used across all three
-implementations. C++ and Python both use the same cached files, but because
-Rust's Ort crate uses a newer version of the ONNX Runtime API, it was required
-to generate separate cached files. However, as these were generated from the
-same `.onnx` files, all three implementations used the same model weights and
-functionality.
+inference execution on the device.
 
 Performance and overhead of the language runtime models was measured at the
 boundary of the host/device memory separation, where the CPU manages the runtime
@@ -702,18 +694,23 @@ considered acceptable to ensure a consistent and reproducible environment for
 all implementations. Five Docker arguments were used for every container:
 `--ipc=host` to allow access to the host's shared memory, `--privileged` and
 `--runtime=nvidia` to allow access to the GPU and Jetson device nodes,
-`--cap-add=SYS_NICE` to allow real-time scheduling, and
-`--volume=$(pwd)/results:/results` to allow the container to write results to
-the host file-system. The generator was detached, using the Docker argument
-`--detach`, so that it would execute in the background, and pinned to core \5
-using the generator's own `--core` argument to prevent context switching
-overhead. The pipelines were restricted to cores \1-\4 using Docker's
-`--cpuset-cpus` argument to prevent them running on the same core as either the
-Linux kernel (core \0) or the generator.
+`--cap-add=SYS_NICE` to prevent timing jitter by allowing real-time scheduling,
+and `--volume=$(pwd)/results:/results` to allow the container to write results
+to the host file-system.
+
+The generator was detached, using the Docker argument `--detach`, so that it
+would execute in the background. To prevent context-switching overhead and
+resource contention, the generator was pinned to the highest available core
+using its `--core` argument (core \5 in the unconstrained `MAXN_SUPER` mode, and
+core \3 in the constrained 7-Watt mode). The pipelines were restricted to the
+remaining cores above the Linux kernel (core \0) using Docker's
+#box[`--cpuset-cpus`] argument (cores \1-\4 and cores \1-\2, respectively). This
+strategy ensured separation between data generation, pipeline execution, and OS
+interruptions.
 
 The latest stable releases of the language toolchains, which were compatible
 with the Ubuntu \22.04-based root file system, were used for all
-implementations: C++20 with GCC \15.2.0, Rust \1.97.1 and CPython 3.10.12.
+implementations: C++20 with GCC \15.2.0, Rust \1.97.1 and CPython \3.10.12.
 CPython is the default Python interpreter for many Linux distributions, and
 implements the runtime model, including the GIL and GC, that is evaluated in
 this report.
@@ -721,11 +718,11 @@ this report.
 == Deterministic Load Generator
 
 To reliably compare the performance of the three implementations, a separate
-synthetic load generator, shown in @fig:architecture, was developed to create
-reproducible and deterministic simulated sensor data. This ensures that the
-behaviour of each implementation can be compared using the same baseline data,
-and that differences in performance can be attributed to the runtime models and
-backpressure policies, and not input variability.
+synthetic load generator, shown in @fig:architecture (overleaf), was developed
+to create reproducible and deterministic simulated sensor data. This ensures
+that the behaviour of each implementation can be compared using the same
+baseline data, and that differences in performance can be attributed to the
+runtime models and backpressure policies, and not input variability.
 
 The load generator produces three streams of data to shared memory buffers for
 consumption by the HAR pipelines: (1) an RGB video stream to simulate the
@@ -756,8 +753,8 @@ Because the AI inference is only a repeatable workload to determine the
 performance of the runtime models, and prediction accuracy does not impact the
 evaluation, the generated data was not designed to be realistic. This kept the
 load generator implementation simple, does not introduce disk I/O bottlenecks,
-and reduced latency and overhead that could confound the results by stealing CPU
-cycles or memory bandwidth from the pipelines.
+and reduced latency and overhead that could confound the results by contending
+with the pipeline for shared memory bandwidth or polluting shared caches.
 
 To allow backpressure policies to be evaluated under varying load, the generator
 accepts a _load_ parameter that dictates the speed at which data is produced by
@@ -767,9 +764,7 @@ and the IMU data remains consistent. For example, a value of \1.0 produces data
 at the same rate as the sensors: \30 FPS for the camera (\1 frame every \33.3
 ms), and \1.6 kHz and \2.0 kHz for the accelerometer and gyroscope respectively
 (\0.625 ms and \0.5 ms intervals respectively). A value of \2.0 produces data
-twice as fast, \0.5 produces data at half the speed, and so on. 100% saturation
-of the pipelines was determined by adjusting the load argument until one or more
-of the pipelines were consistently backpressured (see @sec-backpressure).
+twice as fast, \0.5 produces data at half the speed, and so on.
 
 The load generator was written in Rust to take advantage of its performance and
 memory safety guarantees. For maximum timing accuracy,
@@ -777,11 +772,7 @@ memory safety guarantees. For maximum timing accuracy,
 generation. `CLOCK_MONOTONIC` was used for high resolution timing, and Network
 Time Protocol (NTP) synchronisation was disabled using
 `timedatectl set-ntp false` to prevent the system clock from being adjusted
-during the experiments. The generator was pinned to one CPU core to prevent
-jitter caused by the overhead of saving and restoring the generator thread
-state, and the process was given a real-time scheduling policy. The generator
-and pipelines were prevented from running on core \0 to avoid contention with
-the Linux kernel and background processes.
+during the experiments.
 
 The deterministic load generator and HAR pipelines were designed to allow
 seamless substitution of the generator with a physical hardware harness, using
@@ -834,22 +825,23 @@ for this dissertation's research.
   ],
 
   caption: [System architecture demonstrating communication between the separate
-    Load Generator and the HAR Pipeline implementations.#v(1em)],
+    Load Generator and the HAR Pipeline implementations.#v(2em)],
 ) <fig:architecture>
 
 == Backpressure Policies <sec-backpressure>
 
-Bounded backpressure policies are implemented in each language-specific runtime
-model. In a typical backpressure implementation, when a _consumer_ is saturated
-(i.e. the buffer is full), the active backpressure policy is triggered to slow
-the flow of data from the _producer_ to prevent unbounded memory demand and
-system instability.
+Queue management and backpressure policies are implemented in each
+language-specific runtime model. In a typical backpressure implementation, when
+a _consumer_ is saturated (i.e. the buffer is full), the active backpressure
+policy is triggered to slow the flow of data from the _producer_ to prevent
+unbounded memory demand and system instability.
 
 The backpressure policies were implemented in the pipelines using two buffers
-per data stream: (1) an unbounded _producer buffer_ in shared memory for the
-load generator to write data into, allowing it to produce data at a consistent
-rate, and (2) a _consumer buffer_ for the pipelines to read data from for
-processing, with a fixed capacity to trigger the backpressure policy when full.
+per data stream: (1) an unbounded ring _producer buffer_ in shared memory for
+the load generator to write data into, allowing it to produce data at a
+consistent rate, and (2) a _consumer buffer_ for the pipelines to read data from
+for processing, with a fixed capacity to trigger the backpressure policy when
+full.
 
 Using Little's Law ($L = lambda W$) @little1961, the capacity of each consumer
 buffer was determined by multiplying the _target_ baseline throughput ($lambda$)
@@ -899,7 +891,7 @@ stream (\2.0 kHz).
   ],
   caption: [Application of Little's Law to derive the bounded queue capacities
     from the data stream rates and the maximum latency deadline of \100 ms.
-    #v(1em)],
+    #v(1.25em)],
 ) <fig:little-law>
 
 The bounded buffers were implemented as fixed-capacity circular queues using
@@ -909,7 +901,7 @@ safety during enqueue and dequeue operations.
 
 Backpressure is implemented only in the pipeline on the consumer buffer, forcing
 each language runtime model to handle concurrency, memory allocation, and
-scheduling within realistic constraints and allowing us to evaluate RQ2. A
+scheduling within realistic constraints and allowing RQ2 to be evaluated. A
 _bridge_ in the pipeline is responsible for copying data from the producer
 buffer to the consumer buffer, and for triggering the backpressure policy when
 the consumer buffer is full.
@@ -918,33 +910,35 @@ Five backpressure and load shedding policies were implemented to manage queue
 saturation when the consumer buffer is full:
 
 *Policies that attempt to preserve all data (Flow Control):*
-  - *Bounded queue:* Blocks the producer until space is available in the
-    consumer buffer.
-  - *Exponential-backoff:* Waits a short time before retrying to insert the
+  - *Bounded queue:* Blocks the pipeline's bridge thread from ingesting new
+    frames until space becomes available in the consumer buffer.
+  - *Exponential Backoff:* Waits a short time before retrying to insert the
     data, with the wait time increasing each time by a configurable factor until
     a maximum wait time is reached (after which the data is dropped).
 
 *Policies that intentionally drop data (Load Shedding):*
-  - *Drop-oldest:* Drops the oldest data in the consumer buffer to make room for
+  - *Drop Oldest:* Drops the oldest data in the consumer buffer to make room for
     new data.
-  - *Drop-newest:* Drops incoming data when the buffer is full.
+  - *Drop Newest:* Drops incoming data when the buffer is full.
 
-*Policies that drop data while preserving temporal continuity:*
-  - *Adaptive decimation:* Dynamically downsamples the data stream (i.e.
-    queueing only every _nth_ frame) to reduce pressure on the consumer buffer
+*Policies that dynamically drop data while preserving temporal continuity:*
+  - *Adaptive Decimation:* Dynamically downsamples the data stream (i.e.
+    queueing only every $n$-th frame) to reduce pressure on the consumer buffer
     while preserving the temporal continuity of the data. As the consumer buffer
     fills, the decimation factor is increased to reduce the number of frames
     being queued. Similarly, as the consumer buffer empties, the decimation
     factor is decreased. If the queue reaches full saturation, the oldest frame
     is dropped to make room for the newest frame.
 
-Bounded queue and exponential backoff are both flow control policies, and
-instead of dropping data they stall the data producer when the consumer buffer
-is full. However, this can lead to unbounded memory growth of the producer
-buffer, causing system instability. Conversely, drop-oldest, drop-newest, and
-adaptive decimation are all load shedding policies that discard data, as
-visualised in @fig:load_shedding, though this does lead to a loss of temporal
-continuity and may impact prediction accuracy.
+Bounded queue and exponential backoff are both flow-control policies. Instead of
+actively dropping data, they stall the pipeline's bridge thread when the
+consumer buffer is full. However, because the upstream load generator continues
+to write to the fixed-capacity shared memory ring buffer, stalling eventually
+causes unread frames to be overwritten (lapped). This guarantees a maximum
+memory footprint, but results in data loss if the stall exceeds the temporal
+capacity of the ring buffer. Conversely, drop-oldest, drop-newest, and adaptive
+decimation are load-shedding policies that discard data (as visualised in
+@fig:load-shedding-policies).
 
 #figure(
   [
@@ -983,7 +977,7 @@ continuity and may impact prediction accuracy.
   caption: [Load shedding policies on a stream of frames. Green check-marked
     (#sym.checkmark) blocks represent preserved data, red cross-marked
     (#sym.crossmark) blocks represent dropped data. #v(1em)],
-) <fig:load_shedding>
+) <fig:load-shedding-policies>
 
 The exponential backoff policy was configured with an initial wait time of \1 ms
 --- sufficient time to allow the scheduler to yield to the inference thread,
@@ -1013,11 +1007,10 @@ To ensure the runtime models were evaluated under sustained stress, the
 saturation threshold was determined by increasing the _load_ multiplier until at
 least one consumer buffer reached capacity, ensuring the backpressure mechanism
 was continuously engaged across all policies. Because the languages differ in
-performance, a separate, fixed load multiplier was determined for each language.
-This isolated the memory and scheduling behaviours of the runtime models,
-removing execution speed as a confounding variable, and ensured that all five
-backpressure policies within a given language were evaluated under an identical
-ingestion rate.
+baseline performance, a separate, fixed load multiplier was determined for each
+language. This normalised the level of system stress, ensuring that all five
+backpressure policies within a given language were evaluated against an
+identical, language-appropriate rate of ingestion.
 
 == False Sharing
 
@@ -1037,7 +1030,7 @@ cores to invalidate their own cache lines, even if the data being read is
 otherwise unrelated to the data being written. For example, if a 32-byte
 structure is stored in RAM at address range 0x1000--0x1020, a CPU with 64-byte
 cache lines will store 64 bytes of data in its cache line covering the address
-range 0xA000--0xA040, even though the last 32 bytes are unrelated to the
+range 0x1000--0x1040, even though the last 32 bytes are unrelated to the
 original structure. If those adjacent 32 bytes are updated, it will trigger a
 refresh of the entire 64-byte cache line, invalidating the first 32 bytes and
 forcing a read penalty.
@@ -1069,10 +1062,10 @@ reads the new data as soon as it sees the `seq_num` updated. Without memory
 ordering, the CPU may choose to update these apparently unrelated variables
 "_out of order_" from what the code specifies. This would be catastrophic, as
 the pipeline may read the stale data before the new data is committed. To
-prevent this, the `seq_num` was declared as an atomic variable, and release
+prevent this, the `seq_num` was declared as an atomic variable, and `release`
 memory ordering was used when the generator updated it, informing the CPU that
 all previous writes to any variable must be committed before the `seq_num` is
-updated. Conversely, when the pipeline reads the `seq_num`, it uses acquire
+updated. Conversely, when the pipeline reads the `seq_num`, it uses `acquire`
 memory ordering to inform the CPU that it must not speculatively read any other
 variables before the `seq_num` is read. This simple "fence" guarantees that the
 memory ordering is correct, and that the apparently unrelated `seq_num` and data
@@ -1094,7 +1087,7 @@ because the shared memory buffer operates as a ring, and so a temporal window
 may wrap around the physical memory, causing later frames to precede earlier
 frames. Furthermore, each frame contains a timestamp before the payload, causing
 the data to be strided. The contiguous buffer was bound to the inference
-execution context (using `Ort::IoBinding` for C++, `ort::value::TensorRef` for
+execution context (using `Ort::IoBinding` for C++, `ort::value::Tensor` for
 Rust, and `onnxruntime.IOBinding` for Python) to prevent the TensorRT engine
 from dynamically allocating memory or internally copying data during inference.
 
@@ -1107,7 +1100,7 @@ memory during inference, instead allocating memory once upon startup thus
 improving performance and preserving the zero-allocation approach. These models
 were then transferred to the Jetson Orin Nano and saved to hardware-specific
 `_epctx.onnx` (Execution Provider Context) files using ONNX Runtime \1.24.0
-before pipeline evaluation commences. These files ensure that the models do not
+before pipeline evaluation commenced. These files ensure that the models do not
 need to be re-optimised at startup for each evaluation. While C++ and Python
 were able to share the same context files, Rust uses a newer C-API and thus was
 required to cache its own versions to disk. However, due to the shared `.onnx`
@@ -1126,12 +1119,14 @@ being adjusted. The following six timestamps, as visualised in
 
 + `generated_ts` when the generator pushes to the unbounded ring buffer
 + `bridged_ts` when the bridge pushes to the bounded buffer
-+ `pipeline_in_ts` when the pipeline pulls the frame from the idiomatic buffer
-+ `pipeline_out_ts` when the pipeline pushes data to the ONNX Runtime for
-  inference
-+ `fusion_in_ts` when inference completes and the pipeline begins late fusion
-+ `fusion_out_ts` when late fusion completes and the pipeline produces the final
-  output
++ `pipeline_in_ts` when the inference thread pulls the frame from the bounded
+  buffer
++ `pipeline_out_ts` when the ONNX Runtime completes inference and the result is
+  pushed to the MPSC channel
++ `fusion_in_ts` when the late-fusion thread pulls the inference results from
+  the MPSC channel
++ `fusion_out_ts` when late-fusion execution completes and the pipeline produces
+  the final output
 
 #figure(
   placement: top,
@@ -1202,11 +1197,11 @@ intervals, a clean `Epoch` was pulled from a channel using wait-free message
 passing, and the populated `Epoch` was pushed to another channel. Concurrently,
 a lightweight background telemetry thread (the _reader_) pulled the populated
 `Epoch` messages from the second channel and saved the counters and the $"p50"$,
-$"p95"$, $"p99"$, $"p99.9"$, $"p99.99"$, and maximum latency values into a CSV
-file, then reset the `Epoch` and pushed it back to the first channel for reuse.
-A third `Epoch` was kept idle in the first channel ready to be swapped in as the
-new active buffer, preventing any blocking of the pipeline thread if the
-telemetry thread is delayed (e.g. by I/O stalls).
+$"p95"$, $"p99"$, $"p99.9"$, and maximum latency values into a CSV file, then
+reset the `Epoch` and pushed it back to the first channel for reuse. A third
+`Epoch` was kept idle in the first channel ready to be swapped in as the new
+active buffer, preventing any blocking of the pipeline thread if the telemetry
+thread is delayed (e.g. by I/O stalls).
 
 High Dynamic Range (HDR) Histograms @hdrhistogram were used to aggregate the
 latency distributions, preventing memory allocation from polluting the latency
@@ -1274,13 +1269,13 @@ irrelevant.
 
 === GC Pressure (Python)
 
-Python uses a Garbage Collector (GC) to manage memory, which can introduce
-non-deterministic tail-latency GC pauses (also known as "stop-the-world" events)
-when run. Using `tracemalloc` from the standard library would introduce
-additional overhead and confound the results, as it introduces tracing for every
-memory allocation event. Instead, the GC's built-in `callbacks` hook was
-utilised to capture the start and end time of each GC event (using
-`CLOCK_MONOTONIC`) to calculate the duration of each pause.
+Python uses a GC to manage memory, which can introduce non-deterministic
+tail-latency GC pauses (also known as "stop-the-world" events) when run. Using
+`tracemalloc` from the standard library would introduce additional overhead and
+confound the results, as it introduces tracing for every memory allocation
+event. Instead, the GC's built-in `callbacks` hook was utilised to capture the
+start and end time of each GC event (using `CLOCK_MONOTONIC`) to calculate the
+duration of each pause.
 
 To prevent memory allocation within the callback function, a triple-buffering
 approach was used, similar to the latency measurements, where the callback
@@ -1289,14 +1284,6 @@ The background telemetry thread then extracts the GC pause percentiles and
 maximums at the same time as the latency measurements, allowing correlation
 between GC pause durations and runtime model events.
 
-The telemetry thread also employs `gc.get_stats()` to capture the cumulative
-number of objects collected since the Python interpreter was started, from which
-the rate of object collection across Generations 0, 1, and 2 can be calculated
-using a delta between intervals. This function does not include objects that are
-deallocated immediately using Python's main reference counting mechanism, but it
-does provide the data to correlate deep Generation 2 collection events with
-tail-latency pauses.
-
 === Memory Fragmentation
 
 Repeated allocation and deallocation of memory can lead to fragmentation, where
@@ -1304,6 +1291,12 @@ free memory is only available in small non-contiguous blocks. As shown in
 @fig:memory_fragmentation, this can cause memory to be exhausted even when the
 total free memory is sufficient, as contiguous blocks larger than the fragmented
 sizes are not available, leading to Out-Of-Memory (OOM) errors.
+
+To ensure a fair comparison, all three implementations use the Linux interface
+`/proc/self/statm` to capture the Resident Set Size (RSS) from the background
+telemetry thread. The RSS provides the total amount of memory currently
+allocated to the process, including fragmented memory and that allocated by
+third-party libraries (e.g. ONNX Runtime).
 
 #figure(
   align(center)[
@@ -1345,14 +1338,8 @@ sizes are not available, leading to Out-Of-Memory (OOM) errors.
   caption: [Visualisation of memory fragmentation. Though the total free memory
     (4 blocks) is sufficient for the new allocation (3 blocks), the allocator
     must expand the heap due to the lack of contiguous space, increasing the
-    Resident Set Size (RSS). #v(1em)],
+    RSS. #v(1em)],
 ) <fig:memory_fragmentation>
-
-To ensure a fair comparison, all three implementations use the Linux interface
-`/proc/self/statm` to capture the Resident Set Size (RSS) from the background
-telemetry thread. The RSS provides the total amount of memory currently
-allocated to the process, including fragmented memory and that allocated by
-third-party libraries (e.g. ONNX Runtime).
 
 In addition, the C++ and Rust implementations used `mallinfo2()` to capture the
 `fordblks` field, which provides the total size of memory allocated by the
@@ -1361,51 +1348,50 @@ memory that is allocated but not currently in use.
 
 === System-Wide Memory Tracking
 
-In C++, the global `operator new` and `operator delete` were overridden; in
-Rust, a custom `#[global_allocator]` was implemented; and in Python,
-`gc.callbacks()` and `sys.getallocatedblocks()` were utilised. Consequently, all
-memory allocation metrics were captured at a global level, rather than on a
-per-thread or per-sensor basis.
+In C++ and Rust, the dynamic memory allocation metrics were captured at a global
+level by overriding the system allocators. Similarly, the RSS and Python's GC
+pauses are process-wide metrics, rather than on a per-thread or per-sensor
+basis.
 
 Because the three concurrent telemetry threads operated on independent 1-second
-epochs, the memory allocation metrics were slightly desynchronised, resulting in
-minor recording variations between the sensor logs. For this reason, only the
-RGB telemetry log was used to analyse these metrics. While this introduces a
-small desynchronisation between the memory allocation metrics and the IMU
-latency measurements, the 1-second epoch is sufficiently long to ensure that the
-nanosecond-level desynchronisation is statistically irrelevant.
+epochs, these global metrics were slightly desynchronised, resulting in minor
+recording variations between the three sensor logs. For this reason, only the
+RGB telemetry log was used to analyse the process-wide memory and GC metrics.
+While this introduces a small desynchronisation between the global metrics and
+the IMU latency measurements, the 1-second epoch is sufficiently long to ensure
+that the nanosecond-level desynchronisation is statistically irrelevant.
 
 === Event Synchronisation
 
 To ensure that identical event streams were processed by each implementation,
 without introducing startup jitter or missing initial events, an atomic
-variable, `pipeline_stage`, was integrated into each shared memory buffer
-header. This variable was set to a value of $1$ (`READY`) by the pipeline
-bridges once they were fully initialised and ready to receive data. The load
-generator spin-waited until all three pipelines were ready before starting to
-push data.
+variable (`pipeline_stage`) was integrated into each shared memory buffer
+header. This variable was initialised to $0$ (`WAITING`) by the generator, and
+set to a value of $1$ (`READY`) by the pipeline bridges once they were fully
+initialised and ready to receive data. The load generator spin-waited until all
+three pipelines were ready before starting to push data.
 
 The generator updated the `pipeline_stage` variables to $2$ (`FINISHED`) as each
 event stream was completed. Each pipeline bridge processed all remaining valid
 frames from the shared memory buffer, and then used a _poison pill_ technique to
 signal the end of the stream. A special frame containing a maximum sequence
-number (`UINT64_MAX` or `u64::MAX`) was injected into the bounded queue, which
-initiated a graceful shutdown of the pipeline by all threads after any pending
-frames were processed.
+number (`UINT64_MAX`, `u64::MAX`, or `(1 << 64) - 1`) was injected into the
+bounded queue, which initiated a graceful shutdown of the pipeline by all
+threads after any pending frames were processed.
 
 === Late Fusion
 
 A Multi-Producer Single-Consumer (MPSC) pattern was used to drive the late
 fusion, where the inference threads all pushed their results to a single fusion
-thread for processing, and the fusion execution was tied to the 30Hz RGB stream.
-Anchoring on the slowest, most computationally expensive stream prevented
-redundant fusion executions and prevented the fusion thread from being
-bottlenecked by the faster IMU streams. Consequently, the IMU streams were both
-downsampled using fixed window sizes to match the 30Hz RGB stream, ensuring that
-the IMU inference was only executed and the results injected into the MPSC
-channel when the window was full. Zero-Order Hold was used to pair the RGB and
-IMU inference results, where the most recent IMU inference result was held until
-the next RGB inference result was available.
+thread for processing, and the fusion execution was tied to the \30 Hz RGB
+stream. Anchoring on the slowest, most computationally expensive stream
+prevented both redundant fusion executions, and the fusion thread from being
+bottlenecked by the faster IMU streams. Consequently, the IMU streams were
+downsampled using fixed window sizes to match the \30 Hz RGB stream
+(@fig:late-fusion), ensuring that the IMU inference was only executed and the
+results injected into the MPSC channel when the window was full. Zero-Order Hold
+was used to pair the RGB and IMU inference results, where the most recent IMU
+inference result was held until the next RGB inference result was available.
 
 #figure(
   pad(top: 1.0em)[
@@ -1420,8 +1406,8 @@ the next RGB inference result was available.
       node-corner-radius: 2pt,
       spacing: (4em, 1.5em),
 
-      node((0, 0), align(top + center)[*Data Streams* \ ($lambda$ Hz)], shape: rect,
-      fill: luma(240), width: 7.38em, height: 4.5em),
+      node((0, 0), align(top + center)[*Data Streams* \ ($lambda$ Hz)],
+        shape: rect, fill: luma(240), width: 7.38em, height: 4.5em),
 
       node((0, 0), shape: rect, fill: luma(240), width: 7.38em, height: 4.5em,
         align(top + center)[*Data Streams* \ ($lambda$ Hz)]),
@@ -1447,18 +1433,18 @@ the next RGB inference result was available.
   caption: [Derivation of the inference window sizes for the IMU streams to
     match the #box[30 Hz] RGB stream, using Zero-Order Hold to pair the
     inference results. #v(0.5em)],
-)
+) <fig:late-fusion>
 
-==== Power Modes and Cooling
+=== Power Modes and Cooling
 
-When the Jetson Orin Nano reaches the `hot_surface_alert` trip point of \74°C,
-it automatically engages the cooling fan. This is a hardware-level protection
-that cannot be disabled. If the fan fails to provide enough cooling, the device
-utilises reactive software thermal management (Dynamic Voltage and Frequency
-Scaling, or DVFS @jetsonLinuxDeveloperGuide) that constantly polls the
-temperature and throttles the performance of the high-power components (e.g. CPU
-and GPU) when the device exceeds operating temperature threshold at 99°C (see
-@app:thermal-zones).
+When the Jetson Orin Nano reaches the `hot_surface_alert` trip point of
+\74#sym.degree\C, it automatically engages the cooling fan. This is a
+hardware-level protection that cannot be disabled. If the fan fails to provide
+enough cooling, the device utilises reactive software thermal management
+(Dynamic Voltage and Frequency Scaling, or DVFS @jetsonLinuxDeveloperGuide) that
+constantly polls the temperature and throttles the performance of the high-power
+components (e.g. CPU and GPU) when the device exceeds operating temperature
+threshold at 99#sym.degree\C (see @app:thermal-zones).
 
 The Jetson was configured to use the unconstrained power mode (MAXN_SUPER) using
 `nvpmodel -m 0`, and maximum clock overrides were enabled using `jetson_clocks`.
@@ -1468,23 +1454,33 @@ affecting the measurements. Temperature, power draw, and clock frequencies were
 recorded to a `.log` file using the `tegrastats` utility, and converted to a CSV
 file for analysis after the evaluation using `awk`.
 
-The baseline temperature was forced to 55°C by disabling user-space active
-cooling (`nvfancontrol`) and stopping the fan by echoing `0` to
+All evaluations were conducted in an environment with an ambient room
+temperature ranging between #ct[TODO]#sym.degree\C and #ct[TODO]#sym.degree\C.
+Prior to commencing the evaluation suite, the Jetson Orin Nano was rebooted and
+allowed to idle for ten minutes to stabalise. A target baseline temperature of
+\60#sym.degree\C was selected for all evaluations. Experimental testing
+determined that lower thresholds (e.g. \55#sym.degree\C) could not be reliably
+or rapidly achieved between pipeline executions due to residual heat and
+insufficient ambient dissipation.
+
+To enforce the baseline temperature, user-space active cooling (`nvfancontrol`)
+was disabled, and the fan was stopped by echoing `0` to
 `/sys/class/hwmon/hwmon0/pwm1`. The Jetson was then kept busy
 (`cat /dev/urandom > /dev/null`) for periods of 2 seconds at a time, until the
 baseline temperature was reached or exceeded. The device was then allowed to
 idle with the fan speed set to 100% (`255`) until the baseline temperature was
-reached again, at which point the fan was stopped and the evaluation started.
+reached or fell short of, at which point the fan was stopped. This was repeated
+as necessary until the baseline temperature was exactly reached before the
+evaluation started.
 
 Initial attempts to engage DVFS were unsuccessful, as the Jetson's fan was able
 to cool the device fast enough to prevent the throttling temperature from being
 reached. Therefore, a second evaluation was performed after restricting the
 device to the 7-Watt power mode (using `nvpmodel -m 3`), and maximum clock
-overrides were disabled (`jetson_clocks`), forcing the device to throttle the
-CPU and GPU to adhere to the power budget, thus allowing an evaluation and
-comparison of the pipeline under constrained conditions.
+overrides were disabled (`jetson_clocks --restore`), forcing the device to
+throttle the CPU and GPU to adhere to the power budget, thus allowing an
+evaluation and comparison of the pipeline under constrained conditions.
 
-#wc[
 === Statistical Analysis
 
 Latency measurements have no theoretical maximum, but are inherently bounded by
@@ -1493,41 +1489,43 @@ which are heavily skewed to the right, with long tails and outliers @tene2014,
 requiring non-parametric methods for statistical analysis. The outliers are
 evidence of backpressure events and runtime model pauses (e.g. Garbage
 Collection in Python), necessary for benchmarking and implementation
-comparisons, and consequently were not removed. Cold start measurements were
-analysed separately to prevent them from skewing the measurements of the
-steady-state performance. The cold start boundary was determined by calculating
-the moving average of the latency measurements and identifying the point at
-which the moving average stayed within 5% of the average stabilised latency for
-one second.
+comparisons, and consequently were not removed.
 
-The mean is sensitive to outliers and skewed distributions, and so would not
-provide an accurate measure of central tendency. Instead, the median ($"p50"$)
-and the Interquartile Range (IQR) were used. The $"p95"$, $"p99"$, $"p99.9"$,
-$"p99.99"$, and maximum latency values were used to describe the worst-case
+Steady-state measurements were isolated from the cold-start artefacts to prevent
+skewing. A fixed \10-second warm-up boundary was used across all evaluations.
+Visual analysis of the initial logs confirmed that this was more than sufficient
+for third-party initialisation to complete and for latency to stabilise.
+
+Descriptive statistics were required to summarise the performance. Because the
+mean is sensitive to the aforementioned outliers and skewed distributions, it
+would not provide an accurate measure of central tendency. Instead, the median
+($"p50"$) was used to represent typical performance. The $"p95"$, $"p99"$,
+$"p99.9"$, and maximum latency values were used to describe the worst-case
 performance measurements.
 
-The Kruskal-Wallis H test @kruskalWallis1952, a non-parametric method that is
-robust to non-normal distributions and outliers, was used to compare the latency
-and throughput distributions from the three runtime models. Because of the large
-sample sizes, the epsilon-squared ($epsilon^2$) effect size @tomczak2014 was
-calculated to determine how much of the latency variance could be attributed to
-the runtime model. Dunn's test @dunn1964 was then used for post-hoc analysis to
-identify which implementations differed significantly, with a Bonferroni
-correction @dunn1961 to control the error rate and to prevent false positives.
+Beyond descriptive percentiles, statistical testing was necessary to evaluate
+the implementations. The Kruskal-Wallis H test @kruskalWallis1952, a
+non-parametric method that is robust to non-normal distributions and outliers,
+was used to compare the latency and throughput distributions from the three
+runtime models. Because of the large sample sizes, the epsilon-squared
+($epsilon^2$) effect size @tomczak2014 was calculated to determine how much of
+the latency variance could be attributed to the runtime model. Dunn's test
+@dunn1964 was then used for post-hoc analysis to identify which implementations
+differed significantly, with a Bonferroni correction @dunn1961 to control the
+error rate and to prevent false positives.
 
+Finally, to investigate the root causes of the observed performance bottlenecks,
 Spearman's rank correlation coefficient ($rho$) @spearman1904 was used to
-identify statistically significant correlations between the latency and
-throughput with system events (e.g. backpressure, GC pauses, thermal
-throttling). Unlike Pearson's correlation coefficient ($r$) @pearson1895,
+identify statistically significant correlations between latency and system
+events (e.g. GC pauses, dynamic memory allocations, and hardware power
+constraints). Unlike Pearson's correlation coefficient ($r$) @pearson1895,
 Spearman's $rho$ considers the rank of the data rather than the raw values,
 making it robust to non-normal distributions and extreme outliers. Furthermore,
 Spearman's $rho$ can capture monotonic relationships that are not strictly
 linear (i.e. relationships that consistently increase or decrease, but not
 necessarily at a constant rate) @hauke2011, allowing correlations to be
 identified even when exponential degradation occurs.
-]
 
-#wc[
 === Code Verbosity and Complexity
 
 While this report's primary analysis is focused on comparing the performance of
@@ -1538,39 +1536,37 @@ supplemental static code analysis was performed to compare the pipeline
 implementations.
 
 _Lizard_ @lizard is a code complexity analyser that supports C++, Rust, and
-Python. It was utilised to determine: (1) the number of Lines of Code (LoC),
-quantifying how verbose each implementation is, and (2) the Cyclomatic
-Complexity (CC) @mccabe1976, quantifying the number of linearly independent
-paths that exist in each implementation's source code. By measuring the LoC and
-CC of identical backpressure and concurrency implementations in C++, Rust, and
-Python, this analysis provides a partial insight into each runtime model's
-development lifecycle overhead.
-]
+Python. It was utilised to determine: (1) the Number of Lines Of Code (NLOC)
+without comments and blank lines, quantifying how verbose each implementation
+is, and (2) the Cyclomatic Complexity Number (CCN) @mccabe1976, quantifying the
+number of linearly independent paths that exist in each implementation's source
+code. By measuring the NLOC and CCN of identical backpressure and concurrency
+implementations in C++, Rust, and Python, this analysis provides a partial
+insight into each runtime model's development lifecycle overhead.
 
-#wc[
 == Methodological Limitations
 
 === Memory Churn Asymmetry
 
-An asymmetry exists in the measurement of memory churn across the three
+An asymmetry exists in the measurement of dynamic memory allocation across the
 implementations. When overriding `operator new` and `operator delete` in C++,
-memory allocations made by third-party headers (e.g.
+allocations made by third-party headers (e.g.
 `moodycamel::BlockingConcurrentQueue`) are captured, but allocations made
 internally by pre-compiled shared libraries (e.g. `libonnxruntime.so`) are not.
-Similarly, in Rust, allocations made by wrapper crates (e.g. `ort`)
-are captured, but those in the underlying pre-compiled libraries are not.
+Similarly, in Rust, allocations made by wrapper crates (e.g. `ort`) are
+captured, but those in the underlying pre-compiled libraries are not.
 
-While C++, Rust, and Python all use ONNX Runtime's C-API, the Rust wrapper crate
-uses a newer version than that used by C++ and Python. Consequently, while all
-implementations use the same data structures to serialise data across the
-Foreign Function Interface (FFI) boundary, there may be differences in the
-memory management of the underlying C-API. An asymmetry also exists in the
-capture of memory allocation within Python's third-party C-extension bindings
-(e.g. `onnxruntime`), which do not use Python's memory manager and thus are not
-visible to the telemetry thread when using `sys.getallocatedblocks()`. While
-this asymmetry is a limitation when comparing memory churn across all three
-runtime models, the methodology mitigates this by using the RSS as a baseline
-that captures all memory demand regardless of its origin.
+Furthermore, while C++, Rust, and Python all utilise ONNX Runtime's C-API, the
+Rust wrapper crate uses a newer version than that used by C++ and Python.
+Consequently, while all implementations use similar data structures to serialise
+data across the Foreign Function Interface (FFI) boundary, there may be
+unmeasurable differences in the memory management of the underlying C-API. An
+asymmetry also exists in the capture of memory allocation within Python's
+third-party C-extension bindings (e.g. `onnxruntime`), which do not use Python's
+memory manager and thus are not visible to the telemetry thread. While this
+asymmetry is a limitation when comparing dynamic memory churn within third-party
+libraries, the methodology mitigates this by recording the RSS as a baseline
+that captures all memory demand regardless of its origin or allocator.
 
 === Read-Tearing and Misalignment
 
@@ -1627,14 +1623,13 @@ significantly confound the results.
 
 === Static Complexity Analysis
 
-Regarding the code verbosity and complexity analysis, metrics such as LoC and CC
-only consider the static source code, and do not consider the learning curve or
-cognitive complexity associated with each language (e.g. Rust's borrow checker
-and ownership model, C++'s manual memory management, or Python's dynamic
+Regarding the code verbosity and complexity analysis, metrics such as NLOC and
+CCN only consider the static source code, and do not consider the learning curve
+or cognitive complexity associated with each language (e.g. C++'s manual memory
+management, Rust's borrow checker and ownership model, or Python's dynamic
 typing). These can all significantly influence the development lifecycle
-overhead, and therefore LoC and CC should be interpreted as partial measurements
-of the engineering cost of language selection.
-]
+overhead, and therefore NLOC and CCN should be interpreted as partial
+measurements of the engineering cost of language selection.
 
 = Implementation
 
