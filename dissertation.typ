@@ -3118,9 +3118,9 @@ rights --- reducing developer friction, but shifting validation to runtime.
       table.header([*Pipeline\ Language*], [*Total\ NLOC*], [*Function\ Count*],
       [*Average\ CCN*], [*Max.\ CCN*]),
       table.hline(),
-      [*C++*],     [1,450],  [74],  [2.4],  [16],
-      [*Rust*],    [1,322],  [35],  [4.2],  [19],
-      [*Python*],  [1,031],  [41],  [3.2],  [19],
+      [*C++*],     [1,484],  [79],  [2.3],  [16],
+      [*Rust*],    [1,334],  [35],  [4.2],  [19],
+      [*Python*],  [1,026],  [41],  [3.2],  [19],
       table.hline()
     )
   ],
@@ -3358,17 +3358,17 @@ Number (CCN) for every function across the three pipeline implementations.
 
 == C++20
 #text(size: 7pt)[
-  #raw(read("code/pipeline-cpp/lizard.txt"), block: true, lang: "text")
+  #raw(read("terminal/lizard/cpp.txt"), block: true, lang: "text")
 ]
 
 == Rust 1.97.1
 #text(size: 7pt)[
-  #raw(read("code/pipeline-rust/lizard.txt"), block: true, lang: "text")
+  #raw(read("terminal/lizard/rust.txt"), block: true, lang: "text")
 ]
 
 == CPython 3.10.12
 #text(size: 7pt)[
-  #raw(read("code/pipeline-py/lizard.txt"), block: true, lang: "text")
+  #raw(read("terminal/lizard/python.txt"), block: true, lang: "text")
 ]
 
 #columns(2, gutter: 16pt)[
