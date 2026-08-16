@@ -693,18 +693,18 @@ software toolchains and environment variables remained consistent for all
 implementations. While Docker introduces some performance overhead, it was
 considered acceptable to ensure a consistent and reproducible environment for
 all implementations. Five Docker arguments were used for every container:
-`--ipc=host` to allow access to the host's shared memory, `--privileged` and
-`--runtime=nvidia` to allow access to the GPU and Jetson device nodes,
-`--cap-add=SYS_NICE` to prevent timing jitter by allowing real-time scheduling,
-and `--volume=$(pwd)/results:/results` to allow the container to write results
-to the host file-system.
+#box[`--ipc=host`] to allow access to the host's shared memory,
+#box[`--privileged`] and #box[`--runtime=nvidia`] to allow access to the GPU and
+Jetson device nodes, #box[`--cap-add=SYS_NICE`] to prevent timing jitter by
+allowing real-time scheduling, and #box[`--volume=$(pwd)/results:/results`] to
+allow the container to write results to the host file-system.
 
-The generator was detached, using the Docker argument `--detach`, so that it
-would execute in the background. To prevent context-switching overhead and
+The generator was detached, using the Docker argument #box[`--detach`], so that
+it would execute in the background. To prevent context-switching overhead and
 resource contention, the generator was pinned to the highest available core
-using its `--core` argument (core \5 in the unconstrained `MAXN_SUPER` mode, and
-core \3 in the constrained 7-Watt mode). The pipelines were restricted to the
-remaining cores above the Linux kernel (core \0) using Docker's
+using its #box[`--core`] argument (core \5 in the unconstrained `MAXN_SUPER`
+mode, and core \3 in the constrained 7-Watt mode). The pipelines were restricted
+to the remaining cores above the Linux kernel (core \0) using Docker's
 #box[`--cpuset-cpus`] argument (cores \1-\4 and cores \1-\2, respectively). This
 strategy ensured separation between data generation, pipeline execution, and OS
 interruptions.
@@ -779,11 +779,11 @@ The deterministic load generator and HAR pipelines were designed to allow
 seamless substitution of the generator with a physical hardware harness, using
 shared memory (`/dev/shm`) ring buffers as the communication boundary. A
 physical hardware test was initially planned. However, damage to the Jetson Orin
-Nano Developer Kit's MIPI CSI-2 ZIF connector during assembly prevented the
-connection of the Waveshare IMX219-160 Camera Module. Investigation revealed
-that these ZIF connectors are notoriously fragile, further validating the need
-for a deterministic generator to execute the high-stress evaluations required
-for this dissertation's research.
+Nano Developer Kit's MIPI CSI-2 Zero Insertion Force (ZIF) connector during
+assembly prevented the connection of the Waveshare IMX219-160 Camera Module.
+Investigation revealed that these ZIF connectors are notoriously fragile,
+further validating the need for a deterministic generator to execute the
+high-stress evaluations required for this dissertation's research.
 
 #figure(
   scope: "parent",
@@ -890,7 +890,7 @@ stream (\2.0 kHz).
       edge((0, 0), (0, 1), "-|>", stroke: (dash: "dashed")),
     )
   ],
-  caption: [Application of Little's Law to derive the bounded queue capacities
+  caption: [Application of Little's Law to derive the bounded queue capacities \
     from the data stream rates and the maximum latency deadline of \100 ms.
     #v(1.25em)],
 ) <fig:little-law>
@@ -922,7 +922,8 @@ saturation when the consumer buffer is full:
     new data.
   - *Drop Newest:* Drops incoming data when the buffer is full.
 
-*Policies that dynamically drop data while preserving temporal continuity:*
+*Policies that dynamically drop data while preserving \
+temporal continuity:*
   - *Adaptive Decimation:* Dynamically downsamples the data stream (i.e.
     queueing only every $n$-th frame) to reduce pressure on the consumer buffer
     while preserving the temporal continuity of the data. As the consumer buffer
@@ -1027,14 +1028,14 @@ update their own cache lines by fetching the refreshed data from higher-level
 shared caches or main memory.
 
 _False sharing_ occurs when an update to data held in a cache line causes other
-cores to invalidate their own cache lines, even if the data being read is
-otherwise unrelated to the data being written. For example, if a 32-byte
-structure is stored in RAM at address range 0x1000--0x1020, a CPU with 64-byte
-cache lines will store 64 bytes of data in its cache line covering the address
-range 0x1000--0x1040, even though the last 32 bytes are unrelated to the
-original structure. If those adjacent 32 bytes are updated, it will trigger a
-refresh of the entire 64-byte cache line, invalidating the first 32 bytes and
-forcing a read penalty.
+cores to invalidate their own cache lines, and the data being read is otherwise
+unrelated to the data being written. For example, if a 32-byte structure is
+stored in RAM at address range 0x1000--0x1020, a CPU with 64-byte cache lines
+will store 64 bytes of data in its cache line covering the address range
+0x1000--0x1040, even though the last 32 bytes are unrelated to the original
+structure. If those adjacent 32 bytes are updated, it will trigger a refresh of
+the entire 64-byte cache line, invalidating the first 32 bytes and forcing a
+read penalty.
 
 Because the shared memory buffers are held in contiguous memory, false sharing
 needed to be mitigated to prevent cache line invalidation of the header when
@@ -1045,9 +1046,8 @@ address to a 64-byte boundary, ensuring it would be cached in isolation.
 While the shared memory buffers are bound to one-second cycles, and consequently
 false sharing would occur only twice per second if 64-byte alignment were not
 enforced (once for the timestamp and once for the payload), ensuring cache
-isolation of the header reflects best engineering practice and prevents
-potential system degradation caused by future modifications to the
-implementation.
+isolation of the header is best engineering practice and prevents potential
+system degradation caused by future modifications to the implementation.
 
 == Memory Ordering
 
@@ -1173,9 +1173,9 @@ being adjusted. The following six timestamps, as visualised in
 
 To prevent Coordinated Omission as identified in @sec:coordinated-omission, the
 load generator is decoupled from the pipelines. By ensuring that it pushes to an
-unbounded ring buffer, it is never blocked when the System Under Test (SUT) is
-stalled, thus guaranteeing that `generated_ts` allows queueing delays and
-tail-latency to be accurately captured.
+unbounded ring buffer, it is never blocked when the system is stalled, thus
+guaranteeing that `generated_ts` allows queueing delays and tail-latency to be
+accurately captured.
 
 These timestamps provide five key latency measurements: _Unbounded Queue Wait_
 ($"bridged_ts" - "generated_ts"$), _Bounded Queue Wait_ ($"pipeline_in_ts" -
@@ -1260,13 +1260,12 @@ the same intervals as the latency measurements, allowing for correlation between
 memory churn under load and backpressure events. Three atomic operations
 (`std::atomic<size_t>` in C++, and `AtomicUsize` in Rust) were used to capture
 the total number of allocations, total bytes allocated, and total bytes freed.
-Relaxed memory ordering was used to prevent the "observer effect" from
-confounding the results by introducing additional latency. Though this may
-introduce nanosecond-level "read skew" when the telemetry thread reads the
-counters (i.e. the independent metrics are read slightly out of sync with each
-other), the telemetry thread only reads these metrics once a second, which
-renders this comparatively insignificant temporal drift statistically
-irrelevant.
+Relaxed memory ordering was used to prevent the observer effect from confounding
+the results by introducing additional latency. Though this may introduce
+nanosecond-level "read skew" when the telemetry thread reads the counters (i.e.
+the independent metrics are read slightly out of sync with each other), the
+telemetry thread only reads these metrics once a second, which renders this
+comparatively insignificant temporal drift statistically irrelevant.
 
 === GC Pressure (Python)
 
@@ -1347,30 +1346,15 @@ In addition, the C++ and Rust implementations used `mallinfo2()` to capture the
 process that is currently free, providing insight into the amount of fragmented
 memory that is allocated but not currently in use.
 
-=== System-Wide Memory Tracking
-
-In C++ and Rust, the dynamic memory allocation metrics were captured at a global
-level by overriding the system allocators. Similarly, the RSS and Python's GC
-pauses are process-wide metrics, rather than on a per-thread or per-sensor
-basis.
-
-Because the three concurrent telemetry threads operated on independent 1-second
-epochs, these global metrics were slightly desynchronised, resulting in minor
-recording variations between the three sensor logs. For this reason, only the
-RGB telemetry log was used to analyse the process-wide memory and GC metrics.
-While this introduces a small desynchronisation between the global metrics and
-the IMU latency measurements, the 1-second epoch is sufficiently long to ensure
-that the nanosecond-level desynchronisation is statistically irrelevant.
-
 === Event Synchronisation
 
 To ensure that identical event streams were processed by each implementation,
-without introducing startup jitter or missing initial events, an atomic
-variable (`pipeline_stage`) was integrated into each shared memory buffer
-header. This variable was initialised to $0$ (`WAITING`) by the generator, and
-set to a value of $1$ (`READY`) by the pipeline bridges once they were fully
-initialised and ready to receive data. The load generator spin-waited until all
-three pipelines were ready before starting to push data.
+without introducing startup jitter or missing initial events, an atomic variable
+(`pipeline_stage`) was integrated into each shared memory buffer header. This
+variable was initialised to $0$ (`WAITING`) by the generator, and set to a value
+of $1$ (`READY`) by the pipeline bridges once they were fully initialised and
+ready to receive data. The load generator spin-waited until all three pipelines
+were ready before starting to push data.
 
 The generator updated the `pipeline_stage` variables to $2$ (`FINISHED`) as each
 event stream was completed. Each pipeline bridge processed all remaining valid
@@ -1441,11 +1425,10 @@ inference result was held until the next RGB inference result was available.
 When the Jetson Orin Nano reaches the `hot_surface_alert` trip point of
 \74#sym.degree\C, it automatically engages the cooling fan. This is a
 hardware-level protection that cannot be disabled. If the fan fails to provide
-enough cooling, the device utilises reactive software thermal management
-(Dynamic Voltage and Frequency Scaling, or DVFS @jetsonLinuxDeveloperGuide) that
-constantly polls the temperature and throttles the performance of the high-power
-components (e.g. CPU and GPU) when the device exceeds operating temperature
-threshold at 99#sym.degree\C (see @app:thermal-zones).
+enough cooling, the device utilises reactive software thermal management (DVFS)
+that constantly polls the temperature and throttles the performance of the
+high-power components (e.g. CPU and GPU) when the device exceeds operating
+temperature threshold at 99#sym.degree\C (see @app:thermal-zones).
 
 The Jetson was configured to use the unconstrained power mode (MAXN_SUPER) using
 `nvpmodel -m 0`, and maximum clock overrides were enabled using `jetson_clocks`.
@@ -1566,8 +1549,8 @@ asymmetry also exists in the capture of memory allocation within Python's
 third-party C-extension bindings (e.g. `onnxruntime`), which do not use Python's
 memory manager and thus are not visible to the telemetry thread. While this
 asymmetry is a limitation when comparing dynamic memory churn within third-party
-libraries, the methodology mitigates this by recording the RSS as a baseline
-that captures all memory demand regardless of its origin or allocator.
+libraries, the methodology mitigates this by recording the RSS that captures all
+memory demand regardless of its origin or allocator.
 
 === Read-Tearing and Misalignment
 
@@ -1590,6 +1573,20 @@ architecture, which is sufficient to ensure that read-tearing would only be
 possible in the event of a major system stall (e.g. an extreme GC
 "stop-the-world" pause or severe thermal throttling event).
 
+=== Global Metrics Desynchronisation
+
+In C++ and Rust, the dynamic memory allocation metrics were captured at a global
+level by overriding the system allocators. Similarly, the RSS and Python's GC
+pauses are process-wide metrics, rather than on a per-thread or per-sensor
+basis.
+
+Because the three concurrent telemetry threads operated on independent 1-second
+epochs, these global metrics were slightly desynchronised, resulting in minor
+recording variations between the three sensor logs. For this reason, only the
+RGB telemetry log was used to analyse the process-wide memory and GC metrics.
+While this introduces a small desynchronisation between the global metrics and
+the IMU latency measurements, the 1-second epoch is sufficiently long to ensure
+that the nanosecond-level desynchronisation is statistically irrelevant.
 
 === Temporal Alignment of Late-Fusion
 
@@ -1605,9 +1602,9 @@ of load-shedding.
 This would need to be mitigated in a production environment by using a timestamp
 delta to bound the temporal window. However, this would introduce a confounder
 to this report's evaluation, as the workload would fluctuate according to
-language-specific overhead (such as garbage collection pauses in Python).
-Therefore, an inference counter was required to allow a true comparison of the
-overhead of the three runtime models under identical load conditions.
+language-specific overhead (such as GC pauses in Python). Therefore, an
+inference counter was required to allow a true comparison of the overhead of the
+three runtime models under identical load conditions.
 
 === Temporal Alignment of Telemetry
 
