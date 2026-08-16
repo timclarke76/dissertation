@@ -518,14 +518,14 @@ lost.
 
 Empirical evaluations of programming languages highlight a trade-off between
 execution speed, energy consumption, and memory footprint. In a comprehensive
-study of \27 programming languages, Pereira et al. (2017) @pereira2017energy
-showed that compiled languages typically  were the most performant, needed less
-memory, and were more energy efficient. Conversely, interpreted languages
-required the most memory, consumed the most energy, and were the slowest.
+study of \27 programming languages, Pereira et al. @pereira2017energy showed
+that compiled languages typically  were the most performant, needed less memory,
+and were more energy efficient. Conversely, interpreted languages required the
+most memory, consumed the most energy, and were the slowest.
 
 However, the reported results also indicated that execution speed and energy
 efficiency do not perfectly correlate with memory efficiency. For example, in
-the normalised results Rust performed second only to C in terms of energy
+the normalised results, Rust performed second only to C in terms of energy
 efficiency (1.03) and execution speed (1.04), but seventh (1.54) in terms of
 memory usage.
 
@@ -538,15 +538,14 @@ Software Weaknesses @mitre2025cwe, where memory-safety flaws such as
 out-of-bounds writes accounted for seven (28%) of the top \25 exploits.
 
 To address this, Rust's OBRM provides compile-time guarantees of memory safety
-without a GC. Xu et al. (2021) @xu2021memory analysed \186 real-world bug
-reports in Rust projects to determine how effectively OBRM prevents
-memory-safety bugs in practice. They found that all memory-safety bugs in the
-dataset, except one that was a compiler bug, were caused by developers using the
-`unsafe` keyword to bypass the compiler's memory safety checks. However, while
-Coblenz et al. (2023) @coblenz2023 found that developers generally understood
-the _concept_ of ownership, they struggled with the _semantics_ of references
-and borrowing. This introduces a trade-off between memory safety and developer
-cognitive load.
+without a GC. Xu et al. @xu2021memory analysed \186 real-world bug reports in
+Rust projects to determine how effectively OBRM prevents memory-safety bugs in
+practice. They found that all memory-safety bugs in the dataset, except one that
+was a compiler bug, were caused by developers using the `unsafe` keyword to
+bypass the compiler's memory safety checks. However, while Coblenz et al.
+@coblenz2023 found that developers generally understood the _concept_ of
+ownership, they struggled with the _semantics_ of references and borrowing. This
+introduces a trade-off between memory safety and developer cognitive load.
 
 == Backpressure Policies
 
@@ -572,14 +571,13 @@ would cause the latency threshold to be violated.
 If a data-processing pipeline evaluation only starts to measure latency when
 processing an event begins instead of when an event truly occurs, or when a
 producer is stalled due to the lack of the consumer's readiness to process data,
-it risks a phenomenon identified by Tene (2014) @tene2014 as _Coordinated
-Omission_. This failure to record the true time that an event occurs means that
-queue delays --- which may occur because of an OS context switch, a garbage
-collection pause, thermal throttling, etc. --- are not recorded, consequently
-reducing latency measurements. Furthermore, because fewer events are recorded
-when the system is throttled or stalled, low-latency events form the majority of
-the recorded dataset, making a system appear more performant than it actually
-is.
+it risks a phenomenon identified by Tene @tene2014 as _Coordinated Omission_.
+This failure to record the true time that an event occurs means that queue
+delays (which may occur because of OS context switches, garbage collection
+pauses, or thermal throttling) are not recorded, consequently reducing latency
+measurements. Furthermore, because fewer events are recorded when the system is
+throttled or stalled, low-latency events form the majority of the recorded
+dataset, making a system appear more performant than it actually is.
 
 Tene also warns against ignoring events beyond the 99th percentile, as doing so
 fails to expose the frequency and impact of systematic delays. While Tene
@@ -589,23 +587,23 @@ number of events ($< "10,000"$) that are generated during a one-second epoch.
 
 == The Research Gap
 
-While studies such as Pereira et al. (2017) @pereira2017energy have evaluated
-language efficiency, these benchmarks are typically conducted on standard
-desktop-class hardware. In contrast, studies that have evaluated the performance
-of Edge-AI pipelines @zhou2019 @peluso2019 have focused on the AI models
-themselves, ignoring how the host programming language impacts performance
-through its memory churn, GC pauses, and concurrency overhead.
+While studies such as Pereira et al. @pereira2017energy have evaluated language
+efficiency, these benchmarks are typically conducted on standard desktop-class
+hardware. In contrast, studies that have evaluated the performance of Edge-AI
+pipelines @zhou2019 @peluso2019 have focused on the AI models themselves,
+ignoring how the host programming language impacts performance through its
+memory churn, GC pauses, and concurrency overhead.
 
 At the time of the study conducted by Pereira et al., Rust's default memory
-allocator on some platforms (including the system used by Pereira et al.) was
+allocator on some platforms (including the system used by the authors) was
 `jemalloc` @evans2006jemalloc, which is designed for fast concurrent execution
 on multi-processor systems by maintaining multiple memory arenas. However, the
-Core Rust team acknowledged several drawbacks of using `jemalloc` @rustRfc1974,
-including adding \~300KB to binary sizes. RFC \1974 allowed users to change the
-global allocator, and in \2019 Rust 1.32.0 @rust1320 changed from `jemalloc` to
-the standard system allocator. This necessitates a re-evaluation of Rust's
-memory footprint, as the change in allocator may have impacted its memory and
-performance efficiency.
+Core Rust team acknowledged several drawbacks of using `jemalloc`, including
+adding \~300KB to binary sizes. Following RFC \1974 @rustRfc1974, which allowed
+developers to override the global allocator, Rust 1.32.0 @rust1320 changed from
+`jemalloc` to the standard system allocator. This necessitates a re-evaluation
+of Rust's memory footprint, as the change in allocator may have impacted its
+memory and performance efficiency.
 
 Studies that have proposed novel load-shedding techniques @li2020 @rivetti2016
 have not evaluated the impact of the runtime model on the performance of the
