@@ -274,36 +274,36 @@ work.
 == The Evolution of Edge Computing
 
 The late 1990s saw a growth of online multimedia that demanded a solution to
-tackle increased network congestion and latency. Karger et al. (1997)
-@karger1997 proposed a concept of _distributed caching protocols_ that evolved
-into modern-day _Content Delivery Networks_ (CDNs), ensuring that static content
+tackle increased network congestion and latency. Karger et al. @karger1997
+proposed a concept of _distributed caching protocols_ that evolved into
+modern-day _Content Delivery Networks_ (CDNs), ensuring that static content
 could be cached on servers located closer to end-users, thus reducing latency
 and bandwidth usage, especially during periods of high demand.
 
-\2007 saw the release of the iPhone, followed by the Android operating system in
-\2008, and the iPad and Windows Phone in \2010. These marked a rapid increase in
-the use of mobile devices, and created user demand for computationally intensive
-applications. However, as Satyanarayanan et al. (2009) @satyanarayanan2009
-established, "considerations such as weight, size, battery life, ergonomics, and
-heat dissipation exact a severe penalty in computational resources such as
-processor speed, memory size, and disk capacity." To bypass these physical
-limitations, they took the concept of CDNs further by proposing decentralised
-and widely dispersed _cloudlets_ --- servers located on the network edge and
-close to end-clients (e.g. in cafe premises) that run customised service
-software using hardware VM technology, thus allowing mobile devices to act as
-thin clients, overcoming hardware constraints without unacceptable latency and
+The release of the iPhone in \2007, followed by the Android operating system in
+\2008, and the Windows Phone in \2010, marked a rapid increase in the use of
+mobile devices, and created user demand for computationally intensive
+applications. However, as Satyanarayanan et al. @satyanarayanan2009 established,
+"considerations such as weight, size, battery life, ergonomics, and heat
+dissipation exact a severe penalty in computational resources such as processor
+speed, memory size, and disk capacity." To bypass these physical limitations,
+they took the concept of CDNs further by proposing decentralised and widely
+dispersed _cloudlets_ --- servers located on the network edge and close to
+end-clients (e.g. in cafe premises). By running customised service software
+using hardware VM technology, cloudlets allow mobile devices to act as thin
+clients. This overcomes hardware constraints without unacceptable latency and
 bandwidth usage that would be introduced if remote cloud servers were used.
 
 The next decade saw an explosive growth of the IoT, fuelled by the adoption in
-areas such as Fitness Wearables (the first Fitbit Tracker launched in \2009),
-Smart Home devices (Google acquired Nest Labs in \2014, and Amazon acquired Ring
+areas such as fitness wearables (the first Fitbit Tracker launched in \2009),
+smart home Devices (Google acquired Nest Labs in \2014, and Amazon acquired Ring
 LLC in \2018), and "dockless" bicycle-sharing schemes (Lime launched in \2017).
 Remote devices were no longer just data consumers, but had also become data
-producers. Shi et al. (2016) @shi2016 defined "edge" not as a specific device,
-but as any computing and networking resource along the path between the data
-source and the data centre. They recognised that the data bandwidth and
-centralised processing in traditional cloud computing were bottlenecks, arguing
-that data should be processed at the proximity of the data source.
+producers. Shi et al. @shi2016 defined "edge" not as a specific device, but as
+any computing and networking resource along the path between the data source and
+the data centre. They recognised that the data bandwidth and centralised
+processing in traditional cloud computing were bottlenecks, arguing that data
+should be processed at the proximity of the data source.
 
 At the same time, the integration of AI rapidly accelerated. While some
 applications were designed to run on remote cloud servers (e.g. ChatGPT,
@@ -313,16 +313,16 @@ processing to ensure safety and reduce dependence on available network bandwidth
 
 This transition to _Edge-AI_ required overcoming the hardware obstacles
 identified by Satyanarayanan et al. @satyanarayanan2009 and the network
-bottlenecks identified by Shi et al. (2016) @shi2016. Building on this, Zhou et
-al. (2019) @zhou2019 provided a comprehensive survey of recent research efforts
-in Edge Intelligence, and identified that physical proximity to the data source
-is critical to reducing monetary costs, latency, and the risk of privacy
-leakage. For evaluating the quality of Edge-AI inference, they highlighted
-latency, accuracy, energy consumption, privacy, and memory footprint. While
-communication overhead is eliminated by offline edge processing, latency, energy
-consumption, and memory overhead remain relevant to this dissertation. For
-example, backpressure policies may intentionally drop data to ensure system
-stability, sacrificing model accuracy to satisfy latency deadlines.
+bottlenecks identified by Shi et al. @shi2016. Building on this, Zhou et al.
+@zhou2019 provided a comprehensive survey of recent research efforts in Edge
+Intelligence, and identified that physical proximity to the data source is
+critical to reducing monetary costs, latency, and the risk of privacy leakage.
+For evaluating the quality of Edge-AI inference, they highlighted latency,
+accuracy, energy consumption, privacy, and memory footprint. While communication
+overhead is eliminated by offline edge processing, latency, energy consumption,
+and memory overhead remain relevant to this dissertation. For example,
+backpressure policies may intentionally drop data to ensure system stability,
+sacrificing model accuracy to satisfy latency deadlines.
 
 == Heterogeneous Devices and Power Constraints
 
@@ -338,16 +338,16 @@ Furthermore, they support the enabling technologies identified by Zhou et al.
 maximise inference speed.
 
 However, embedded devices with a small form factor generate significant heat
-when under sustained heavy load such as that generated by Edge-AI pipelines. To
-prevent hardware failure, the Jetson Orin Nano relies on Dynamic Voltage and
+when under sustained heavy loads, such as that generated by Edge-AI pipelines.
+To prevent hardware failure, the Jetson Orin Nano relies on Dynamic Voltage and
 Frequency Scaling (DVFS) @jetsonLinuxDeveloperGuide to reactively throttle the
 CPU and GPU speeds when thermal limits are reached. Furthermore, to adhere to
 power budgets, devices employ static power profiles that cap maximum clock
-frequencies. Peluso et al. (2019) @peluso2019 demonstrated that dynamic
-throttling introduces non-deterministic pipeline performance degradation, while
-power capping starves computational throughput. It can be concluded that to
-minimise premature throttling, the software architecture and language runtime
-model must be efficient by minimising unnecessary CPU and memory overhead.
+frequencies. Peluso et al. @peluso2019 demonstrated that dynamic throttling
+introduces non-deterministic pipeline performance degradation, while power
+capping starves computational throughput. It can be concluded that to minimise
+premature throttling, the software architecture and language runtime model must
+be efficient by minimising unnecessary CPU and memory overhead.
 
 == AI Acceleration
 
@@ -369,7 +369,7 @@ asynchronously from the host code and executed in parallel across many threads
 (using different data) on the device, enabling high-performance computing for AI
 workloads. The kernel _threads_ are grouped into _thread blocks_, which in turn
 are grouped into a _grid_. Each thread block is split into _warps_ of 32 threads
-that are executed in lock step on a single device _Streaming Multiprocessor_.
+that are executed in lockstep on a single device _Streaming Multiprocessor_.
 
 #figure(
   pad(top: 1em, bottom: 0.5em)[
@@ -471,9 +471,9 @@ over usage. However, this introduces risks of severe memory-safety bugs such as
 double-free and use-after-free, which can lead to undefined behaviour and
 security vulnerabilities.
 
-Rust is similarly an AOT compiled general-purpose language. In addition to high
+Rust is similarly an AOT-compiled general-purpose language. In addition to high
 performance and efficiency, it also provides memory safety. Rust achieves this
-by employing Ownership Based Resource Management (OBRM, more commonly referred
+by employing Ownership-Based Resource Management (OBRM, more commonly referred
 to as its ownership and borrowing model) which provides compile-time guarantees
 of memory safety --- every value has a single owner, and the compiler ensures
 that value references do not outlive their owners. This provides a strong
@@ -487,12 +487,12 @@ reading. CPython (the reference implementation) has a Foreign Function Interface
 Python is often used to automate tasks and for data analysis and machine
 learning. It utilises a GC, abstracting memory management to reduce cognitive
 load and the risk of memory-safety bugs, but at the cost of increased latency
-and unpredictable latency jitter due to "stop-the-world" GC events which pause
-the executable's threads to safely clean up memory. Latency is further impacted
-by CPython's Global Interpreter Lock (GIL), which prevents true concurrency
-across multiple CPU cores by ensuring only one thread is executed at any given
-time. However, C-extensions (such as ONNX) are not constrained by the GIL, as
-they can release the lock when performing long-running operations, allowing
+and unpredictable jitter due to "stop-the-world" GC events which pause the
+executable's threads to safely clean up memory. Latency is further impacted by
+CPython's Global Interpreter Lock (GIL), which prevents true concurrency across
+multiple CPU cores by ensuring only one thread executes Python bytecode at any
+given time. However, C-extensions (such as ONNX) are not constrained by the GIL,
+as they can release the lock when performing long-running operations, allowing
 underlying threads to execute concurrently on multiple cores.
 
 == Stream Processing & Backpressure
