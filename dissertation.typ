@@ -127,10 +127,10 @@ _Latency_ does not refer to network transmission time, but rather the processing
 time from when the sensor data is created to when the final AI prediction is
 completed. This includes queueing delays, inference time, and final fusion of
 the prediction. A deadline of 100 ms is chosen for the tri-stream HAR pipeline,
-based on what Xue et al. (2025) @xue2025 identified as the maximum allowable
-latency for effective real-time coaching feedback. _Throughput_ measures how
-many sensor events the pipeline can process per unit of time (e.g. per second)
-when under sustained load.
+based on what Xue et al. @xue2025 identified as the maximum allowable latency
+for effective real-time coaching feedback. _Throughput_ measures how many sensor
+events the pipeline can process per unit of time (e.g. per second) when under
+sustained load.
 
 Selecting a programming language for Edge-AI pipelines is often guided by
 developer familiarity or generalised benchmarks, rather than the evaluation of
