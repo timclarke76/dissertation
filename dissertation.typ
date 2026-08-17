@@ -1629,14 +1629,26 @@ measurements of the engineering cost of language selection.
 
 == System Architecture Overview
 
-To evaluate the language runtime models of C++, Rust, and Python, an identical
-multi-threaded HAR pipeline was implemented across all three languages. As shown
-in the end-to-end diagram in @fig:end_to_end, individual threads are responsible
-for each discrete stage (bridge, inference, late-fusion, and telemetry).
-Further, a separate chain of threads is spawned for each unbounded ring buffer
-(RGB, accelerometer, and gyroscope), with the exception of the late-fusion
-thread, which uses the Multi-Producer Single-Consumer (MPSC) pattern to fuse the
+To evaluate the language runtime models of C++, Rust, and Python, a functionally
+identical multi-threaded HAR pipeline was implemented across all three
+languages. As shown in the end-to-end diagram in @fig:end_to_end (overleaf),
+individual threads are responsible for each stage (bridge, inference,
+late-fusion, and telemetry). Further, a separate chain of threads is spawned for
+each unbounded ring buffer (RGB, accelerometer, and gyroscope), with the
+exception of the late-fusion thread, which uses the MPSC pattern to fuse the
 inference results from all three streams into one prediction.
+
+Each spawned thread chain begins at the *bridge thread*, which spin-waits on an
+unbounded shared memory (`/dev/shm`) ring buffer populated by an external
+process, defining the Inter-Process Communication (IPC) boundary. The bridge
+thread attempts to add ingested frames into a bounded queue, applying the
+configured backpressure policy (e.g. Adaptive Decimation, Drop Oldest) if the
+queue is full. The *inference thread* pulls frames from the bounded queue to
+create temporal event windows, execute the ONNX model, and push the result to
+the MPSC channel. The *late-fusion thread* consumes from the MPSC channel and
+anchors execution of its own ONNX model to the 30 Hz RGB stream, before finally
+passing the frames to the individual *telemetry threads* for persistence of the
+telemetry metrics.
 
 #figure(
   pad(top: 0em)[
@@ -1744,18 +1756,6 @@ inference results from all three streams into one prediction.
   ]
 ) <fig:end_to_end>
 
-Each spawned thread chain begins at the *Bridge Thread*, which spin-waits on an
-unbounded shared memory (`/dev/shm`) ring buffer populated by an external
-process, defining the Inter-Process Communication (IPC) boundary. The Bridge
-Thread attempts to add ingested frames into a bounded queue, applying the
-configured backpressure policy (e.g., Adaptive Decimation, Drop Oldest) to shed
-load if the queue is full. The *Inference Thread* pulls frames from the bounded
-queue to create temporal event windows, execute the ONNX model, and push the
-result to the MPSC channel. The *Late-Fusion Thread* consumes from the MPSC
-channel and anchors execution of its ONNX model to the 30 Hz RGB stream, before
-finally passing the frames to the individual *Telemetry Threads* for persistence
-of the telemetry metrics.
-
 == The Inter-Process Communication (IPC) Boundary
 
 Shared memory (`/dev/shm`) was employed for the unbounded ring buffer, allowing
@@ -1847,9 +1847,9 @@ respectively). However, Python required manual memory mapping via
           ]
       ```
     ],
-  caption: [IPC Boundary structure definitions. C++ (top) and Rust
-    (middle) use compiler directives for 64-byte alignment. Python (bottom)
-    requires manual padding.#v(1em)],
+  caption: [IPC Boundary structure definitions. C++ (top) and Rust (middle) use
+    compiler directives for 64-byte alignment. Python (bottom) requires manual
+    padding.#v(1em)],
 ) <lst:ipc-padding>
 
 Mapping the shared memory data to the process's virtual memory address space
@@ -1858,14 +1858,14 @@ handled in Python when instantiating the
 `multiprocessing.shared_memory.SharedMemory` class, C++ and Rust both required
 manual invocations of the `mmap` native UNIX system function. However, whereas
 the raw memory pointers in the compiled languages could be cast directly to the
-required structure with no overhead, Python transparently converts the raw
-bytes into native Python objects when accessing the fields of the
-`ctypes.Structure` @pythonCtypes. This adds CPU overhead that is not present in
-the compiled languages.
+required structure with no overhead, Python transparently converts the raw bytes
+into native Python objects when accessing the fields of the `ctypes.Structure`
+@pythonCtypes. This adds CPU overhead that is not present in the compiled
+languages.
 
-== Adaptive Decimation Backpressure Policy
+== Adaptive Decimation Backpressure Policy <sec:adaptive-decimation>
 
-When the bounded queue is full, the Bridge Thread uses a configured backpressure
+When the bounded queue is full, the bridge thread uses a configured backpressure
 policy (see @sec-backpressure). One policy available to the bridge, Adaptive
 Decimation, sheds load at a dynamic rate, while trying to retain temporal
 continuity, by downsampling the stream at an increasing rate as the queue enters
@@ -1873,12 +1873,12 @@ a configured "danger zone" (e.g. 80% of queue capacity) _before_ the queue is
 full.
 
 As shown in @fig:adaptive_decimation, after reading a frame from the unbounded
-ring buffer, the Bridge Thread determines if the length of the bounded queue is
+ring buffer, the bridge thread determines if the length of the bounded queue is
 within the danger zone. If so, a decimation ratio value is calculated based on a
-linear scale between the minimum and maximum ratios, and how far into the danger
-zone the queue length is. A counter is incremented for every frame, and frames
-are only pushed to the bounded queue when this counter is wholly divisible by
-the ratio. If the push is not successful then the frame is dropped.
+linear scale between the minimum and maximum ratios, and the current depth of
+the queue within the danger zone. A counter is incremented for every frame, and
+frames are only pushed to the bounded queue when this counter is wholly
+divisible by the ratio. If the push is unsuccessful, the frame is dropped.
 
 #figure(
   pad(top: 0.5em)[
@@ -1932,14 +1932,13 @@ the ratio. If the push is not successful then the frame is dropped.
 
 When implementing this algorithm across the three language runtime models, a
 subtle, yet potentially catastrophic, difference was found between the
-statically typed languages (C++ and Rust) and the dynamically typed Python.
-When calculating the ratio, the statically typed languages naturally truncated
-the result of the division to an integer. However, in Python, standard
-division (`/`) returns a floating-point value, which caused virtually all frames
-to be incorrectly dropped when performing the modulo operation. This subtle
-difference highlighted the risk of dynamic typing, and resolving this required
-the addition of a second forward-slash character to apply the floor-division
-operator (`//`).
+statically typed languages (C++ and Rust) and the dynamically typed Python. When
+calculating the ratio, the statically typed languages naturally truncated the
+result of the division to an integer. However, in Python, standard division
+(`/`) returns a floating-point value, which caused virtually all frames to be
+incorrectly dropped when performing the modulo operation. This subtle difference
+highlighted the risk of dynamic typing, and resolving this required the addition
+of a second forward-slash character to apply the floor-division operator (`//`).
 
 == Wait-Free Ingestion
 
@@ -1954,13 +1953,9 @@ time, before the previous instruction has completed) and to throttle the CPU for
 a few clock cycles, reducing power usage and generated heat.
 
 Conversely, there is no micro-architectural hint available in Python to yield to
-the CPU. Instead, an empty `pass` loop was utilised (see @lst:spin_loop), which
-aggressively spins and holds the Global Interpreter Lock (GIL). Though the
-Python loop remained functionally identical to the compiled languages, it does
-not reduce power usage or heat generation. In addition, because the thread is
-spinning in a tight loop, it aggressively holds the Global Interpreter Lock (GIL
---- a mutex that ensures only one Python thread executes at a time), starving
-the other threads of execution time and creating an architectural bottleneck.
+the CPU. Instead, an empty `pass` loop was utilised (see @lst:spin_loop). This
+forces the thread to spin tightly without yielding to the CPU, holding the GIL
+and starving the other threads of execution time.
 
 #figure(
   pad(top: 1em)[
@@ -1994,7 +1989,7 @@ the other threads of execution time and creating an architectural bottleneck.
   ],
   caption: [Wait-free spin-loop implementations. C++ (top) and Rust (middle) use
     micro-architectural hints to pause execution. Python (bottom) instead relies
-    on an empty `pass` loop that holds the Global Interpreter Lock (GIL).
+    on an empty `pass` loop that holds the GIL.
     #v(1em)]
 ) <lst:spin_loop>
 
@@ -2002,40 +1997,40 @@ the other threads of execution time and creating an architectural bottleneck.
 
 Channels were required to enable communication between the inference and
 late-fusion threads, and the late-fusion and telemetry threads. The former uses
-a Multi-Producer Single-Consumer (MPSC) channel --- multiple producers (the
-inference threads) push data into the channel to be pulled by one consumer (the
-late-fusion thread). The latter uses a Single-Producer Single-Consumer (SPSC)
-channel --- one producer (the late-fusion thread) pushes data into the channel,
-to be pulled by one consumer (the telemetry thread).
+an MPSC channel, where multiple producers (the inference threads) push data into
+the channel to be pulled by one consumer (the late-fusion thread). The latter
+uses a Single-Producer Single-Consumer (SPSC) channel, where one producer (the
+late-fusion thread) pushes data into the channel, to be pulled by one consumer
+(the telemetry thread).
 
-Rust provides a memory-safe bounded channel via `std::sync::mpsc`. However,
-C++ required a third-party library (moodycamel::BlockingConcurrentQueue).
-Because this implementation is unbounded and dynamically allocates memory to
-grow, a `std::counting_semaphore` was utilised to enforce a maximum capacity,
-satisfying the zero-allocation pipeline requirement.
+Rust provides a memory-safe bounded channel via `std::sync::mpsc`. However, C++
+required a third-party library (moodycamel::BlockingConcurrentQueue). Because
+this implementation is unbounded and dynamically allocates memory to grow, a
+`std::counting_semaphore` was utilised to enforce a maximum capacity, satisfying
+the zero-allocation pipeline requirement.
 
-The Python channel implementation utilised the standard library's
-`queue.Queue`. This class uses mutexes to lock the queue, preventing thread
-contention each time an attempt is made to push or pull from the channel. This
-constant locking and unlocking introduces context-switching (which in turn
-introduces latency and jitter), and thrashes the GIL, degrading performance of
-other threads as they are starved of execution time.
+The Python channel implementation utilised the standard library's `queue.Queue`.
+This class uses mutexes to lock the queue, preventing race conditions each time
+an attempt is made to push or pull from the channel. This constant locking and
+unlocking introduces context-switching (which in turn introduces latency and
+jitter), and thrashes the GIL, degrading performance of other threads as they
+are starved of execution time.
 
-=== Bounded Queue Locking
+== Bounded Queue Locking
 
-The bounded buffer queue is shared between the bridge and inference threads ---
-the former pushes data into the queue, and the latter pops data from it. This
-required the use of a mutex lock to enforce memory safety and to guarantee
+The bounded buffer queue is shared between the bridge and inference threads,
+where the former pushes data into the queue, and the latter pops data from it.
+This required the use of a mutex lock to enforce memory safety and to guarantee
 mutual exclusion. In C++ and Python, the locks were implemented as member
 variables of the `Queue` class (`std::mutex` and `threading.Lock`,
-respectively). While C++ uses Resource Acquisition Is Initialisation (RAII),
-and Python uses a context manager to set up and tear down the mutex
-automatically, neither offers enforced linking of the lock to the queue.
-Conversely, Rust's `std::sync::Arc<Mutex<T>>` combines compiler-enforced RAII
-and data ownership, guaranteeing that the queue cannot be accessed without first
-acquiring the lock guard.
+respectively). While C++ uses Resource Acquisition Is Initialisation (RAII), and
+Python uses a context manager to set up and tear down the mutex automatically,
+neither offers enforced linking of the lock to the queue. Conversely, Rust's
+`std::sync::Arc<Mutex<T>>` combines compiler-enforced RAII and data ownership,
+guaranteeing that the queue cannot be accessed without first acquiring the lock
+guard.
 
-=== Zero-Allocation Telemetry
+== Zero-Allocation Telemetry
 
 To prevent the telemetry thread from becoming a confounder of the results that
 are being measured (i.e. the "observer effect"), it was designed to be
@@ -2047,15 +2042,15 @@ pointer to the active epoch is swapped with a pointer to a clean epoch, with no
 I/O latency or dynamic memory allocation.
 
 #figure(
-  pad(top: 1em)[
+  pad(top: 0.5em)[
     ```cpp
     void
     TelemetryWriter::swap_buffers()
     {
+      last_swap_ = std::chrono::steady_clock::now();
       auto next_epoch_opt = receiver_.try_receive();
 
       if (next_epoch_opt.has_value()) {
-        last_swap_ = std::chrono::steady_clock::now();
         sender_.send(std::move(current_epoch_));
         current_epoch_ = std::move(next_epoch_opt.value());
       }
@@ -2063,20 +2058,22 @@ I/O latency or dynamic memory allocation.
     ```
     ```rust
     fn swap_buffers(&mut self) -> Result<()> {
-      if let Ok(mut epoch) = self.receiver.try_recv() {
         self.last_swap = Instant::now();
-        std::mem::swap(&mut self.current_epoch,
-          &mut epoch);
-        self.sender.send(epoch)?;
-      }
-      Ok(())
+
+        if let Ok(mut epoch) = self.receiver.try_recv() {
+            std::mem::swap(&mut self.current_epoch,
+              &mut epoch);
+            self.sender.send(epoch)?;
+        }
+
+        Ok(())
     }
     ```
     ```python
     def swap_buffers(self):
+        self.last_swap = time.perf_counter_ns()
         epoch = self.receiver.try_receive()
         if epoch != None:
-            self.last_swap = time.perf_counter_ns()
             self.sender.send(self.current_epoch)
             self.current_epoch = epoch
     ```
@@ -2084,72 +2081,15 @@ I/O latency or dynamic memory allocation.
   caption: [The C++ (top), Rust (middle), and Python (bottom) implementations of
     the zero-allocation telemetry thread buffer swap. The hot thread pushes the
     current epoch to the telemetry thread, and swaps in a clean epoch for the
-    next telemetry cycle.#v(1em)]
+    next telemetry cycle.#v(4em)]
 ) <lst:triple-buffering>
 
-To measure memory efficiency without the overhead of third-party tools, the C++
-and Rust memory allocators were overridden. As shown in @lst:memory-alloc, the
-global memory allocation and deallocation functions were overridden, and relaxed
-memory ordering used to prevent unnecessary stalls of the pipeline.
+To measure Python's GC jitter, the GC callback hook was utilised, as shown in
+@lst:gc-callback. This allows the duration of "stop-the-world" events to be
+measured without the overhead of `tracemalloc` or other monitoring tools.
 
 #figure(
-  pad(top: 1em)[
-    ```cpp
-    void*
-    operator new(std::size_t count)
-    {
-      telemetry::allocated_bytes.fetch_add(count,
-        std::memory_order_relaxed);
-      telemetry::allocation_count.fetch_add(1,
-        std::memory_order_relaxed);
-
-      if (void* ptr = std::malloc(count)) {
-        return ptr;
-      }
-
-      throw std::bad_alloc{};
-    }
-
-    void
-    operator delete(void* ptr, std::size_t count) noexcept
-    {
-      telemetry::freed_bytes.fetch_add(count,
-        std::memory_order_relaxed);
-      std::free(ptr);
-    }
-    ```
-    ```rust
-    unsafe impl GlobalAlloc for TrackingAllocator {
-      unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        ALLOCATED_BYTES.fetch_add(layout.size(),
-          Ordering::Relaxed);
-        ALLOCATION_COUNT.fetch_add(1, Ordering::Relaxed);
-        unsafe { System.alloc(layout) }
-      }
-
-      unsafe fn dealloc(&self, ptr: *mut u8,
-        layout: Layout) {
-        FREED_BYTES.fetch_add(layout.size(),
-          Ordering::Relaxed);
-        unsafe { System.dealloc(ptr, layout) }
-      }
-    }
-
-    #[global_allocator]
-    static GLOBAL: TrackingAllocator = TrackingAllocator;
-    ```
-  ],
-  caption: [Overriding the global memory allocation and deallocation functions
-    in C++ (top) and Rust (bottom) to capture memory allocation metrics.#v(1em)]
-) <lst:memory-alloc>
-
-To measure Python's garbage collection (GC) jitter, the GC callback hook was
-utilised, as shown in @lst:gc-callback. This allows the duration of
-"stop-the-world" events to be measured without the overhead of `tracemalloc` or
-other monitoring tools.
-
-#figure(
-  pad(top: 1em)[
+  pad(top: 0.5em)[
     ```python
     def gc_callback(phase, info):
       global pause_ns
@@ -2163,9 +2103,85 @@ other monitoring tools.
     gc.callbacks.append(gc_callback)
     ```
   ],
-  caption: [Capturing the duration spent in the Python Garbage \
-    Collector (GC) using the `gc.callbacks` hook.#v(1em)]
+  caption: [Capturing the duration spent in the \
+    Python GC using the `gc.callbacks` hook.#v(1em)]
 ) <lst:gc-callback>
+
+#colbreak()
+
+To measure memory efficiency without the overhead of third-party tools, the C++
+and Rust memory allocators were overridden (@lst:memory-alloc), and relaxed
+memory ordering was used to prevent unnecessary stalls of the pipeline.
+
+#figure(
+  pad(top: 0.5em)[
+    ```cpp
+    void*
+    operator new(std::size_t count)
+    {
+      if (telemetry::track_allocations) {
+        telemetry::allocated_bytes.fetch_add(count,
+          std::memory_order_relaxed);
+        telemetry::allocation_count.fetch_add(1,
+          std::memory_order_relaxed);
+      }
+
+      if (void* ptr = std::malloc(count)) {
+        return ptr;
+      }
+
+      throw std::bad_alloc{};
+    }
+
+    void
+    operator delete(void* ptr, std::size_t count) noexcept
+    {
+      if (telemetry::track_allocations) {
+        telemetry::freed_bytes.fetch_add(count,
+          std::memory_order_relaxed);
+      }
+
+      std::free(ptr);
+    }
+    ```
+    ```rust
+    unsafe impl GlobalAlloc for TrackingAllocator {
+
+      unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+          let track = TRACK_ALLOCATIONS.try_with(|t|
+            t.get()).unwrap_or(true);
+
+          if track {
+              ALLOCATED_BYTES.fetch_add(layout.size(),
+                Ordering::Relaxed);
+              ALLOCATION_COUNT.fetch_add(1,
+                Ordering::Relaxed);
+          }
+ 
+          unsafe { System.alloc(layout) }
+      }
+  
+      unsafe fn dealloc(&self, ptr: *mut u8,
+        layout: Layout) {
+          let track = TRACK_ALLOCATIONS.try_with(|t|
+            t.get()).unwrap_or(true);
+
+          if track {
+              FREED_BYTES.fetch_add(layout.size(),
+                Ordering::Relaxed);
+          }
+
+          unsafe { System.dealloc(ptr, layout) }
+      }
+    }
+
+    #[global_allocator]
+    static GLOBAL: TrackingAllocator = TrackingAllocator;
+    ```
+  ],
+  caption: [Overriding the global memory allocation and deallocation functions
+    in C++ (top) and Rust (bottom) to capture memory allocation metrics.#v(1em)]
+) <lst:memory-alloc>
 ]
 #pagebreak()
 #columns(1)[
