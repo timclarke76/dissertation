@@ -2190,21 +2190,21 @@ memory ordering was used to prevent unnecessary stalls of the pipeline.
 
 To prevent cold-start initialisation from skewing the steady-state measurements,
 the first 10 seconds of all telemetry logs were excluded from the diagrams and
-analyses unless otherwise stated. Similarly, unless other stated all evaluations
-were performed in MAXN_SUPER power mode (`nvpmodel -m 2`).
+analyses unless otherwise stated. Similarly, unless otherwise stated, all
+evaluations were performed in MAXN_SUPER power mode (`nvpmodel -m 2`).
 
 == Baseline Performance (MAXN_SUPER) <sec:baseline-performance>
 
-With MAXN SUPER mode enabled (@fig:MAXN_SUPER-baseline-performance), C++
-sustained ingestion without absolute saturation up to a `load` multiplier of
-\4.0 for the Bounded Queue policy, and \5.5 for Exponential Backoff. Rust was
-able to process both flow control policies at \5.5. For the load shedding
-policies (Drop Oldest and Drop Newest) and Adaptive Decimation, both compiled
-languages were able to process the data streams at \1.0, but reached absolute
-saturation at higher `load` multipliers.
+With MAXN_SUPER mode enabled (@fig:MAXN_SUPER-baseline-performance), both C++
+and Rust were able to sustain ingestion without absolute saturation up to a
+`load` multiplier of \4.0 for the Bounded Queue policy, and \5.5 for Exponential
+Backoff. For the load-shedding policies (Drop Oldest and Drop Newest) and
+Adaptive Decimation, C++ was able to process the data streams at \1.25. Rust
+successfully processed both load-shedding policies at \1.5, and Adaptive
+Decimation at \1.0.
 
-Conversely, Python was only able to process the data streams at \5% (`load`
-multiplier of \0.05) when Exponential Backoff was used. Absolute saturation was
+Conversely, Python was only able to process the data streams at \4% (`load`
+multiplier of \0.04) when Exponential Backoff was used. Absolute saturation was
 reached at < \0.01 for all other backpressure policies.
 
 #figure(
@@ -2218,10 +2218,10 @@ reached at < \0.01 for all other backpressure policies.
 The \99.9th percentile latency distribution was analysed using the Exponential
 Backoff backpressure policy, when every implementation was at its most efficient
 (@fig:MAXN_SUPER-cdf-5_5). This represents the maximum measured throughput
-sustained by both compiled languages, without breaching the \100 ms latency
-deadline. Despite using the same backpressure policy, and not dropping any
-frames, Python consistently breached the deadline --- typically operating at
-several times slower than required, and with a maximum latency of \778.0 ms.
+sustained by both compiled languages without breaching the \100 ms latency
+deadline. Despite using the same backpressure policy and not dropping any
+frames, Python consistently breached the deadline (often with a latency several
+times greater than the 100 ms limit), with a maximum latency of \954.7 ms.
 
 #figure(
   pad(top: 1em)[
@@ -2233,18 +2233,18 @@ several times slower than required, and with a maximum latency of \778.0 ms.
 
 #colbreak()
 
-The \99.9th latency distribution was also analysed using the Exponential Backoff
-backpressure policy at a `load` multiplier of \7.0 (@fig:MAXN_SUPER-cdf-7_0) ---
-the lowest measured throughput at which the compiled languages breached the 100
-ms latency deadline. Python was omitted as its maximum throughput measured
-without breaching the deadline was at a `load` multiplier of \0.05, making it
-incomparable when `load` is increased to \7.0.
+The \99.9th percentile latency distribution was also analysed using the
+Exponential Backoff backpressure policy at a `load` multiplier of \7.0
+(@fig:MAXN_SUPER-cdf-7_0), which represents the lowest measured throughput at
+which the compiled languages breached the 100 ms latency deadline. Python was
+omitted because its maximum sustainable throughput was reached at a `load`
+multiplier of \0.04, making it incomparable when `load` is increased to \7.0.
 
 While the flow-control policy does prevent data loss (until the 1-second unbound
 circular buffer laps), it does so at the cost of increased queue accumulation
-and increasing the actual latency beyond the \100 ms deadline. \76.9% of the C++
-epochs breached the deadline with a maximum latency of \173.7 ms, compared to
-\56.5% of the Rust epochs with a maximum latency of \171.2 ms.
+and latency exceeding the \100 ms deadline. Specifically, \90.6% of the C++
+epochs breached the deadline with a maximum latency of \177.7 ms, compared to
+\92.3% of the Rust epochs with a maximum latency of \174.7 ms.
 
 #figure(
   pad(top: 1em)[
@@ -2258,14 +2258,14 @@ epochs breached the deadline with a maximum latency of \173.7 ms, compared to
 
 Using the Exponential Backoff policy, the individual sensor streams were
 analysed to determine the maximum `load` multiplier that each stream could
-sustain without dropping frames. As a whole, both compiled implementations
-achieved a maximum `load` of \5.5 (@sec:baseline-performance).
+sustain without dropping frames. Both compiled implementations achieved a
+maximum `load` of \5.5 (@sec:baseline-performance).
 
-As demonstrated in @fig:MAXN_SUPER-stream-saturation, this failure is isolated
-to the RGB stream. While the pipelines began to drop frames from the \30 Hz RGB
-stream when the `load` exceeded \5.5, both the \1.6 kHz Accelerometer stream and
-\2.0 kHz Gyroscope stream successfully sustained ingestion without data loss up
-to the maximum tested `load` multiplier of \8.5.
+As demonstrated in @fig:MAXN_SUPER-stream-saturation, this throughput limitation
+is isolated to the RGB stream. While the pipelines began to drop frames from the
+\30 Hz RGB stream when the `load` exceeded \5.5, both the \1.6 kHz Accelerometer
+stream and \2.0 kHz Gyroscope stream successfully sustained ingestion without
+data loss up to the maximum tested `load` multiplier of \20.0.
 
 #figure(
   pad(top: 1em)[
@@ -2281,29 +2281,28 @@ to the maximum tested `load` multiplier of \8.5.
 == Latency Breakdown
 
 The overall pipeline latency was broken down into its five stages, and the
-average median (p50) calculated. Summing the deep tail percentiles (e.g. the
+average median (p50) was calculated. Summing the deep tail percentiles (e.g. the
 \99.9th) across all stages would be misleading, as it would assume that the
-worst-case latency of each stage occurs for a single frame, which would
+worst-case latency of every stage occurs on the exact same frame, which would
 misrepresent the actual latency of the typical frame. The Exponential Backoff
-policy was selected, with a `load` of \0.05, as this was the maximum throughput
-speed that all three implementations were able to sustain without dropping
-frames.
+policy was selected, with a `load` of \0.04, as this was the maximum throughput
+that all three implementations were able to sustain without dropping frames.
 
 As @fig:MAXN_SUPER-latency-breakdown shows, C++ and Rust both completed the
-pipeline well within the \100 ms deadline (\7.8 ms and \7.3 ms respectively),
-with the Inference Execution stage taking the majority of that time (\5.9 ms for
-C++, and \5.2 ms for Rust). Conversely, Python's total average median latency
-breached the \100 ms deadline (\105.2 ms), with the majority of that time spent
-with frames waiting in the unbounded circular buffer (\31.9 ms) or the bounded
-queue buffer (\28.2 ms). The Inference Execution stage (\22.5 ms) was also
-significantly slower than the compiled languages.
+pipeline well within the \100 ms deadline (\7.6 ms and \7.3 ms respectively),
+with the inference execution stage taking the majority of that time (\5.7 ms for
+C++, and \5.6 ms for Rust). Conversely, Python's total average median latency
+breached the \100 ms deadline (\105.1 ms), with a significant portion of that
+time spent with frames waiting in the unbounded circular buffer (\24.3 ms) or
+the bounded queue buffer (\24.4 ms). The inference execution stage (\24.3 ms)
+was also significantly slower than in the compiled languages.
 
 #figure(
   pad(top: 1em)[
     #image("code/results/img/MAXN_SUPER-latency-breakdown.pdf", width: 85%)
   ],
   caption: [Stage-by-stage median (p50) latency breakdown for the RGB stream at
-    `load` \0.05 using the Exponential Backoff backpressure policy.],
+    `load` \0.04 using the Exponential Backoff backpressure policy.],
 ) <fig:MAXN_SUPER-latency-breakdown>
 
 == Flow Control vs. Load Shedding
@@ -2312,17 +2311,18 @@ To compare the total number of dropped or lapped frames between flow-control and
 load-shedding policies, the most efficient flow-control policy (Exponential
 Backoff) was contrasted against the two most pure load-shedding policies: Drop
 Oldest and Drop Newest. These policies both drop frames when the bounded queue
-is full, without trying to prevent it filling to capacity by dynamically
+is full, without trying to prevent it from filling to capacity by dynamically
 adjusting the flow-rate. Rust was the most efficient implementation, and so was
 selected for this comparison. A `load` multiplier of \2.5 was used as it is the
-lowest measured multiplier at which both load-shedding policies dropped frames.
+lowest measured multiplier at which both load-shedding policies dropped frames
+and showed significant divergence during the evaluation period.
 
 As shown in @fig:MAXN_SUPER-dropped-frames, the Exponential Backoff flow-control
 policy was able to fully absorb the latency jitter by taking advantage of the
 \1-second unbounded buffer. In contrast, the load-shedding policies dropped
-frames to maintain the \100 ms latency deadline. The Drop Newest policy recorded
-a total of \21 dropped frames over the \600 second evaluation period, while the
-Drop Oldest policy recorded \56 dropped frames.
+frames to maintain the \100 ms latency deadline. The Drop Oldest policy recorded
+a total of \11 dropped frames over the \600-second evaluation period, while the
+Drop Newest policy recorded \57 dropped frames.
 
 #figure(
   pad(top: 0.5em)[
@@ -2339,8 +2339,8 @@ Drop Oldest policy recorded \56 dropped frames.
 While flow-control policies excel at preventing data-loss when experiencing
 jitter, load-shedding policies sacrifice the data to meet the latency deadline.
 As shown in @fig:MAXN_SUPER-latency-comparison, the impact of retaining stale
-data to prevent loss caused forced the majority of epochs (\56.5%) to breach the
-100 ms latency deadline. Conversely, by dropping frames and preventing a growing
+data to prevent loss forced the majority of epochs (\92.3%) to breach the \100
+ms latency deadline. Conversely, by dropping frames and preventing a growing
 backlog, the load-shedding policies guarantee that surviving frames are
 processed within the deadline.
 
@@ -2360,85 +2360,87 @@ the Adaptive Decimation policy was compared. By dynamically downsampling the
 incoming stream before the bounded buffer reaches full capacity, the policy
 reduces volume pressure while maintaining temporal continuity. However,
 preserving the temporal continuity sacrifices a substantial number of frames ---
-\675 frames were dropped over the 600 second evaluation period (not shown in
+\522 frames were dropped over the 600-second evaluation period (not shown in
 @fig:MAXN_SUPER-dropped-frames to preserve visual clarity). In addition, total
-latency increased compared to the Drop Oldest policy, though was lower than that
-achieved by Drop Newest. Because Adaptive Decimation and Drop Newest both drop
-incoming frames, the existing frames in the bounded buffer continue to age while
-waiting to be processed. Conversely, Drop Oldest drops the oldest data from the
-bounded buffer, guaranteeing that the freshest data survives.
-
-#colbreak()
+latency increased compared to the Drop Oldest policy, though it was lower than
+that achieved by Drop Newest. Because Adaptive Decimation and Drop Newest both
+drop incoming frames, the existing frames in the bounded buffer continue to age
+while waiting to be processed. Conversely, Drop Oldest drops the oldest data
+from the bounded buffer, guaranteeing that the freshest data survives.
 
 == Memory Overhead <sec:memory-overhead>
 
 To investigate the impact of Python's automated memory management on deadline
 adherence, the maximum latency was plotted for all three implementations,
 alongside the recorded duration of Python's Garbage Collection (GC) pauses. A
-`load` multiplier of \0.05 was selected, with a policy of Exponential Backoff,
+`load` multiplier of \0.04 was selected, with a policy of Exponential Backoff,
 as this was the maximum throughput measured that all three implementations were
 able to sustain without the loss of data. The initial 60-second window, as
 illustrated in @fig:MAXN_SUPER-python-gc, captures the initialisation phase and
 the subsequent steady-state, while retaining visual clarity.
 
 C++ and Rust demonstrated stable maximum latencies below the 100 ms deadline
-during the initialisation phase (\27.5 ms and \34.0 ms, respectively) and the
-subsequent steady-state phase (\36.8 ms and \46.1 ms, respectively), with ranges
-of \14.2 ms and \20.0 ms respectively during initialisation, and \32.0 ms and
-\41.4 ms respectively during steady-state.
+during the initialisation phase (\18.8 ms and \31.6 ms, respectively) and the
+subsequent steady-state phase (\42.3 ms and \40.9 ms), with ranges of \37.6 ms
+and \32.1 ms respectively during steady-state.
 
-During the initialisation phase, Python exhibited a maximum latency of \683.1
-ms, with a range of \636.6 ms. During the subsequent steady-state phase, maximum
-latency increased to \2,652.9 ms, and the latency range increased to \2,627.3
-ms. Python's "stop-the-world" GC events were confined to only the first few
-seconds of the \60-second window. This was confirmed by a Spearman's rank
-correlation ($rho$) across the steady-state window, which produced an undefined
-result (`NaN`) due to no GC events occurring during that time.
+During the initialisation phase, Python exhibited a maximum latency of \844.6
+ms. During the subsequent steady-state phase, the maximum latency increased to
+\993.0 ms, and the latency range increased to \948.9 ms. Python's
+"stop-the-world" GC events were confined to the first few seconds of the
+\60-second window. This was confirmed by a Spearman's rank correlation ($rho$)
+across the steady-state window, which produced an undefined result (`NaN`) due
+to no GC events occurring during that time.
 
 #figure(
-  pad(top: 1.5em)[
-    #image("code/results/img/python_gc_jitter.pdf", width: 85%)
+  pad(top: 0.5em)[
+    #image("code/results/img/MAXN_SUPER-python-gc.pdf", width: 85%)
   ],
   caption: [Maximum latency vs. GC pause duration over the first \60 seconds
     of execution. #v(3.5em)],
 ) <fig:MAXN_SUPER-python-gc>
 
-To further evaluate the resource efficiency of the runtime models, the Resident
-Set Size (RSS) was measured under the heaviest load conditions that both
-compiled languages were able to sustain without dropping frames (Exponential
-Backoff, `load` \5.5).
+#colbreak()
+
+To further evaluate the resource efficiency of the runtime models, the RSS was
+measured under the heaviest load conditions that both compiled languages were
+able to sustain without dropping frames (Exponential Backoff, `load` \5.5).
 
 As demonstrated in the left panel of @fig:MAXN_SUPER-memory-profiling, the
-overall memory footprint remained consistent across all three implementations,
-with C++, Rust, and Python stabilising at approximately \743.2 MB, \746.5 MB,
-and \782.0 MB respectively. This was confirmed by a Spearman's rank correlation
-($rho$) comparing dynamic memory allocation and CPU temerature across the
-steady-state window , which produced an undefined result (`NaN`) for both
-implementations due to no dynamic memory allocation occurring during that time.
+overall memory footprint remained consistent for C++ and Rust, which stabilised
+at approximately \748.3 MB and \745.6 MB, respectively. Conversely, Python's
+memory footprint had a step-increase at approximately \250 seconds, stabilising
+at \793.8 MB. Because a load of \5.5 greatly exceeds Python's maximum
+sustainable throughput of \0.04, the step-up suggests internal memory
+fragmentation.
 
 The right panel of @fig:MAXN_SUPER-memory-profiling demonstrates the cumulative
 dynamic memory allocations of the C++ and Rust implementations in the pipeline.
 Following the 10-second initialisation phase, there was no dynamic memory
-allocation for either implementation.
+allocation for either implementation. This was confirmed by a Spearman's rank
+correlation ($rho$) comparing dynamic memory allocation and CPU temperature
+across the steady-state window, which produced an undefined result (`NaN`) for
+both implementations due to no dynamic memory allocation occurring during that
+time.
 
 #figure(
   pad(top: 2.5em)[
     #image("code/results/img/MAXN_SUPER-memory-profiling.pdf", width: 95%)
   ],
   caption: [Memory profiling during steady-state execution. The left
-    panel compares the Resident Set Size (RSS) footprint. \
+    panel compares the RSS footprint. \
     The right panel shows the total dynamic memory allocations by the C++ and
     Rust implementations. #v(3.5em)],
 ) <fig:MAXN_SUPER-memory-profiling>
 
-
 Heap fragmentation using the `fordblks` field from `mallinfo2()` was also
 measured to evaluate the long-term stability of the runtime models and the
 effectiveness of the zero-allocation architecture. The recorded telemetry showed
-that heap fragmentation was negligible for both C++ (\8.2 KB) and Rust (\9.9
-KB). Both coupled with RSS footprints of over \740 MB, and steady-state dynamic
-allocation rates of \0.0 Bytes/second, this proves that both implementations
-were able to sustain the load without memory churn or fragmentation.
+that heap fragmentation during the steady state was negligible for both C++
+(\5.0 KB) and Rust (\10.6 KB). Coupled with RSS footprints of under \750 MB, and
+steady-state dynamic allocation rates of \0.0 Bytes/second, this proves that
+both implementations were able to sustain the load without memory churn or
+fragmentation.
 
 #colbreak()
 
@@ -2490,33 +2492,34 @@ deadline.
 == Thermal Accumulation
 
 During the evaluations, the Jetson Orin Nano's emergency fan cooling prevented
-DVFS frequency scaling by engaging the fan at \74°C. However, analysis of the
-`tegrastats` telemetry revealed thermal accumulation differences between the
-runtime models.
+DVFS frequency scaling by engaging the fan at \74#sym.degree\C. However,
+analysis of the `tegrastats` telemetry revealed thermal accumulation differences
+between the runtime models.
 
 Figure @fig:MAXN_SUPER-thermals-native shows all three implementations subject
-to the natural stream rate (`load` \1.0) using the Exponential Backoff
+to the native stream rate (`load` \1.0) using the Exponential Backoff
 backpressure policy. C++ triggered the fan after \152 seconds, Rust at \179
 seconds, and Python at \180 seconds. By the end of the evaluation, the C++
-temperature had reached a steady-state approximately \4°C hotter than Rust, and
-\5°C hotter than Python.
+temperature had reached a steady-state approximately \4#sym.degree\C hotter than
+Rust, and \5#sym.degree\C hotter than Python.
 
 #figure(
   pad(top: 1em)[
     #image("code/results/img/MAXN_SUPER-thermals-native.pdf", width: 85%)
   ],
-  caption: [Thermal accumulation at the natural stream rate using the
-    Exponential Backoff backpressure policy. #v(2em)],
+  caption: [Thermal accumulation at the native stream rate using the Exponential
+    Backoff backpressure policy. #v(2em)],
 ) <fig:MAXN_SUPER-thermals-native>
 
 @fig:MAXN_SUPER-thermals-saturated plots the temperature curves of each
 implementation at their respective maximum measured saturation points
-(Exponential Backoff, `load` \5.5 for the compiled languages, and \0.05 for
+(Exponential Backoff, `load` \5.5 for the compiled languages, and \0.04 for
 Python). At maximum throughput, C++ and Rust triggered the fan after \91 seconds
 and \100 seconds respectively. The temperatures then settled to approximately
-\68.5°C and \67°C respectively. Conversely, at the maximum sustainable `load`
-multiplier of \0.05, the fan did not trigger for Python until \166 seconds, and
-the temperature then settled to approximately \57°C.
+\68.5#sym.degree\C and \67#sym.degree\C respectively. Conversely, at the maximum
+sustainable `load` multiplier of \0.04, the fan did not trigger for Python until
+\166 seconds, and the temperature then settled to approximately
+\57#sym.degree\C.
 
 #figure(
   pad(top: 1em)[
@@ -2534,13 +2537,13 @@ To evaluate how much latency can be attributed to the runtime models, a
 Kruskal-Wallis H-test was performed on the steady-state median (p50) latency
 measurements. This determines how likely it is that latency differences were
 caused by the choice of language, and not operating system interrupts. A `load`
-multiplier of \0.05 using the Exponential Backoff policy was used, as this was
+multiplier of \0.04 using the Exponential Backoff policy was used, as this was
 the maximum ingestion rate that all three implementations were able to sustain
 without data loss.
 
 The test revealed a significant difference in performance between the languages
-($H = 850.56, p < 0.001$). Furthermore, the effect size ($epsilon^2 = 0.6558$)
-revealed that approximately \65.6% of the variance in processing speed was
+($H = 696.64, p < 0.001$). Furthermore, the effect size ($epsilon^2 = 0.6660$)
+revealed that approximately \66.6% of the variance in processing speed was
 caused by the runtime model itself, and not by random system noise.
 
 A Dunn's post-hoc pairwise comparison with a Bonferroni correction
@@ -2587,12 +2590,13 @@ $rho$ was very close to zero for both languages (\0.0123 and -\0.0099
 respectively), indicating no relationship between CPU temperature and latency.
 This was further confirmed by the high proof scores ($p$) of \0.767 and \0.811
 respectively. Because the Jetson's fail-safe thermal management forcefully
-triggered the cooling fan at \74°C, DVFS throttling was prevented. Therefore,
-the results confirm that the performance degradation was a result of static
-resource constraints (i.e. a reduced number of CPU cores and lower clock
+triggered the cooling fan at \74#sym.degree\C, DVFS throttling was prevented.
+Therefore, the results confirm that the performance degradation was a result of
+static resource constraints (i.e. a reduced number of CPU cores and lower clock
 frequencies), and not DVFS throttling caused by thermal accumulation.
+]
 
-#colbreak()
+#pagebreak()
 
 #columns(2, gutter: 16pt)[
 = Discussion
