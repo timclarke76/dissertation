@@ -978,7 +978,7 @@ decimation are load-shedding policies that discard data (as visualised in
 ) <fig:load-shedding-policies>
 
 The exponential backoff policy was configured with an initial wait time of \1 ms
---- sufficient time to allow the scheduler to yield to the inference thread,
+to give sufficient time for the scheduler to yield to the inference thread,
 providing an opportunity for space to become available in the consumer buffer.
 The wait time is doubled upon each retry, up to an accumulated maximum of \33.3
 ms before the frame is dropped. This maximum wait time was derived from the
