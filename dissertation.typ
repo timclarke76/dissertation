@@ -2798,7 +2798,7 @@ Analysis of the individual data streams of the compiled implementations revealed
 a significant difference in the maximum sustainable ingestion speed, with the
 RGB stream failing at a `load` multiplier of \7.0, and the Accelerometer and
 Gyroscope streams not dropping or lapping any frames at the maximum measured
-`load` multiplier of \8.5.
+`load` multiplier of \20.0.
 
 Little's Law ($L = lambda W$) was used to enforce the \100 ms end-to-end latency
 deadline. Because the RGB stream's native speed is low at \30 Hz, its bounded
@@ -2877,11 +2877,11 @@ buffer is almost immediately saturated (see @fig:mpsc-bottleneck).
 ) <fig:mpsc-bottleneck>
 
 This asymmetry is exacerbated by both the inference thread and the late-fusion
-thread --- the latter of which uses a Multi-Producer Single-Consumer (MPSC)
-channel anchored to the RGB stream. While the Accelerometer and Gyroscope
-inferences only occur every \53 and \66 frames respectively, inference is
-triggered for every RGB frame, which in turn triggers late-fusion, substantially
-increasing the average workload per frame for the RGB stream.
+thread --- the latter of which uses an MPSC channel anchored to the RGB stream.
+While the Accelerometer and Gyroscope inferences only occur every \53 and \66
+frames respectively, inference is triggered for every RGB frame, which in turn
+triggers late-fusion, substantially increasing the average workload per frame
+for the RGB stream.
 
 When the pipeline processes a high enough ingestion rate, the late-fusion thread
 will struggle to process the inference results from the MPSC channel. This
@@ -2966,25 +2966,18 @@ pipeline can typically sustain.
 
 It is notable that in the baseline performance (@sec:baseline-performance),
 while both C++ and Rust achieved a maximum sustained `load` of \5.5 using
-Exponential Backoff, the C++ implementation was only able to achieve a maximum
-`load` of \4.0 when using the Bounded Queue policy, while Rust was able to
-sustain \5.5 across both flow-control policies.
+Exponential Backoff, both compiled implementations were only able to achieve a
+maximum load of \4.0 when using the Bounded Queue policy.
 
 When using Bounded Queue, a saturated queue forces the bridge thread into a
 tight spin-loop, continuously acquiring and releasing the queue's mutex to check
-capacity (see @fig:mutex-contention). In C++ on Linux, the bridge quickly
-reacquires the `std::mutex` lock before the inference thread is able to,
-preventing the latter from removing a frame from the queue and creating the
-space that the bridge is waiting for. Rust \1.62.0 replaced its previous mutex
-implementation --- which was backed by the pthreads library, which has higher
-overhead from supporting features not required by the Rust API --- with a
-lightweight implementation that directly employs Linux futex system calls
-@rust1620 @github-rust-93740. In a tight spin-loop, acquiring and releasing
-Rust's more efficient lock in the bridge thread takes a smaller proportion of
-the total time for one loop, and acquiring the lock in the inference thread is
-quicker, reducing the probability of encountering a contested state, and
-increasing the likelihood of the inference thread removing a frame from the
-queue to make space for the bridge's next spin-loop.
+capacity (see @fig:mutex-contention). This continuous locking creates severe
+lock contention. Because the bridge thread instantly attempts to reacquire the
+lock, the inference thread frequently fails to acquire the mutex, preventing it
+from removing a frame and creating the space that the bridge is waiting for.
+This aggressive polling starves the consumer thread, creating a bottleneck that
+throttles both languages equally, regardless of the underlying efficiency of
+their respective mutex implementations.
 
 #figure(
   pad(top: 1em)[
@@ -3035,17 +3028,17 @@ queue to make space for the bridge's next spin-loop.
 By forcing the bridge thread into a timed sleep when the queue is full,
 Exponential Backoff prevents the contention of the queue's mutex, increasing the
 inference thread's opportunity to remove a frame from the queue and make space
-for the bridge. Consequently, both C++ and Rust were able to achieve parity of
-the maximum sustainable `load` multiplier of \5.5 for this flow-control policy.
+for the bridge. Consequently, both C++ and Rust were able to achieve a higher
+maximum sustainable `load` multiplier of 5.5 for this flow-control policy.
 
-=== The Python GIL and Concurrency
+== The Python GIL and Concurrency
 
 The data gathered in this report reveals poor performance when utilising CPython
 \3.10.12 for a multi-threaded, real-time Edge-AI pipeline. As demonstrated in
 the unconstrained baseline performance results (@sec:baseline-performance),
 Python was only able to sustain a `load` multiplier of \0.05 (i.e. \5% of the
-natural sensor speed) when using the Exponential Backoff backpressure policy,
-and reached saturation point even at `load` multipliers of \0.01 for all other
+native sensor speed) when using the Exponential Backoff backpressure policy, and
+reached saturation point even at `load` multipliers of < \0.01 for all other
 policies, severely lagging behind the performance of the compiled languages.
 
 Automated memory management via the Garbage Collector (GC) was initially
@@ -3054,12 +3047,11 @@ analysis graph (@fig:MAXN_SUPER-python-gc) shows garbage collection pauses were
 confined to the 10-second initialisation window. Consequently, the GC could not
 be the cause of Python's deadline breaches during the steady-state phase.
 
-Instead, the deadline breaches were likely caused by CPython's Global
-Interpreter Lock (GIL). The HAR pipeline uses multiple threads (bridge, AI
-inference, late-fusion, and telemetry) which would usually run concurrently
-across the multi-core CPU of the Jetson Orin Nano. However, the GIL is designed
-to prevent more than one Python thread from executing at any one time,
-effectively serialising the pipeline.
+Instead, the deadline breaches were likely caused by CPython's GIL. The HAR
+pipeline uses multiple threads (bridge, AI inference, late-fusion, and
+telemetry) which would usually run concurrently across the multi-core CPU of the
+Jetson Orin Nano. However, the GIL is designed to prevent more than one Python
+thread from executing at any one time, effectively serialising the pipeline.
 
 This was made worse by the use of Python's `pass` statement. C++ and Rust
 utilise micro-architectural CPU hints (`__asm__ volatile("yield" ::: "memory")`
@@ -3110,7 +3102,7 @@ not a confounder.
 == Resident Set Size (RSS)
 
 Analysis of the RSS of each implementation (@fig:MAXN_SUPER-memory-profiling)
-revealed that all three languages had memory footprints within \50 MB of each
+revealed that all three languages had memory footprints within \50 MiB of each
 other. This suggests that the RSS can be mostly attributed to the shared AI
 dependencies (ONNX Runtime, CUDA, and TensorRT), rather than overhead of the
 runtime models themselves. Consequently, despite Python's interpreted nature and
@@ -3155,17 +3147,17 @@ rights --- reducing developer friction, but shifting validation to runtime.
 ) <tab:static-analysis>
 
 Interestingly, C++ had the lowest average CCN, while Rust had the highest. This
-reflects on the well-known limitation of using CCN to compare different
-programming paradigms. Rather than indicating that the C++ logic is simpler,
-this is the mathematical result of C++'s verbosity. The average CCN is
-calculated by dividing the total complexity by the number of functions. Because
-C++ requires many trivial methods not necessary in the other languages, these
-reduce the average CCN result. For example, while a simple destructor to release
-memory in C++ would increase the function count and thus reduce the average CCN,
-the same destructor is not required in Rust or Python (because of the automated
-resource management and garbage collection), thus artificially inflating the
-average CCN as the function count is consequently lower, despite the complexity
-of the overall code being lower.
+reflects the well-known limitation of using CCN to compare different programming
+paradigms. Rather than indicating that the C++ logic is simpler, this is due to
+C++'s verbosity. The average CCN is calculated by dividing the total complexity
+by the number of functions. Because C++ requires many trivial methods not
+necessary in the other languages, these reduce the average CCN result. For
+example, while a simple destructor to release memory in C++ would increase the
+function count and thus reduce the average CCN, the same destructor is not
+required in Rust or Python (because of the automated resource management and
+garbage collection), thus artificially inflating the average CCN as the function
+count is consequently lower, despite the complexity of the overall code being
+lower.
 
 While the boilerplate code skews the average CCN, examining the individual
 function metrics reveals the similarity between all three implementations. The
