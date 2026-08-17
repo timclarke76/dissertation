@@ -2302,7 +2302,7 @@ was also significantly slower than in the compiled languages.
     #image("code/results/img/MAXN_SUPER-latency-breakdown.pdf", width: 85%)
   ],
   caption: [Stage-by-stage median (p50) latency breakdown for the RGB stream at
-    `load` \0.04 using the Exponential Backoff backpressure policy.],
+    `load` \0.04 using the Exponential Backoff backpressure policy. #v(2em)],
 ) <fig:MAXN_SUPER-latency-breakdown>
 
 == Flow Control vs. Load Shedding
@@ -2368,6 +2368,8 @@ drop incoming frames, the existing frames in the bounded buffer continue to age
 while waiting to be processed. Conversely, Drop Oldest drops the oldest data
 from the bounded buffer, guaranteeing that the freshest data survives.
 
+#colbreak()
+
 == Memory Overhead <sec:memory-overhead>
 
 To investigate the impact of Python's automated memory management on deadline
@@ -2397,10 +2399,8 @@ to no GC events occurring during that time.
     #image("code/results/img/MAXN_SUPER-python-gc.pdf", width: 85%)
   ],
   caption: [Maximum latency vs. GC pause duration over the first \60 seconds
-    of execution. #v(3.5em)],
+    of execution. #v(2em)],
 ) <fig:MAXN_SUPER-python-gc>
-
-#colbreak()
 
 To further evaluate the resource efficiency of the runtime models, the RSS was
 measured under the heaviest load conditions that both compiled languages were
@@ -2408,9 +2408,9 @@ able to sustain without dropping frames (Exponential Backoff, `load` \5.5).
 
 As demonstrated in the left panel of @fig:MAXN_SUPER-memory-profiling, the
 overall memory footprint remained consistent for C++ and Rust, which stabilised
-at approximately \748.3 MB and \745.6 MB, respectively. Conversely, Python's
+at approximately \748.3 MiB and \745.6 MiB, respectively. Conversely, Python's
 memory footprint had a step-increase at approximately \250 seconds, stabilising
-at \793.8 MB. Because a load of \5.5 greatly exceeds Python's maximum
+at \793.8 MiB. Because a load of \5.5 greatly exceeds Python's maximum
 sustainable throughput of \0.04, the step-up suggests internal memory
 fragmentation.
 
@@ -2430,15 +2430,15 @@ time.
   caption: [Memory profiling during steady-state execution. The left
     panel compares the RSS footprint. \
     The right panel shows the total dynamic memory allocations by the C++ and
-    Rust implementations. #v(3.5em)],
+    Rust implementations. #v(2em)],
 ) <fig:MAXN_SUPER-memory-profiling>
 
 Heap fragmentation using the `fordblks` field from `mallinfo2()` was also
 measured to evaluate the long-term stability of the runtime models and the
 effectiveness of the zero-allocation architecture. The recorded telemetry showed
 that heap fragmentation during the steady state was negligible for both C++
-(\5.0 KB) and Rust (\10.6 KB). Coupled with RSS footprints of under \750 MB, and
-steady-state dynamic allocation rates of \0.0 Bytes/second, this proves that
+(\5.0 KiB) and Rust (\10.6 KiB). Coupled with RSS footprints of under \750 MiB,
+and steady-state dynamic allocation rates of \0.0 Bytes/second, this proves that
 both implementations were able to sustain the load without memory churn or
 fragmentation.
 
@@ -2496,12 +2496,16 @@ DVFS frequency scaling by engaging the fan at \74#sym.degree\C. However,
 analysis of the `tegrastats` telemetry revealed thermal accumulation differences
 between the runtime models.
 
-Figure @fig:MAXN_SUPER-thermals-native shows all three implementations subject
-to the native stream rate (`load` \1.0) using the Exponential Backoff
-backpressure policy. C++ triggered the fan after \152 seconds, Rust at \179
-seconds, and Python at \180 seconds. By the end of the evaluation, the C++
-temperature had reached a steady-state approximately \4#sym.degree\C hotter than
-Rust, and \5#sym.degree\C hotter than Python.
+@fig:MAXN_SUPER-thermals-native shows all three implementations subject to the
+native stream rate (`load` \1.0) using the Exponential Backoff backpressure
+policy. Because this is only a fraction of the maximum capacity for C++ and
+Rust, both compiled languages processed the data and spent the majority of the
+epoch yielding. Consequently, neither triggered the cooling fan, with C++ and
+Rust stabilising at approximately \64°C and \60°C respectively. Conversely,
+because a `load` of \1.0 greatly exceeds Python's maximum sustainable
+throughput, its threads were forced into continuous spin-loops, constantly
+utilising the CPU and driving thermal accumulation until the fan was triggered
+at approximately \150 seconds.
 
 #figure(
   pad(top: 1em)[
@@ -2514,12 +2518,14 @@ Rust, and \5#sym.degree\C hotter than Python.
 @fig:MAXN_SUPER-thermals-saturated plots the temperature curves of each
 implementation at their respective maximum measured saturation points
 (Exponential Backoff, `load` \5.5 for the compiled languages, and \0.04 for
-Python). At maximum throughput, C++ and Rust triggered the fan after \91 seconds
-and \100 seconds respectively. The temperatures then settled to approximately
-\68.5#sym.degree\C and \67#sym.degree\C respectively. Conversely, at the maximum
+Python). At maximum throughput, C++ and Rust triggered the fan after \63 seconds
+and \72 seconds respectively. The temperatures then settled to approximately
+\72#sym.degree\C and \69.5#sym.degree\C respectively. Conversely, at the maximum
 sustainable `load` multiplier of \0.04, the fan did not trigger for Python until
-\166 seconds, and the temperature then settled to approximately
-\57#sym.degree\C.
+\104 seconds, and the temperature then settled to approximately
+\57#sym.degree\C. This suggests architectural bottlenecks in the Python
+implementation (such as the GIL) force the CPU to be under-utilised, resulting
+in slower heat generation despite the spin-loops.
 
 #figure(
   pad(top: 1em)[
@@ -2543,7 +2549,7 @@ without data loss.
 
 The test revealed a significant difference in performance between the languages
 ($H = 696.64, p < 0.001$). Furthermore, the effect size ($epsilon^2 = 0.6660$)
-revealed that approximately \66.6% of the variance in processing speed was
+indicated that approximately \66.6% of the variance in processing speed was
 caused by the runtime model itself, and not by random system noise.
 
 A Dunn's post-hoc pairwise comparison with a Bonferroni correction
@@ -2571,7 +2577,7 @@ impact on the overall latency of the pipeline.
   ],
   caption: [Dunn's post-hoc pairwise comparison. The Kruskal-Wallis test \
     indicated a statistically significant difference in median latency \
-    between runtime models ($H = 850.56, p < 0.001, epsilon^2 = 0.6558$).],
+    between runtime models.],
 ) <tab:dunns-test>
 
 #v(3em)
