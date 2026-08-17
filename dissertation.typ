@@ -2216,11 +2216,10 @@ reached at < \0.01 for all other backpressure policies.
 ) <fig:MAXN_SUPER-baseline-performance>
 
 The \99.9th percentile latency distribution was analysed using the Exponential
-Backoff backpressure policy, when every implementation was at its most efficient
-(@fig:MAXN_SUPER-cdf-5_5). This represents the maximum measured throughput
-sustained by both compiled languages without breaching the \100 ms latency
-deadline. Despite using the same backpressure policy and not dropping any
-frames, Python consistently breached the deadline (often with a latency several
+Backoff backpressure policy (@fig:MAXN_SUPER-cdf-5_5). This represents the
+maximum measured throughput sustained by both compiled languages without
+breaching the \100 ms latency deadline. Despite using the same flow-control
+policy, Python consistently breached the deadline (often with a latency several
 times greater than the 100 ms limit), with a maximum latency of \954.7 ms.
 
 #figure(
@@ -2237,8 +2236,7 @@ The \99.9th percentile latency distribution was also analysed using the
 Exponential Backoff backpressure policy at a `load` multiplier of \7.0
 (@fig:MAXN_SUPER-cdf-7_0), which represents the lowest measured throughput at
 which the compiled languages breached the 100 ms latency deadline. Python was
-omitted because its maximum sustainable throughput was reached at a `load`
-multiplier of \0.04, making it incomparable when `load` is increased to \7.0.
+omitted from this comparison to preserve visual clarity.
 
 While the flow-control policy does prevent data loss (until the 1-second unbound
 circular buffer laps), it does so at the cost of increased queue accumulation
@@ -2340,9 +2338,9 @@ While flow-control policies excel at preventing data loss when experiencing
 jitter, load-shedding policies sacrifice the data to meet the latency deadline.
 As shown in @fig:MAXN_SUPER-latency-comparison, the impact of retaining stale
 data to prevent loss forced the majority of epochs (\92.3%) to breach the \100
-ms latency deadline. Conversely, by dropping frames and preventing a growing
-backlog, the load-shedding policies guarantee that surviving frames are
-processed within the deadline.
+ms latency deadline (up to \174.7 ms). Conversely, by dropping frames and
+preventing a growing backlog, the load-shedding policies guarantee that
+surviving frames are processed within the deadline.
 
 #figure(
   pad(top: 0.5em)[
