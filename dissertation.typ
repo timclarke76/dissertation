@@ -2198,10 +2198,10 @@ evaluations were performed in MAXN_SUPER power mode (`nvpmodel -m 2`).
 With MAXN_SUPER mode enabled (@fig:MAXN_SUPER-baseline-performance), both C++
 and Rust were able to sustain ingestion without absolute saturation up to a
 `load` multiplier of \4.0 for the Bounded Queue policy, and \5.5 for Exponential
-Backoff. For the load-shedding policies (Drop Oldest and Drop Newest) and
-Adaptive Decimation, C++ was able to process the data streams at \1.25. Rust
-successfully processed both load-shedding policies at \1.5, and Adaptive
-Decimation at \1.0.
+Backoff. For the static load-shedding policies (Drop Oldest and Drop Newest),
+C++ was able to process the data streams at a load multiplier of \1.25, while
+Rust successfully processed them at \1.5. When using Adaptive Decimation, C++
+achieved \1.25, whereas Rust reached terminal saturation earlier at \1.0.
 
 Conversely, Python was only able to process the data streams at \4% (`load`
 multiplier of \0.04) when Exponential Backoff was used. Absolute saturation was
@@ -2336,7 +2336,7 @@ Drop Newest policy recorded \57 dropped frames.
 
 #colbreak()
 
-While flow-control policies excel at preventing data-loss when experiencing
+While flow-control policies excel at preventing data loss when experiencing
 jitter, load-shedding policies sacrifice the data to meet the latency deadline.
 As shown in @fig:MAXN_SUPER-latency-comparison, the impact of retaining stale
 data to prevent loss forced the majority of epochs (\92.3%) to breach the \100
@@ -2384,7 +2384,7 @@ the subsequent steady-state, while retaining visual clarity.
 C++ and Rust demonstrated stable maximum latencies below the 100 ms deadline
 during the initialisation phase (\18.8 ms and \31.6 ms, respectively) and the
 subsequent steady-state phase (\42.3 ms and \40.9 ms), with ranges of \37.6 ms
-and \32.1 ms respectively during steady-state.
+and \32.1 ms, respectively, during steady-state.
 
 During the initialisation phase, Python exhibited a maximum latency of \844.6
 ms. During the subsequent steady-state phase, the maximum latency increased to
@@ -2399,7 +2399,7 @@ to no GC events occurring during that time.
     #image("code/results/img/MAXN_SUPER-python-gc.pdf", width: 85%)
   ],
   caption: [Maximum latency vs. GC pause duration over the first \60 seconds
-    of execution. #v(2em)],
+    of execution. #v(1.5em)],
 ) <fig:MAXN_SUPER-python-gc>
 
 To further evaluate the resource efficiency of the runtime models, the RSS was
@@ -2430,7 +2430,7 @@ time.
   caption: [Memory profiling during steady-state execution. The left
     panel compares the RSS footprint. \
     The right panel shows the total dynamic memory allocations by the C++ and
-    Rust implementations. #v(2em)],
+    Rust implementations. #v(1.5em)],
 ) <fig:MAXN_SUPER-memory-profiling>
 
 Heap fragmentation using the `fordblks` field from `mallinfo2()` was also
