@@ -514,7 +514,7 @@ lost.
 
 = Literature Review
 
-== Benchmarking Language Efficiency
+== Benchmarking Language Efficiency <sec:benchmarking>
 
 Empirical evaluations of programming languages highlight a trade-off between
 execution speed, energy consumption, and memory footprint. In a comprehensive
@@ -2620,7 +2620,7 @@ forcing the compiler to repeatedly parse the same templates across multiple TUs.
 Conversely, Rust's compiler does not rely on source file inclusion, and instead
 parses each crate only once (regardless of how many modules reference it),
 preventing an accumulation of unnecessary parsing overhead. Furthermore the
-cargo build tool caches a project dependency graph of to avoid re-parsing or
+cargo build tool caches a project dependency graph to avoid re-parsing or
 re-compiling unchanged files.
 
 In contrast to C++ and Rust, Python is an interpreted language and consequently
@@ -2650,36 +2650,66 @@ discipline to write verbose error handling code to explicitly handle exceptions
 (`try`/`catch` and `try`/`except`) and legacy error codes, risking the
 occurrence of unhandled errors (decreasing system stability), and a lack of
 contextual information when debugging (increasing system maintenance overhead).
-
-There is a clear contrast when comparing Rust's return type and the
-exception-based error handling of C++ and Python. Rust's `?` operator, in
-combination with third-party crates such as `anyhow`, allow developers to add
-fine-grained contextual information to errors without any boilerplate code.
-Achieving this same level of granularity in C++ or Python would require a
-try-block (`try`/`catch` or `try`/`except`) around every invocation of a
-function that may throw an exception. This would severely hamper code
-readability and maintainability, and therefore idiomatic C++ and Python
-implement coarser-grained exception handling, at the sacrifice of diagnostic
-information when an error occurs.
+Achieving Rust's level of granularity in C++ or Python would require a try-block
+around every invocation of a function that may throw an exception. This would
+severely hamper code readability and maintainability, and therefore idiomatic
+C++ and Python implement coarser-grained exception handling, at the sacrifice of
+diagnostic information when an error occurs.
 
 == Language Ergonomics
 
 While static analysis tools such as Lizard provide a quantitative evaluation for
-Lines of Code (LoC) and Cyclomatic Complexity (CC), they do not consider the
-qualitative experience of the developer when writing and maintaining code. The
-implementation of the three pipelines revealed significant differences in
-language ergonomics and the resulting cognitive load. Both Rust and Python
-provide simple mechanisms for transforming data collections and evaluating
-enumeration types (such as Rust's `match` operator), requiring minimal
-boilerplate code and improving code readability.
+Number Lines Of Code (NLOC) without comments and blank lines, and a Cyclomatic
+Complexity Number (CCN), they do not consider the qualitative experience of the
+developer when writing and maintaining code. The implementation of the three
+pipelines revealed significant differences in language ergonomics and the
+resulting cognitive load. Both Rust and Python provide simple mechanisms for
+transforming data collections and evaluating enumeration types (such as Rust's
+`match` operator), requiring minimal boilerplate code and improving code
+readability.
 
 While C++ has evolved over successive versions to offer similar functionality
 via the standard library (e.g. `std::ranges` and `std::transform` for
 collections, or `std::variant` and `std::visit` for enumerations), utilising
-these features was counterproductive. For example, introducing transformations
-to data collections introduced verbosity and code complexity. Consequently,
-traditional `for` loops were used instead to maintain code readability, and to
-reduce maintenance overhead.
+these features was counterproductive. For example, extracting the minimum frame
+rate from a collection of stream configurations in Rust was achieved with a
+simple, concise expression:
+
+```rust
+let min_fps = configs.iter().map(
+    |(queue, _, _)| queue.fps).min().unwrap();
+```
+
+#v(1em)
+
+Achieving an equivalent transformation in C++ requires the use of C++20
+`std::ranges` and lambda expressions. Because C++ lacks concise closure syntax,
+the mapping operation requires a full lambda expression nested within a view
+pipeline:
+
+```cpp
+const auto min_fps = std::ranges::min(
+    configs | std::views::transform([](const auto& cfg)
+    { 
+        return cfg.queue.fps; 
+    })
+);
+```
+
+#v(1em)
+
+Consequently, traditional `for` loops were used instead to maintain code
+readability, and to reduce maintenance overhead:
+
+```cpp
+size_t min_fps = std::numeric_limits<size_t>::max();
+
+for (const auto& cfg : configs) {
+    min_fps = std::min(min_fps, cfg.queue.fps);
+}
+```
+
+#v(1em)
 
 Similarly, pattern matching in C++ required the use of `std::visit`, which
 introduced syntactic complexity that made the code difficult to read. The code
@@ -2722,10 +2752,16 @@ compiled counterparts. Furthermore, Python's package management system was found
 to be fragile. Package versions had to be manually pinned (by referring to the
 Python Package Index (PyPI) release history @pypi) to prevent versions being
 automatically selected that were incompatible with the Python interpreter under
-evaluation (Python \3.10.12). In addition, the ONNX Runtime package for the
+evaluation (CPython \3.10.12). In addition, the ONNX Runtime package for the
 Jetson Orin Nano is remotely hosted on NVIDIA's PyPi server @pypi_devpi, which
 was often found to be unavailable, requiring the package to be manually
 downloaded and saved locally for adding to the Docker image later.
+
+It should be noted that all pipeline implementations were containerised to
+ensure a consistent environment for the evaluation suite, and so the benefits of
+a stand-alone executable were not realised. However, in a production Edge-AI
+environment where containerisation is not desirable, the complexity and
+fragility of deployment should be a major consideration.
 
 == Concurrency and Memory Safety
 
@@ -2745,52 +2781,48 @@ In the aforementioned example, the Rust compiler would refuse to allow
 references that may not outlive the spawned thread. Instead, Rust forces the
 developer to transfer ownership using the `move` keyword and atomic reference
 counting (e.g. `Arc<Mutex<T>>`). Though Rust's ownership model may be a steep
-learning curve for developers new to the language --- similar to that
-experienced when transitioning from a functional paradigm to an object-oriented
-one --- it eliminates memory-safety bugs that are notoriously difficult to
-resolve, shifting the burden from developer discipline and vigilance to compiler
+learning curve for developers new to the language (similar to that experienced
+when transitioning from a functional paradigm to an object-oriented one) it
+eliminates memory-safety bugs that are notoriously difficult to resolve,
+shifting the burden from developer discipline and vigilance to compiler
 analysis.
 
 Python's GC automatically handles the lifetime of the variable, preventing the
 dangling reference vulnerabilities of C++, without the steep learning curve of
-Rust's borrowing mechanism. However, this swaps developer convenience for
-runtime overhead, and removes the developer's ability to determine when
-resources are reclaimed. This becomes problematic when sharing memory-mapped
-pointers between threads --- as detailed in @sec:memory_management, if the GC
-reclaims an object in a terminating thread, it can unmap areas of memory that
-active threads are still using, resulting in segmentation faults and undefined
-behaviour.
+Rust's borrowing mechanism. However, this removes the developer's ability to
+determine when resources are reclaimed.
 
 == Memory Management Friction <sec:memory_management>
 
-It is generally believed that a runtime model Garbage Collector (GC) reduces
-cognitive burden when compared to manual memory management (C++), or an
-ownership model (Rust). However, the opposite was found to be true when
-developing the temporal buffering of the unbounded queue's frame payloads. For
-example, to circumvent premature unmapping of shared memory buffer addresses
-when the bridge thread terminates and the inference thread is still processing
-frames, a memory location offset had to be provided in the Python frames instead
-of physical addresses as used in the C++ and Rust implementations. The Python
-inference threads also had to maintain a second
+It is generally believed that a runtime model GC reduces cognitive burden when
+compared to manual memory management (C++), or an ownership model (Rust).
+However, when developing the temporal buffering of the unbounded queue's frame
+payloads, C++ provided the least friction. Because the developer is responsible
+for all memory allocation and deallocation, a frame's payload address can be
+stored directly in the frame itself, with no friction or risk of premature
+unmapping by the runtime model.
+
+Rust's ownership model also prevents premature unmapping, but explicit `unsafe`
+blocks were required to satisfy the compiler when handling raw pointers. To
+allow memory addresses to be shared across threads, `unsafe` marker traits
+(`Send` and `Sync`) were necessary. Elsewhere, `Box<T>` was required to allocate
+variables on the heap (equivalent to C++'s `new` operator), and
+`std::cell::Cell<T>` was required to mutate a variable when the compiler's
+borrowing rules prevented exclusive access (functionally similar to C++'s
+`mutable` keyword). While these requirements help to highlight potential
+memory-safety issues, they also increase cognitive overhead compared to the
+almost frictionless, albeit less safe, raw pointer manipulation of C++.
+
+Conversely, while Python's GC is designed to automate memory management, it
+increased friction when interfacing with shared memory. To circumvent the
+premature unmapping of shared memory buffer addresses when the bridge thread
+terminates and the inference thread is still processing frames, a memory
+location offset had to be provided in the Python frames instead of physical
+addresses. Furthermore, the inference threads had to maintain a second
 `multiprocessing.shared_memory.SharedMemory` object to read the frame payloads.
 Doing so caused a further issue of `KeyError` tracebacks displayed during
-evaluation, requiring `noop` patching of the `resource_tracker.register` and
+evaluation, requiring noop patching of the `resource_tracker.register` and
 `unregister` methods.
-
-Conversely, C++ stipulates that the developer is responsible for all memory
-allocation and deallocation. Consequently, a frame's payload address can be
-stored directly in the frame itself, with no friction or risk of premature
-unmapping. Rust's ownership model also prevents premature unmapping, but
-explicit `unsafe` blocks are required to satisfy the compiler when handling raw
-pointers. To allow memory addresses to be shared across threads, `unsafe` marker
-traits (`Send` and `Sync`) were required. Elsewhere in the Rust code, `Box<T>`
-was required to allocate variables on the heap instead of the stack (equivalent
-to C++'s `new` operator), and `std::cell::Cell<T>` was required to mutate a
-variable when the compiler's borrowing rules prevented exclusive access
-(functionally similar to C++'s `mutable` keyword). While these requirements help
-to highlight potential memory-safety issues, they also increase cognitive
-overhead compared to the almost frictionless, albeit less safe, raw pointer
-manipulation of C++.
 
 == Asymmetrical Stream Saturation
 
@@ -2804,9 +2836,27 @@ Little's Law ($L = lambda W$) was used to enforce the \100 ms end-to-end latency
 deadline. Because the RGB stream's native speed is low at \30 Hz, its bounded
 buffer capacity is only \3 frames. In contrast, the \1.6 kHz Accelerometer
 stream buffer has a capacity of \160 frames, and the \2.0 kHz Gyroscope stream
-buffer has a capacity of \200 frames. Consequently, these high-frequency stream
-buffers have more elasticity to absorb latency spikes, while the RGB stream
-buffer is almost immediately saturated (see @fig:mpsc-bottleneck).
+buffer has a capacity of \200 frames.
+
+This asymmetry is exacerbated by both the inference thread and the late-fusion
+thread --- the latter of which uses an MPSC channel anchored to the RGB stream.
+While the Accelerometer and Gyroscope inferences only occur every \53 and \66
+frames respectively, inference is triggered for every RGB frame, which in turn
+triggers late-fusion, substantially increasing the average workload per frame
+for the RGB stream.
+
+When the pipeline processes a high enough ingestion rate, the late-fusion thread
+will struggle to process the inference results from the MPSC channel. This
+causes the inference threads to block while attempting to push their results
+into the saturated channel. Because each frame in the IMU bounded buffers
+represents a shorter period of time, and each buffer represents the same total
+period of time, the IMU buffers have the elasticity to absorb the temporary MPSC
+blockage without dropped or lapped frames. Conversely, because the RGB bounded
+buffer has a capacity of only \3 frames, each of which represents a longer
+period of time, it possesses virtually no elasticity and is almost immediately
+saturated (see @fig:mpsc-bottleneck). This triggers the active backpressure
+policy, resulting in dropped or lapped frames, and/or the latency deadline to be
+breached.
 
 #figure(
   pad(top: 1em)[
@@ -2876,25 +2926,6 @@ buffer is almost immediately saturated (see @fig:mpsc-bottleneck).
     late-fusion load. #v(1em)],
 ) <fig:mpsc-bottleneck>
 
-This asymmetry is exacerbated by both the inference thread and the late-fusion
-thread --- the latter of which uses an MPSC channel anchored to the RGB stream.
-While the Accelerometer and Gyroscope inferences only occur every \53 and \66
-frames respectively, inference is triggered for every RGB frame, which in turn
-triggers late-fusion, substantially increasing the average workload per frame
-for the RGB stream.
-
-When the pipeline processes a high enough ingestion rate, the late-fusion thread
-will struggle to process the inference results from the MPSC channel. This
-causes the inference threads to block while attempting to push their results
-into the saturated channel. Because each frame in the IMU bounded buffers
-represent a shorter period of time, and each buffer represents the same period
-of time, the IMU buffers have the flexibility to absorb the temporary MPSC
-blockage without dropped or lapped frames. Conversely, because the RGB bounded
-buffer has a capacity of only \3 frames, each of which represents a longer
-period of time, the RGB bounded buffer is quickly saturated. This triggers the
-active backpressure policy, resulting in dropped or lapped frames, and/or the
-latency deadline to be breached.
-
 Ultimately, this demonstrates that in Edge-AI pipelines, the synchronisation
 anchor forms the bottleneck that dictates the maximum capacity and stability of
 the system as a whole.
@@ -2961,6 +2992,25 @@ relevance and adhere to the latency deadline. Alternatively, Adaptive Decimation
 can be used to preserve temporal continuity if that is a pipeline priority, but
 at the cost of a greater loss of data even at ingestion rates below what the
 pipeline can typically sustain.
+
+As shown in @fig:MAXN_SUPER-dropped-frames, Drop Oldest dropped fewer frames
+overall than Drop Newest. This result was unexpected --- because Drop Newest
+simply rejects incoming frames when the bounded buffer is full, it avoids the
+computational overhead and extended mutex lock duration required by Drop Oldest
+to overwrite existing queue data. However, while the root cause of this
+discrepancy requires further investigation, the evaluation results reveal that
+the heavier queue-modification logic of Drop Oldest does not negatively impact
+the pipeline's overall retention rate.
+
+Because Drop Oldest actively ejects stale frames in favour of the freshest data,
+it ensures that surviving frames maintain temporal relevance and strictly adhere
+to the latency deadline. Conversely, because Drop Newest preserves existing
+frames, those frames continue to age in the queue, often exceeding the latency
+deadline and becoming temporally irrelevant before they are processed.
+Alternatively, Adaptive Decimation can be used to preserve temporal continuity
+if that is a pipeline priority, but this proactive shedding occurs at the
+expense of a significantly greater loss of data, even at ingestion rates below
+what the pipeline can typically sustain.
 
 == Mutex Contention <sec:mutex-contention>
 
@@ -3036,22 +3086,23 @@ maximum sustainable `load` multiplier of 5.5 for this flow-control policy.
 The data gathered in this report reveals poor performance when utilising CPython
 \3.10.12 for a multi-threaded, real-time Edge-AI pipeline. As demonstrated in
 the unconstrained baseline performance results (@sec:baseline-performance),
-Python was only able to sustain a `load` multiplier of \0.05 (i.e. \5% of the
+Python was only able to sustain a `load` multiplier of \0.04 (i.e. \4% of the
 native sensor speed) when using the Exponential Backoff backpressure policy, and
 reached saturation point even at `load` multipliers of < \0.01 for all other
 policies, severely lagging behind the performance of the compiled languages.
 
-Automated memory management via the Garbage Collector (GC) was initially
-suspected to be the cause of this extreme latency. However, the GC overhead
-analysis graph (@fig:MAXN_SUPER-python-gc) shows garbage collection pauses were
-confined to the 10-second initialisation window. Consequently, the GC could not
-be the cause of Python's deadline breaches during the steady-state phase.
+Automated memory management via the GC was initially suspected to be the cause
+of this extreme latency. However, the GC overhead analysis graph
+(@fig:MAXN_SUPER-python-gc) shows garbage collection pauses were confined to the
+10-second initialisation window. Consequently, it could not be the cause of
+Python's deadline breaches during the steady-state phase.
 
 Instead, the deadline breaches were likely caused by CPython's GIL. The HAR
 pipeline uses multiple threads (bridge, AI inference, late-fusion, and
 telemetry) which would usually run concurrently across the multi-core CPU of the
-Jetson Orin Nano. However, the GIL is designed to prevent more than one Python
-thread from executing at any one time, effectively serialising the pipeline.
+Jetson Orin Nano. However, the GIL is designed to prevent more than one thread
+from executing Python bytecode at any one time, effectively serialising the
+pipeline.
 
 This was made worse by the use of Python's `pass` statement. C++ and Rust
 utilise micro-architectural CPU hints (`__asm__ volatile("yield" ::: "memory")`
@@ -3069,11 +3120,10 @@ aggressively hold the GIL, starving the other threads of execution time,
 including the threads responsible for fetching the data or making available
 space that the spin-loops are waiting for, and creating an effective deadlock.
 This is evidenced in @fig:MAXN_SUPER-baseline-performance, where both C++ and
-Rust have the same or similar saturation points for the Bounded Queue and
-Exponential Backoff policies, but Python's saturation point is significantly
-lower for the Bounded Queue policy because of the additional spin-loops
-required, while the Exponential Backoff policy uses a timed wait which releases
-the GIL.
+Rust have the same saturation points for the Bounded Queue and Exponential
+Backoff policies, but Python's saturation point is significantly lower for the
+Bounded Queue policy because of the additional spin-loops required, while the
+Exponential Backoff policy uses a timed wait which releases the GIL.
 
 As a consequence of this thread starvation, the Python implementation was unable
 to feed data fast enough to the ONNX runtime on the GPU, resulting in
@@ -3089,25 +3139,25 @@ zero-allocation during the steady-state phase.
 With memory allocation removed as a possible confounder, both compiled
 implementations achieved near-parity in baseline performance under moderate
 loads, easily satisfying the 100 ms latency deadline. Both also performed
-similarly at terminal saturation (`load` \7.0), with C++ processing \12.4% of
-frames within the 100 ms deadline, Rust processing \15.6% of frames within the
-deadline, and both languages converging to a maximum tail latency of \176 ms.
-Because Python recorded maximum latencies far beyond this duration, this \176 ms
-ceiling is not a limit caused by the pipeline's buffer capacity, revealing that
-under extreme load, both compiled languages share a performance limit in how
-quickly they can drain a saturated queue, and the choice of compiled language
-has little impact on the performance of the pipeline when memory allocation is
-not a confounder.
+similarly at terminal saturation (`load` \7.0), with C++ processing \9.4% of
+frames within the 100 ms deadline, Rust processing \7.7% of frames within the
+deadline, and both languages converging to similar maximum tail latencies of
+\177.7 ms and \174.7 ms respectively. Because Python recorded maximum latencies
+far beyond this duration, these ceilings are not limits caused by the pipeline's
+buffer capacity, revealing that under extreme load, both compiled languages
+share a performance limit in how quickly they can drain a saturated queue, and
+the choice of compiled language has little impact on the performance of the
+pipeline when memory allocation is not a confounder.
 
 == Resident Set Size (RSS)
 
 Analysis of the RSS of each implementation (@fig:MAXN_SUPER-memory-profiling)
-revealed that all three languages had memory footprints within \50 MiB of each
+revealed that all three languages had memory footprints within \~\50 MiB of each
 other. This suggests that the RSS can be mostly attributed to the shared AI
 dependencies (ONNX Runtime, CUDA, and TensorRT), rather than overhead of the
 runtime models themselves. Consequently, despite Python's interpreted nature and
 automated memory management, its memory overhead was only marginally higher
-(less than \8%) than both compiled languages, proving that in Edge-AI pipelines,
+(less than \7%) than both compiled languages, proving that in Edge-AI pipelines,
 the choice of runtime model has little impact on the memory footprint of the
 overall system.
 
@@ -3115,8 +3165,7 @@ overall system.
 
 Static code analysis was performed using the `lizard` complexity analyser to
 quantify the verbosity and complexity of the three functionally identical
-pipeline implementations. The analysis measured Non-Commented Lines of Code
-(NLOC) and average Cyclomatic Complexity Number (CCN). 
+pipeline implementations. The analysis measured NLOC and CCN.
 
 As shown in @tab:static-analysis, the analysis revealed a higher NLOC count for
 the C++ implementation compared to Rust and Python. This reflects C++'s
