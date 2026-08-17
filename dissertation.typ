@@ -640,10 +640,6 @@ specifications @jetson-orin-nano @a78RefManual:
 - 32 Tensor cores for AI acceleration
 - L1 and L2 caches with 64-byte cache lines
 
-The Jetson came pre-flashed with NVIDIA’s JetPack 6.2 SDK @jetpack-6-2, which
-provides the uncapped `MAXN_SUPER` power profile that enables the highest number
-of CPU/GPU cores and maximum clock frequencies across the SoC.
-
 The pipeline architecture was designed to process data from a Waveshare
 IMX219-160 Camera Module @imx219-160, configured to capture 1920x1080 RGB frames
 at \30 FPS via Mobile Industry Processor Interface Camera Serial Interface \2
@@ -664,8 +660,10 @@ installation, and was physically removed after the NVMe SSD was installed.
 == Software Stack
 
 The Jetson was already flashed with NVIDIA's JetPack \6.2 SDK @jetpack-6-2,
-which includes Jetson Linux 36.4.3 (featuring the Linux Kernel 5.15 and an
-Ubuntu \22.04-based root file system), and CUDA \12.6.10, cuDNN \9.3.0, and
+which provides the uncapped `MAXN_SUPER` power profile that enables the highest
+number of CPU/GPU cores and maximum clock frequencies across the SoC. The
+software stack includes Jetson Linux 36.4.3 (featuring the Linux Kernel 5.15 and
+an Ubuntu \22.04-based root file system) and CUDA \12.6.10, cuDNN \9.3.0, and
 TensorRT \10.3.0 for AI inference and acceleration. The software stack versions
 were selected as the most recent stable releases at the time of development, and
 were used for all implementations to ensure a consistent baseline for
@@ -686,7 +684,7 @@ confounding the results with hardware latency, and provides a clearer comparison
 of how each language's runtime model performs under load and backpressure.
 
 A Docker container, based on NVIDIA's official _l4t-jetpack_ image (36.4.0
-@l4t-jetpack-36-4-0), was used to prevent host updates to ensure that the
+@l4t-jetpack-36-4-0), was used to prevent host updates and ensure that the
 software toolchains and environment variables remained consistent for all
 implementations. While Docker introduces some performance overhead, it was
 considered acceptable to ensure a consistent and reproducible environment for
@@ -732,28 +730,28 @@ write data at a consistent rate. The shared memory buffers were implemented as
 fixed capacity ring buffers, allowing the generator to write data without being
 blocked by the pipeline.
 
-The generated image data was random noise. Each image was created as an array of
-RGB pixel values with dimensions of 1920x1080 to match the sensor data, and each
-pixel's red, green, and blue values were assigned random whole numbers in the
-range $[0,255]$. Similarly, the generated IMU data was random floating-point
-numbers within the maximum hardware ranges of the BMI088 sensor
+The generated image data consisted of random noise. Each image was created as an
+array of RGB pixel values with dimensions of 1920x1080 to match the sensor data,
+and each pixel's red, green, and blue values were assigned random whole numbers
+in the range $[0,255]$. Similarly, the generated IMU data consisted of random
+floating-point numbers within the maximum hardware ranges of the BMI088 sensor
 (#sym.plus.minus\24g for acceleration and #sym.plus.minus\2000#sym.degree/s for
 angular rate).
 
 A hard-coded seed for each sensor ($"rgb" = 42, "accel" = 43, "gyro" = 44$) was
 used to create the three deterministic data-streams to ensure the same generated
-data was fed into each implementation. To improve efficiency of the runtime
-behaviour and allow faster generation, the random synthetic data for each stream
-was pre-generated during program initialisation to avoid the overhead of
-continuous pseudo-random number generation. Each synthetic data pool was large
-enough for a continuously cycled temporal window of one second to allow
-variation in the data streams without exhausting the device's available memory.
-Because the AI inference is only a repeatable workload to determine the
-performance of the runtime models, and prediction accuracy does not impact the
-evaluation, the generated data was not designed to be realistic. This kept the
-load generator implementation simple, does not introduce disk I/O bottlenecks,
-and reduced latency and overhead that could confound the results by contending
-with the pipeline for shared memory bandwidth or polluting shared caches.
+data was fed into each implementation. To improve runtime efficiency and allow
+faster generation, the random synthetic data for each stream was pre-generated
+during program initialisation to avoid the overhead of continuous pseudo-random
+number generation. Each synthetic data pool was large enough for a continuously
+cycled temporal window of one second to allow variation in the data streams
+without exhausting the device's available memory. Because the AI inference is
+only a repeatable workload to determine the performance of the runtime models,
+and prediction accuracy does not impact the evaluation, the generated data was
+not designed to be realistic. This kept the load generator implementation
+simple, does not introduce disk I/O bottlenecks, and reduced latency and
+overhead that could confound the results by contending with the pipeline for
+shared memory bandwidth or polluting shared caches.
 
 To allow backpressure policies to be evaluated under varying load, the generator
 accepts a _load_ parameter that dictates the speed at which data is produced by
@@ -849,9 +847,9 @@ based on the _native_ generation rate of the physical sensors (i.e. a load
 multiplier of \1.0), allowing the pipelines to be tested under simulated system
 stress relative to the baseline speed of the physical sensors. As stated in
 @sec:problem-statement, a maximum deadline of \100 ms was selected based on Xue
-et al. (\2025) @xue2025, resulting in a capacity of \3 for the RGB stream (\30
-FPS), \160 for the accelerometer stream (\1.6 kHz), and \200 for the gyroscope
-stream (\2.0 kHz).
+et al. @xue2025, resulting in a capacity of \3 for the RGB stream (\30 FPS),
+\160 for the accelerometer stream (\1.6 kHz), and \200 for the gyroscope stream
+(\2.0 kHz).
 
 #figure(
   pad(top: 1.5em)[
@@ -1073,8 +1071,8 @@ frame are read in the correct order.
 == Zero-Allocation
 
 To reduce memory churn and the latency jitter that may be introduced by
-high-frequency dynamic memory allocation --- as well as GC pauses in Python ---
-a zero-allocation approach was used. This was achieved by ensuring all necessary
+high-frequency dynamic memory allocation (as well as GC pauses in Python) a
+zero-allocation approach was used. This was achieved by ensuring all necessary
 memory (e.g. the bounded queue) was pre-allocated during initialisation, and
 lightweight data structures (e.g. the telemetry `Epoch`) were continuously
 reused rather than reallocated.
@@ -1095,7 +1093,7 @@ from dynamically allocating memory or internally copying data during inference.
 Hardware-agnostic `.onnx` AI model files were generated offline using PyTorch
 \2.13.0. Dynamic axes (i.e. allowing the inference data to be of variable sizes)
 were forbidden to ensure that the TensorRT engine would not dynamically allocate
-memory during inference, instead allocating memory once upon startup thus
+memory during inference, instead allocating memory once upon startup, thus
 improving performance and preserving the zero-allocation approach. These models
 were then transferred to the Jetson Orin Nano and saved to hardware-specific
 `_epctx.onnx` (Execution Provider Context) files using ONNX Runtime \1.24.0
@@ -1121,7 +1119,7 @@ being adjusted. The following six timestamps, as visualised in
 + `pipeline_in_ts` when the inference thread pulls the frame from the bounded
   buffer
 + `pipeline_out_ts` when the ONNX Runtime completes inference and the result is
-  pushed to the MPSC channel
+  pushed to the Multi-Producer Single-Consumer (MPSC) channel
 + `fusion_in_ts` when the late-fusion thread pulls the inference results from
   the MPSC channel
 + `fusion_out_ts` when late-fusion execution completes and the pipeline produces
@@ -1364,17 +1362,17 @@ threads after any pending frames were processed.
 
 === Late Fusion
 
-A Multi-Producer Single-Consumer (MPSC) pattern was used to drive the late
-fusion, where the inference threads all pushed their results to a single fusion
-thread for processing, and the fusion execution was tied to the \30 Hz RGB
-stream. Anchoring on the slowest, most computationally expensive stream
-prevented both redundant fusion executions, and the fusion thread from being
-bottlenecked by the faster IMU streams. Consequently, the IMU streams were
-downsampled using fixed window sizes to match the \30 Hz RGB stream
-(@fig:late-fusion), ensuring that the IMU inference was only executed and the
-results injected into the MPSC channel when the window was full. Zero-Order Hold
-was used to pair the RGB and IMU inference results, where the most recent IMU
-inference result was held until the next RGB inference result was available.
+An MPSC pattern was used to drive the late fusion, where the inference threads
+all pushed their results to a single fusion thread for processing, and the
+fusion execution was tied to the \30 Hz RGB stream. Anchoring on the slowest,
+most computationally expensive stream prevented both redundant fusion
+executions, and the fusion thread from being bottlenecked by the faster IMU
+streams. Consequently, the IMU streams were downsampled using fixed window sizes
+to match the \30 Hz RGB stream (@fig:late-fusion), ensuring that the IMU
+inference was only executed and the results injected into the MPSC channel when
+the window was full. Zero-Order Hold was used to pair the RGB and IMU inference
+results, where the most recent IMU inference result was held until the next RGB
+inference result was available.
 
 #figure(
   pad(top: 1.0em)[
