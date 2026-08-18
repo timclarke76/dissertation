@@ -325,8 +325,8 @@ EOF
             # Wait for the generator to create the shared memory files before
             # starting the pipeline
             while [ ! -e /dev/shm/RGB ] \
-                && [ ! -e /dev/shm/Accelerometer ] \
-                && [ ! -e /dev/shm/Gyroscope ]
+                || [ ! -e /dev/shm/Accelerometer ] \
+                || [ ! -e /dev/shm/Gyroscope ]
             do
                 sleep 0.5
             done
