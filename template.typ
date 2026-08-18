@@ -125,3 +125,9 @@
 
 #let todo(body) = {ct([TODO: #body])}
 
+#let wc(body) = word-count(total => [
+  #body
+  #set text(size: 0.8em, style: "italic")
+  #align(right)[#{total.words - 1}]
+])
+

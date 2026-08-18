@@ -1,16 +1,10 @@
 #import "@preview/fletcher:0.5.8" as fletcher: diagram, node, edge
 #import fletcher.shapes: cylinder, diamond, pill, rect
+
 #import "@preview/wordometer:0.1.5": word-count, total-words
+#show: word-count.with(exclude: (figure.caption, <no-wc>))
 
-#show: word-count
-
-#import "template.typ": template, ct, todo
-
-#let wc(body) = word-count(total => [
-  #body
-  #set text(size: 0.8em, style: "italic")
-  #align(right)[#{total.words - 1}]
-])
+#import "template.typ": template, ct, todo, wc
 
 #show "C++": box[C++]
 #show "C++20": box[C++20]
@@ -76,7 +70,6 @@
   ],
 )
 
-// #set text(size: 12pt)
 #columns(2, gutter: 16pt)[
 = Introduction
 
@@ -3423,10 +3416,10 @@ identified:
   the IMU streams could maximise data preservation. Using a heterogeneous
   backpressure approach may offer a balance between pipeline stability and the
   accuracy of the AI predictions.
-
-Total words: #total-words
 ]
-#colbreak()
+#[
+#pagebreak()
+#columns(1)[
 #counter(heading).update(0)
 #set heading(numbering: "A.1", supplement: [Appendix])
 
@@ -3476,3 +3469,4 @@ Number (CCN) for every function across the three pipeline implementations.
 #bibliography("refs.bib", title: "References", style: "ieee")
 ]
 ]
+] <no-wc>
