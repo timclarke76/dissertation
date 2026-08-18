@@ -3264,7 +3264,7 @@ collected data provided an insight into the impact of manual memory management,
 compiler-enforced memory safety, and automated garbage collection on the
 real-time latency, throughput, and system stability.
 
-== Answering the Research Questions
+== Addressing the Research Questions
 
 #v(0.5em)
 
@@ -3278,14 +3278,13 @@ No garbage collection "stop-the-world" events occurred after the initial
 \10-second initialisation window in the Python implementation. However, due to
 contention with the automated memory management, a second shared memory buffer
 was required. In addition, the Python implementation only achieved a maximum
-sustainable `load` multiplier of \0.05 (i.e. \5% of the natural sensor speed).
+sustainable `load` multiplier of \0.05 (i.e. \5% of the native sensor speed).
 
-Furthermore, analysis of the Resident Set Size (RSS)
-(@fig:MAXN_SUPER-memory-profiling) revealed that all three implementations were
-within \50 MB of each other (approximately \800 MB). This reveals that in
-Edge-AI deployments, the memory requirements are predominantly determined by
-shared AI dependencies (ONNX Runtime, CUDA, TensorRT), rather than the language
-runtime models themselves.
+Furthermore, analysis of the RSS (@fig:MAXN_SUPER-memory-profiling) revealed
+that all three implementations were within \50 MiB of each other (approximately
+\800 MiB). This reveals that in Edge-AI deployments, the memory requirements are
+predominantly determined by shared AI dependencies (ONNX Runtime, CUDA,
+TensorRT), rather than the language runtime models themselves.
 
 A measured discrepancy between the C++ and Rust implementations' maximum
 sustainable `load` multipliers existed only when using Bounded Queue. This
@@ -3314,7 +3313,7 @@ Drop Oldest is most likely to adhere to the latency deadline even under heavy
 loads.
 
 If temporal continuity is a priority for the pipeline, Adaptive Decimation drops
-every nth frame in an attempt to prevent total saturation, but does so at the
+every $n$-th frame in an attempt to prevent total saturation, but does so at the
 expense of significantly more dropped frames even during very temporary moderate
 load or micro-jitter that the pipeline would be otherwise able to sustain
 without any loss of data.
@@ -3336,11 +3335,11 @@ between C++ and Rust, but that Python was significantly slower.
 
 Spearman's rank correlation revealed that there was no relationship between CPU
 temperature and latency. Because the Jetson Orin Nano's thermal management
-triggered the cooling fan at \74°C, DVFS throttling did not occur. This
-confirmed that performance degradation when using the constrained 7-Watt power
-mode (@sec:power-constraints), instead of the unconstrained MAXN_SUPER mode, was
-a result of reduced computational resources (i.e. a reduced number of CPU cores
-and lower clock frequencies), rather than the DVFS throttling.
+triggered the cooling fan at \74#sym.degree\C, DVFS throttling did not occur.
+This confirmed that performance degradation when using the constrained 7-Watt
+power mode (@sec:power-constraints), instead of the unconstrained MAXN_SUPER
+mode, was a result of reduced computational resources (i.e. a reduced number of
+CPU cores and lower clock frequencies), rather than the DVFS throttling.
 
 An undefined result (`NaN`) was returned when calculating Spearman's rank
 correlation ($rho$) for the impact of Python's Garbage Collection (GC) pauses on
@@ -3366,10 +3365,10 @@ may make it suitable for initial pipeline prototyping. However, contrary to
 common assumption, its automatic memory management may increase developer
 friction when employed for systems-engineering tasks in a multi-threaded
 architecture. In addition, it demonstrated concurrency limitations for
-high-speed multi-stream ingestion systems. This is due to both the Global
-Interpreter Lock (GIL), which restricts the number of actively executing threads
-to just one, and the absence of a CPU micro-architectural hint to yield
-resources without yielding to the OS kernel.
+high-speed multi-stream ingestion systems. This is due to both the GIL, which
+restricts the number of actively executing threads to just one, and the absence
+of a CPU micro-architectural hint to yield resources without yielding to the OS
+kernel.
 
 When selecting a backpressure policy for a high-speed pipeline, the architect
 must choose based on a trade-off between data preservation, temporal relevance,
@@ -3380,8 +3379,8 @@ if temporal relevance is the priority, the Drop Oldest load-shedding policy
 ejects stale frames in favour of fresh data when the data ingestion rate exceeds
 the pipeline's ability to process data within the latency deadline. Finally, if
 temporal continuity is the priority, Adaptive Decimation proactively drops every
-nth frame before saturation is reached, at the expense of a significantly higher
-drop rate as the data ingestion rate approaches the pipeline's maximum
+$n$-th frame before saturation is reached, at the expense of a significantly
+higher drop rate as the data ingestion rate approaches the pipeline's maximum
 sustainable throughput.
 
 == Future Work
@@ -3392,21 +3391,20 @@ identified:
 
 + *GIL Profiling and Truly Concurrent Python:* Having eliminated Garbage
   Collection as the cause of Python's poor maximum sustainable performance,
-  future work might investigate the impact of the Global Interpreter Lock (GIL)
-  and its serialisation of thread execution, alongside the consequential thread
-  contention. A low-level profiling tool could be used to provide more
-  visibility into thread starvation. Furthermore, alternative Python
-  implementations, such as the PyPy-STM (Software Transactional Memory) variant,
-  could determine if Python can achieve parity with compiled languages in
-  real-time Edge-AI pipelines.
+  future work might investigate the impact of the GIL and its serialisation of
+  thread execution, alongside the consequential thread contention. A low-level
+  profiling tool could be used to provide more visibility into thread
+  starvation. Furthermore, alternative Python implementations, such as the
+  PyPy-STM (Software Transactional Memory) variant, could determine if Python
+  can achieve parity with compiled languages in real-time Edge-AI pipelines.
 
 + *Fanless Platforms:* The active cooling of the Jetson Orin Nano Developer Kit
-  automatically starts the cooling fan when the temperature reaches \74°C,
-  preventing the system from reaching its \99°C DVFS throttling threshold.
-  Future work should evaluate these pipelines when deployed to fanless,
-  passively cooled platforms. Forcing the hardware to reach thermal limits would
-  provide visibility into how the implementations interact with dynamic thermal
-  throttling when under sustained load.
+  automatically starts the cooling fan when the temperature reaches
+  \74#sym.degree\C, preventing the system from reaching its \99#sym.degree\C
+  DVFS throttling threshold. Future work should evaluate these pipelines when
+  deployed to fanless, passively cooled platforms. Forcing the hardware to reach
+  thermal limits would provide visibility into how the implementations interact
+  with dynamic thermal throttling when under sustained load.
 
 + *Backpressure Policies and Accuracy:* Future work should evaluate the impact
   of different backpressure policies on the accuracy of the HAR predictions.
