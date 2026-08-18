@@ -2610,7 +2610,7 @@ frequencies), and not DVFS throttling caused by thermal accumulation.
 Despite Rust's stricter compile-time checks and safety guarantees (e.g.
 ownership, the borrow checker, and strict variable usage), compilation times
 were significantly faster than experienced with C++. The latter implementation
-relies on several template classes --- both standard (e.g. `std::shared_ptr`,
+relies on several template classes, both standard (e.g. `std::shared_ptr`,
 `std::vector`) and pipeline specific (the channel `Sender`/`Receiver` and the
 `Queue`). By language design, C++ templates must be defined in header files, and
 because C++ relies on a pre-processor source file inclusion model (`#include`),
@@ -2795,7 +2795,7 @@ references that may not outlive the spawned thread. Instead, Rust forces the
 developer to transfer ownership using the `move` keyword and atomic reference
 counting (e.g. `Arc<Mutex<T>>`). Though Rust's ownership model may be a steep
 learning curve for developers new to the language (similar to that experienced
-when transitioning from a functional paradigm to an object-oriented one) it
+when transitioning from a functional paradigm to an object-oriented one), it
 eliminates memory-safety bugs that are notoriously difficult to resolve,
 shifting the burden from developer discipline and vigilance to compiler
 analysis.
@@ -2807,7 +2807,7 @@ determine when resources are reclaimed.
 
 == Memory Management Friction <sec:memory_management>
 
-It is generally believed that a runtime model GC reduces cognitive burden when
+It is generally believed that a runtime model's GC reduces cognitive burden when
 compared to manual memory management (C++), or an ownership model (Rust).
 However, when developing the temporal buffering of the unbounded queue's frame
 payloads, C++ provided the least friction. Because the developer is responsible
@@ -2870,8 +2870,8 @@ temporary blockage without dropping frames. Conversely, because the RGB thread
 pushes to the MPSC channel on a \1:1 ratio, it blocks immediately. Unable to pop
 from its shallow \3-frame bounded queue, the RGB stream saturates almost
 immediately (see @fig:mpsc-bottleneck). This triggers the active backpressure
-policy, resulting in dropped or lapped frames, and/or the latency deadline to be
-breached.
+policy, resulting in dropped or lapped frames, and/or causing the latency
+deadline to be breached.
 
 #figure(
   pad(top: 1em)[
@@ -2995,10 +2995,10 @@ must be sacrificed to guarantee deadline adherence
 (@fig:MAXN_SUPER-latency-comparison).
 
 As shown in @fig:MAXN_SUPER-dropped-frames, Drop Oldest dropped fewer frames
-overall than Drop Newest. This result was unexpected --- because Drop Newest
-simply rejects incoming frames when the bounded buffer is full, it avoids the
-computational overhead and extended mutex lock duration required by Drop Oldest
-to overwrite existing queue data. However, while the root cause of this
+overall than Drop Newest. Because Drop Newest simply rejects incoming frames
+when the bounded buffer is full, it avoids the computational overhead and
+extended mutex lock duration required by Drop Oldest to overwrite existing queue
+data, and so this result was unexpected. However, while the root cause of this
 discrepancy requires further investigation, the evaluation results reveal that
 the heavier queue-modification logic of Drop Oldest does not negatively impact
 the pipeline's overall retention rate.
@@ -3035,7 +3035,7 @@ efficiently than the latter. This is likely because for division operations
 (including modulo), Rust inserts more machine instructions to check if the
 divisor is zero so that it can perform a controlled panic, while C++ is
 optimised to perform the division without any checks, leading to undefined
-behaviour if it is.
+behaviour if the divisor is zero.
 
 == Mutex Contention <sec:mutex-contention>
 
@@ -3208,7 +3208,7 @@ idiomatic boilerplate as the language mandates encapsulation, requiring header
 declarations, private members, and accessors and mutators. Conversely, Python
 (which achieved the lowest NLOC count) relies on implied typing, and
 public-by-default attributes using naming conventions to indicate client access
-rights --- reducing developer friction, but shifting validation to runtime.
+rights, reducing developer friction but shifting validation to runtime.
 
 #figure(
   pad(top: 1em)[
@@ -3236,12 +3236,12 @@ paradigms. Rather than indicating that the C++ logic is simpler, this is due to
 C++'s verbosity. The average CCN is calculated by dividing the total complexity
 by the number of functions. Because C++ requires many trivial methods not
 necessary in the other languages, these reduce the average CCN result. For
-example, while a simple destructor to release memory in C++ would increase the
-function count and thus reduce the average CCN, the same destructor is not
+example, while a simple destructor to release memory in C++ increases the
+function count and thus reduces the average CCN, the same destructor is not
 required in Rust or Python (because of the automated resource management and
-garbage collection), thus artificially inflating the average CCN as the function
-count is consequently lower, despite the complexity of the overall code being
-lower.
+garbage collection). Consequently, the average CCN for Rust and Python is
+artificially inflated by their lower function counts, despite the logical
+complexity of the overall code being lower.
 
 While the boilerplate code skews the average CCN, examining the individual
 function metrics reveals the similarity between all three implementations. The
