@@ -3000,6 +3000,30 @@ pipeline priority, but this proactive shedding occurs at the expense of a
 significantly greater loss of data, even at ingestion rates below what the
 pipeline can typically sustain.
 
+== Load-Shedding Overhead
+
+For the static load-shedding policies (Drop Oldest and Drop Newest), C++ was
+able to sustain a maximum `load` multiplier of \1.25, while Rust was able to
+sustain a marginally higher `load` of \1.5. However, when using Adaptive
+Decimation, though C++ was still able to sustain \1.25, Rust's throughput
+dropped to \1.0.
+
+The static load-shedding policies are very simple, and mainly rely on memory
+manipulation to check the buffer, and (when using Drop Oldest) to overwrite the
+oldest frame and update the queue index. Rust's ability to sustain a higher
+`load` when using these policies suggests that it is more efficient at memory
+manipulation than C++.
+
+Conversely, Adaptive Decimation relies heavily on mathematical calculations as
+it linearly scales the decimation ratio based on the current queue depth, and
+performs modulo arithmetic. C++'s advantage when using this policy, compared to
+Rust, reveals that the former performs the arithmetic calculations more
+efficiently than the latter. This is likely because for division operations
+(including modulo), Rust inserts more machine instructions to check if the
+divisor is zero so that it can perform a controlled panic, while C++ is
+optimised to perform the division without any checks, leading to undefined
+behaviour if it is.
+
 == Mutex Contention <sec:mutex-contention>
 
 It is notable that in the baseline performance (@sec:baseline-performance),
