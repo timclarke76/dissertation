@@ -2719,6 +2719,20 @@ the complexity of C++'s legacy architecture and backward compatibility can deter
 the adoption of attempts to introduce modern approaches to software development,
 forcing developers to revert to a more traditional style of programming.
 
+While features such as dynamic typing and automated memory management are often
+believed to reduce cognitive load, this evaluation revealed that they can
+introduce additional friction during runtime. For example, during the
+implementation of the Adaptive Decimation backpressure policy
+(@sec:adaptive-decimation), the strictly typed C++ and Rust runtime models
+truncate the result of the integer division. Conversely, Python's division
+operator (`/`) implicitly casts the result to a `float`, causing the subsequent
+modulo operation to silently fail, resulting in virtually all frames being
+dropped. Instead, to truncate the division result, the floor-division operator
+(`//`) was required. This demonstrates that while features such as dynamic
+typing _can_ reduce developer friction and boilerplate code, they shift the
+burden of semantic validation to runtime, increasing debugging overhead in
+complex systems.
+
 == Ecosystem Maturity and Deployment
 
 The C++ ecosystem is a highly cohesive, mature development environment. Its
