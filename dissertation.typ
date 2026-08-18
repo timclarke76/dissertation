@@ -3413,6 +3413,16 @@ identified:
   the IMU streams could maximise data preservation. Using a heterogeneous
   backpressure approach may offer a balance between pipeline stability and the
   accuracy of the AI predictions.
+
++ *Load-Shedding Efficiency Discrepancy:* An unexpected result was observed
+  wherein the Drop Oldest policy dropped fewer frames than the Drop Newest
+  policy. Drop Oldest must execute more instructions to overwrite the oldest
+  frame while holding the queue's mutex lock, whereas Drop Newest simply rejects
+  incoming frames. It was therefore expected that Drop Newest would be more
+  efficient and drop fewer frames, but the data showed the opposite. Future
+  profiling work should investigate the cause of this discrepancy to determine
+  why simply rejecting a new frame is outperformed by a policy that must
+  actively manage the buffer backlog.
 ]
 #[
 #pagebreak()
