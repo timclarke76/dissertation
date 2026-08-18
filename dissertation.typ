@@ -3189,6 +3189,14 @@ automated memory management, its memory overhead was only marginally higher
 the choice of runtime model has little impact on the memory footprint of the
 overall system.
 
+This finding contradicts the conclusions of Pereira et al. @pereira2017energy,
+which ranked Rust as seventh in memory efficiency, significantly trailing behind
+C++. However, that study was conducted when Rust utilised the `jemalloc`
+allocator. The results recorded for this dissertation reveal that following
+Rust's adoption of the standard system allocator by default (introduced in
+version 1.32.0), its memory footprint was slightly lower than that of C++ in
+this evaluation (by less than \1%).
+
 == Static Analysis
 
 Static code analysis was performed using the `lizard` complexity analyser to
