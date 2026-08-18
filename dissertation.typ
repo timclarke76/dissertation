@@ -43,13 +43,12 @@
 
     The evaluation revealed that C++ and Rust achieve similar performance
     results, sustaining ingestion rates up to \5.5 times the native sensor rate
-    with no dynamic memory allocation. However, a faster ingestion rate was
-    recorded for the Bounded Queue flow-control policy when using Rust than for
-    C++, due to the former's more efficient mutex implementation. Python reached
-    terminal saturation at 5% of the native sensor rate. Statistical analysis
-    ruled out garbage collection as the cause of Python's poor performance,
-    indicating that Global Interpreter Lock (GIL) contention was the primary
-    bottleneck.
+    with no dynamic memory allocation when using Exponential Backoff. However,
+    both compiled languages reached terminal saturation at \4.0 when using the
+    Bounded Queue policy due to lock contention. Python reached terminal
+    saturation at \4% of the native sensor rate. Statistical analysis ruled out
+    garbage collection as the cause of Python's poor performance, confirming
+    Global Interpreter Lock contention as the primary bottleneck.
 
     Analysis of the backpressure policies revealed a trade-off: flow-control
     policies prevent data loss but suffer from latency deadline breaches at
@@ -63,10 +62,10 @@
     resources, confirming that the performance of Edge-AI pipelines is impacted
     by the power constraints of the hardware.
 
-    This study recommends Rust for real-time Edge-AI deployments. It matches or
-    exceeds the execution speed of C++, benefits from a more performant mutex
-    implementation, and provides compiler-enforced memory safety and
-    error-checking.
+    This study recommends Rust for real-time Edge-AI deployments. It matches the
+    execution speed of C++ while providing compiler-enforced memory safety,
+    significantly reducing the maintenance overhead of complex concurrent
+    systems.
   ],
 )
 
