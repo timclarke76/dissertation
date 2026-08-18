@@ -3264,19 +3264,20 @@ real-time latency, throughput, and system stability.
 revealed near-parity between the C++ and Rust implementations
 (@sec:baseline-performance). Both pipelines were implemented with
 zero-allocation, and comfortably adhered to the \100 ms latency deadline with no
-dropped or lapped frames up to a `load` multiplier of \5.5.
+dropped or lapped frames up to a `load` multiplier of \5.5, depending on the
+backpressure policy in use.
 
 No garbage collection "stop-the-world" events occurred after the initial
 \10-second initialisation window in the Python implementation. However, due to
 contention with the automated memory management, a second shared memory buffer
 was required. In addition, the Python implementation only achieved a maximum
-sustainable `load` multiplier of \0.05 (i.e. \5% of the native sensor speed).
+sustainable `load` multiplier of \0.04 (i.e. \4% of the native sensor speed).
 
 Furthermore, analysis of the RSS (@fig:MAXN_SUPER-memory-profiling) revealed
-that all three implementations were within \50 MiB of each other (approximately
-\800 MiB). This reveals that in Edge-AI deployments, the memory requirements are
-predominantly determined by shared AI dependencies (ONNX Runtime, CUDA,
-TensorRT), rather than the language runtime models themselves.
+that all three implementations were within \60 MiB of each other (approximately
+\740--800 MiB). This reveals that in Edge-AI deployments, the memory
+requirements are predominantly determined by shared AI dependencies (ONNX
+Runtime, CUDA, TensorRT), rather than the language runtime models themselves.
 
 A measured discrepancy between the C++ and Rust implementations' maximum
 sustainable `load` multipliers existed only when using Bounded Queue. This
@@ -3295,14 +3296,13 @@ loss, temporal continuity, and deadline adherence. The flow-control policies
 successfully mitigated micro-jitter by using the capacity of the unbounded
 buffers, allowing the number of unprocessed frames to temporarily increase under
 moderate load, guaranteeing no data loss. However, as load increased, allowing
-unprocessed frames to accumulate pushed the tail latency up and severely
-breached the \100 ms deadline (@fig:MAXN_SUPER-cdf-7_0).
+unprocessed frames to accumulate pushed the tail latency up and breached the
+\100 ms deadline (@fig:MAXN_SUPER-cdf-7_0).
 
-Conversely, the load-shedding policies aggressively dropped frames even at
-moderate loads, sacrificing data preservation and temporal continuity for
-deadline adherence. By _only_ dropping stale frames in favour of fresh data,
-Drop Oldest proved most effective at adhering to the latency deadline even under
-heavy loads.
+Conversely, the load-shedding policies dropped frames even at moderate loads,
+sacrificing data preservation and temporal continuity for deadline adherence. By
+_only_ dropping stale frames in favour of fresh data, Drop Oldest proved most
+effective at adhering to the latency deadline even under heavy loads.
 
 If temporal continuity is a priority for the pipeline, Adaptive Decimation drops
 every $n$-th frame in an attempt to prevent total saturation, but does so at the
@@ -3334,33 +3334,31 @@ mode, was a result of reduced computational resources (i.e. a reduced number of
 CPU cores and lower clock frequencies), rather than DVFS throttling.
 
 An undefined result (`NaN`) was returned when calculating Spearman's rank
-correlation ($rho$) for the impact of Python's Garbage Collection (GC) pauses on
-latency, confirming that no GC events took place in the pipeline after the
-\10-second initialisation window. Similarly, an undefined result was also
-returned when calculating $rho$ for the impact of dynamic memory allocation (in
-the C++ and Rust implementations) on CPU temperature, confirming that no memory
-was dynamically allocated during the steady-state phase of the evaluation.
+correlation ($rho$) for the impact of Python's GC pauses on latency, confirming
+that no GC events took place in the pipeline after the \10-second initialisation
+window. Similarly, an undefined result was also returned when calculating $rho$
+for the impact of dynamic memory allocation (in the C++ and Rust
+implementations) on CPU temperature, confirming that no memory was dynamically
+allocated during the steady-state phase of the evaluation.
 
 == Recommendations for Edge-AI Deployments
 
 Based on the findings of this dissertation, Rust is highly recommended for
 multi-threaded, real-time pipelines deployed to Edge-AI platforms such as the
 Jetson Orin Nano. It offers the zero-allocation performance and execution speed
-of C++, with a more efficient mutex implementation to help prevent thread
-starvation during extreme lock contention. Importantly, Rust swaps developer
-discipline and vigilance for compiler-enforced memory safety, reducing
-intermittent memory-safety bugs and the long-term maintenance overhead of
-complex concurrent systems.
+of C++, while swapping developer discipline and vigilance for compiler-enforced
+memory safety, reducing intermittent memory-safety bugs and the long-term
+maintenance overhead of complex concurrent systems.
 
 CPython's reduced Lines of Code (LoC) and eradication of compile-time overhead
 may make it suitable for initial pipeline prototyping. However, contrary to
 common assumption, its automatic memory management may increase developer
 friction when employed for systems-engineering tasks in a multi-threaded
 architecture. In addition, it demonstrated concurrency limitations for
-high-speed multi-stream ingestion systems. This is due to both the GIL, which
-restricts the number of actively executing threads to just one, and the absence
-of a CPU micro-architectural hint to yield resources without yielding to the OS
-kernel.
+high-speed ingestion systems. This is due to both the GIL, which restricts the
+number of threads actively executing Python bytecode to just one, and the
+absence of a CPU micro-architectural hint to yield resources without yielding to
+the OS kernel.
 
 When selecting a backpressure policy for a high-speed pipeline, the architect
 must choose based on a trade-off between data preservation, temporal relevance,
