@@ -3176,7 +3176,7 @@ were far higher, proving that these are not ceiling limits imposed by the
 pipeline's buffer capacity, but rather evidence that both compiled languages
 share a performance limit in how quickly they can drain a saturated queue.
 
-== Resident Set Size (RSS)
+== Resident Set Size (RSS) <sec:resident-set-size>
 
 Analysis of the RSS of each implementation (@fig:MAXN_SUPER-memory-profiling)
 revealed that all three languages had memory footprints within \~\50 MiB of each
@@ -3258,9 +3258,9 @@ is not substantially changed by the choice of programming language.
 This dissertation presents an analysis of three functionally identical HAR
 AI-Edge pipelines implemented in C++20, Rust \1.97.1, and CPython \3.10.12, and
 deployed to a resource-constrained NVIDIA Jetson Orin Nano platform. Empirical
-data was collected by executing the evaluation at increasingly high rates of
-velocity, and using various backpressure policies and power constraints. The
-collected data provided an insight into the impact of manual memory management,
+data was collected by executing the evaluation at increasingly high ingestion
+rates, and using various backpressure policies and power constraints. The
+collected data provided insight into the impact of manual memory management,
 compiler-enforced memory safety, and automated garbage collection on the
 real-time latency, throughput, and system stability.
 
@@ -3290,9 +3290,9 @@ A measured discrepancy between the C++ and Rust implementations' maximum
 sustainable `load` multipliers existed only when using Bounded Queue. This
 backpressure policy uses a spin-loop and checks the bounded queue for space
 during every iteration, for which the queue's mutex must be acquired and
-released. Research showed that Rust \1.62.0 stopped relying on the same pthreads
-library as C++ to implement its mutex, and replaced it with a lightweight,
-faster alternative that directly uses Linux futex system calls
+released. As discussed in @sec:resident-set-size, Rust \1.62.0 stopped relying
+on the same pthreads library as C++ to implement its mutex, and replaced it with
+a lightweight, faster alternative that directly uses Linux futex system calls
 (@sec:mutex-contention).
 
 #v(0.5em)
@@ -3309,14 +3309,14 @@ breached the \100 ms deadline (@fig:MAXN_SUPER-cdf-7_0).
 Conversely, the load-shedding policies aggressively dropped frames even at
 moderate loads, sacrificing data preservation and temporal continuity for
 deadline adherence. By _only_ dropping stale frames in favour of fresh data,
-Drop Oldest is most likely to adhere to the latency deadline even under heavy
-loads.
+Drop Oldest proved most effective at adhering to the latency deadline even under
+heavy loads.
 
 If temporal continuity is a priority for the pipeline, Adaptive Decimation drops
 every $n$-th frame in an attempt to prevent total saturation, but does so at the
-expense of significantly more dropped frames even during very temporary moderate
-load or micro-jitter that the pipeline would be otherwise able to sustain
-without any loss of data.
+expense of significantly more dropped frames even during brief periods of
+moderate load or micro-jitter that the pipeline would be otherwise able to
+sustain without any loss of data.
 
 By isolating the saturation points of the individual streams
 (@fig:MAXN_SUPER-stream-saturation), it was shown that synchronisation anchors
@@ -3329,7 +3329,7 @@ dictating the pipeline's overall capacity.
 Kruskal-Wallis and Spearman's rank correlation, was effective in diagnosing
 runtime behaviour. Performing a Kruskal-Wallis H-test confirmed that performance
 was related to the runtime models, and not random system noise. When using
-Exponential Backoff, the Dunn's post-hoc pairwise comparison with a Bonferroni
+Exponential Backoff, Dunn's post-hoc pairwise comparison with a Bonferroni
 correction (@tab:dunns-test) revealed that there was no significant difference
 between C++ and Rust, but that Python was significantly slower.
 
@@ -3339,7 +3339,7 @@ triggered the cooling fan at \74#sym.degree\C, DVFS throttling did not occur.
 This confirmed that performance degradation when using the constrained 7-Watt
 power mode (@sec:power-constraints), instead of the unconstrained MAXN_SUPER
 mode, was a result of reduced computational resources (i.e. a reduced number of
-CPU cores and lower clock frequencies), rather than the DVFS throttling.
+CPU cores and lower clock frequencies), rather than DVFS throttling.
 
 An undefined result (`NaN`) was returned when calculating Spearman's rank
 correlation ($rho$) for the impact of Python's Garbage Collection (GC) pauses on
