@@ -2641,9 +2641,9 @@ maintaining large, complex systems.
 Rust's `Result` type forces developers to explicitly handle failure states at
 compile time. The `?` propagation operator offers a concise mechanism to push
 errors up the call stack without complicating the primary logic flow. These
-language paradigms dramatically simplify the error-handling code, and allow the
-adoption of boilerplate-reducing third-party crates (e.g. `anyhow`) to add error
-handling and contextual information in one expression.
+language paradigms simplify the error-handling code, and allow the adoption of
+boilerplate-reducing third-party crates (e.g. `anyhow`) to add error handling
+and contextual information in one expression.
 
 In contrast, both the C++ and Python implementations rely on developer
 discipline to write verbose error handling code to explicitly handle exceptions
@@ -2765,14 +2765,14 @@ fragility of deployment should be a major consideration.
 
 == Concurrency and Memory Safety
 
-A clear contrast was experienced between the manual memory management of C++ and
-the compiler-enforced memory safety of Rust. Spawning threads using
-`std::jthread` in C++ relies on lambda expressions, which allows variables to be
-captured by reference (e.g. `[&receiver]`). While concise and convenient for
-developers, this creates a dangling reference if the spawned thread uses the
-captured variable after the variable's enclosing scope has ended. Because the
-C++ compiler does not check for memory safety issues, this error is not flagged
-to the developer. Therefore, avoiding such errors relies on developer discipline
+A contrast was experienced between the manual memory management of C++ and the
+compiler-enforced memory safety of Rust. Spawning threads using `std::jthread`
+in C++ relies on lambda expressions, which allows variables to be captured by
+reference (e.g. `[&receiver]`). While concise and convenient for developers,
+this creates a dangling reference if the spawned thread uses the captured
+variable after the variable's enclosing scope has ended. Because the C++
+compiler does not check for memory safety issues, this error is not flagged to
+the developer. Therefore, avoiding such errors relies on developer discipline
 and vigilance, which becomes an increasingly difficult burden as the size and
 complexity of the codebase grows.
 
@@ -2821,8 +2821,8 @@ location offset had to be provided in the Python frames instead of physical
 addresses. Furthermore, the inference threads had to maintain a second
 `multiprocessing.shared_memory.SharedMemory` object to read the frame payloads.
 Doing so caused a further issue of `KeyError` tracebacks displayed during
-evaluation, requiring noop patching of the `resource_tracker.register` and
-`unregister` methods.
+evaluation, requiring noop monkey patching of the `resource_tracker.register`
+and `unregister` methods.
 
 == Asymmetrical Stream Saturation
 
@@ -2848,13 +2848,15 @@ for the RGB stream.
 When the pipeline processes a high enough ingestion rate, the late-fusion thread
 will struggle to process the inference results from the MPSC channel. This
 causes the inference threads to block while attempting to push their results
-into the saturated channel. Because each frame in the IMU bounded buffers
-represents a shorter period of time, and each buffer represents the same total
-period of time, the IMU buffers have the elasticity to absorb the temporary MPSC
-blockage without dropped or lapped frames. Conversely, because the RGB bounded
-buffer has a capacity of only \3 frames, each of which represents a longer
-period of time, it possesses virtually no elasticity and is almost immediately
-saturated (see @fig:mpsc-bottleneck). This triggers the active backpressure
+into the saturated channel. Because the IMU threads only push to the MPSC
+channel once per temporal window, they can continue to pop incoming frames from
+their bounded queues, accumulating the next window in local memory and giving
+the MPSC channel an opportunity to clear. This \1:53 and \1:66 insertion ratio
+gives the IMU bounded queues the elasticity to continue draining and absorb the
+temporary blockage without dropping frames. Conversely, because the RGB thread
+pushes to the MPSC channel on a \1:1 ratio, it blocks immediately. Unable to pop
+from its shallow \3-frame bounded queue, the RGB stream saturates almost
+immediately (see @fig:mpsc-bottleneck). This triggers the active backpressure
 policy, resulting in dropped or lapped frames, and/or the latency deadline to be
 breached.
 
@@ -2932,20 +2934,20 @@ the system as a whole.
 
 == Flow Control vs. Load Shedding <sec:flow-control-vs-load-shedding>
 
-When choosing a backpressure policy, the empirical data collected in this
-evaluation highlights a trade-off between temporal continuity and data
-preservation. Analysis of the number of dropped or lapped frames (see
-@sec:baseline-performance and @fig:MAXN_SUPER-dropped-frames) showed that the
-flow-control policies (Bounded Queue, Exponential Backoff) successfully
-preserved data frames at far higher ingestion rates than any of the policies
-that shed data (Drop Oldest, Drop Newest, Adaptive Decimation).
+When choosing a backpressure policy, the data collected in this evaluation
+reveals a trade-off between temporal continuity and data preservation. Analysis
+of the number of dropped or lapped frames (see @sec:baseline-performance and
+@fig:MAXN_SUPER-dropped-frames) showed that the flow-control policies (Bounded
+Queue, Exponential Backoff) successfully preserved data frames at far higher
+ingestion rates than any of the policies that shed data (Drop Oldest, Drop
+Newest, Adaptive Decimation).
 
-The pipelines are fast enough on average to process the incoming data at higher
-ingestion rates. However, micro-jitter stemming from system fluctuations causes
-the bounded queue to temporarily fill to its maximum capacity. Flow-control
-policies manage these short-lived fluctuations by taking advantage of the
-1-second unbounded buffer's capacity --- when the bounded queue is full, the
-bridge leaves the unprocessed frames in the unbounded queue until space is
+While the compiled pipelines are fast enough on average to process the incoming
+data at higher ingestion rates, micro-jitter stemming from system fluctuations
+causes the bounded queue to temporarily fill to its maximum capacity.
+Flow-control policies manage these short-lived fluctuations by taking advantage
+of the 1-second unbounded buffer's capacity --- when the bounded queue is full,
+the bridge leaves the unprocessed frames in the unbounded queue until space is
 available. This successfully absorbs the fluctuation without the loss of data,
 but at the cost of a temporary increase in latency.
 
@@ -2963,11 +2965,11 @@ Adaptive Decimation attempts to bridge the gap between the flow-control policies
 Oldest, Drop Newest). By dynamically downsampling the data stream at a linearly
 increasing rate as the bounded queue approaches full capacity (after entering a
 predefined threshold), the policy reduces pressure while preserving temporal
-continuity of the surviving frames. While this prevents bursts of dropped frames
-characteristic of the Drop Oldest and Drop Newest policies, its mechanism to
-drop frames _before_ saturation is _potentially_ reached results in substantial
-data loss that is often unnecessary, particularly at ingestion rates far below
-the pipeline's maximum sustainable throughput.
+continuity of the surviving frames. While this prevents sequential bursts of
+dropped frames characteristic of the Drop Oldest and Drop Newest policies, its
+mechanism to drop frames _before_ saturation is _potentially_ reached results in
+substantial data loss that is often unnecessary, particularly at ingestion rates
+far below the pipeline's maximum sustainable throughput.
 
 At terminal saturation (e.g. `load` \7.0), the advantages are reversed. Because
 flow-control policies do not drop frames, the unbounded circular buffer fills to
@@ -2975,23 +2977,9 @@ maximum capacity. This pushes tail latencies beyond the deadline (see
 @fig:MAXN_SUPER-cdf-7_0) and potentially beyond the temporal capacity of the
 unbounded buffer. In contrast, by aggressively dropping frames, the
 load-shedding policies are able to adhere to the latency deadline even under
-unyielding load, proving that data preservation must be sacrificed to guarantee
-deadline adherence (@fig:MAXN_SUPER-latency-comparison).
-
-When selecting a load-shedding backpressure policy, the data revealed a
-trade-off between throughput efficiency and temporal relevance. As shown in
-@fig:MAXN_SUPER-dropped-frames, Drop Newest dropped fewer frames than Drop
-Oldest. Because the former simply does not queue new frames when the bounded
-buffer is full, it avoids the computational overhead of Drop Oldest which must
-modify the queue while obtaining a mutex lock. However, though fewer frames are
-dropped and the pipeline is more computationally efficient, Drop Newest
-preserves stale frames which may have already exceeded the latency deadline and
-have become temporally irrelevant. Conversely, Drop Oldest ejects stale frames
-in favour of the freshest data, ensuring that surviving frames maintain temporal
-relevance and adhere to the latency deadline. Alternatively, Adaptive Decimation
-can be used to preserve temporal continuity if that is a pipeline priority, but
-at the cost of a greater loss of data even at ingestion rates below what the
-pipeline can typically sustain.
+unyielding load, proving that at higher rates of ingestion data preservation
+must be sacrificed to guarantee deadline adherence
+(@fig:MAXN_SUPER-latency-comparison).
 
 As shown in @fig:MAXN_SUPER-dropped-frames, Drop Oldest dropped fewer frames
 overall than Drop Newest. This result was unexpected --- because Drop Newest
@@ -3003,14 +2991,14 @@ the heavier queue-modification logic of Drop Oldest does not negatively impact
 the pipeline's overall retention rate.
 
 Because Drop Oldest actively ejects stale frames in favour of the freshest data,
-it ensures that surviving frames maintain temporal relevance and strictly adhere
-to the latency deadline. Conversely, because Drop Newest preserves existing
-frames, those frames continue to age in the queue, often exceeding the latency
-deadline and becoming temporally irrelevant before they are processed.
-Alternatively, Adaptive Decimation can be used to preserve temporal continuity
-if that is a pipeline priority, but this proactive shedding occurs at the
-expense of a significantly greater loss of data, even at ingestion rates below
-what the pipeline can typically sustain.
+it ensures that surviving frames maintain temporal relevance and adhere to the
+latency deadline. Conversely, because Drop Newest preserves existing frames,
+those frames continue to age in the queue, often exceeding the latency deadline
+and becoming temporally irrelevant before they are processed. Alternatively,
+Adaptive Decimation can be used to preserve temporal continuity if that is a
+pipeline priority, but this proactive shedding occurs at the expense of a
+significantly greater loss of data, even at ingestion rates below what the
+pipeline can typically sustain.
 
 == Mutex Contention <sec:mutex-contention>
 
@@ -3021,13 +3009,13 @@ maximum load of \4.0 when using the Bounded Queue policy.
 
 When using Bounded Queue, a saturated queue forces the bridge thread into a
 tight spin-loop, continuously acquiring and releasing the queue's mutex to check
-capacity (see @fig:mutex-contention). This continuous locking creates severe
-lock contention. Because the bridge thread instantly attempts to reacquire the
-lock, the inference thread frequently fails to acquire the mutex, preventing it
-from removing a frame and creating the space that the bridge is waiting for.
-This aggressive polling starves the consumer thread, creating a bottleneck that
-throttles both languages equally, regardless of the underlying efficiency of
-their respective mutex implementations.
+capacity. This continuous locking creates severe lock contention (see
+@fig:mutex-contention). Because the bridge thread instantly attempts to
+reacquire the lock, the inference thread frequently fails to acquire the mutex,
+preventing it from removing a frame and creating the space that the bridge is
+waiting for. This creates a bottleneck that throttles both languages equally,
+regardless of the underlying efficiency of their respective mutex
+implementations.
 
 #figure(
   pad(top: 1em)[
@@ -3119,17 +3107,21 @@ used simultaneously depending on the active backpressure policy. These each
 aggressively hold the GIL, starving the other threads of execution time,
 including the threads responsible for fetching the data or making available
 space that the spin-loops are waiting for, and creating an effective deadlock.
-This is evidenced in @fig:MAXN_SUPER-baseline-performance, where both C++ and
-Rust have the same saturation points for the Bounded Queue and Exponential
-Backoff policies, but Python's saturation point is significantly lower for the
-Bounded Queue policy because of the additional spin-loops required, while the
-Exponential Backoff policy uses a timed wait which releases the GIL.
+Because Exponential Backoff uses a timed sleep when the queue is full, it
+releases the GIL, granting the inference threads the opportunity to run.
+Conversely, the Bounded Queue policy forces the bridge thread into a continuous
+`pass` loop, retaining the lock and starving the remaining threads of execution
+time, resulting in underutilisation of resources and persistent breaches of the
+\100 ms deadline.
 
-As a consequence of this thread starvation, the Python implementation was unable
-to feed data fast enough to the ONNX runtime on the GPU, resulting in
-underutilisation of resources and persistent breaches of the \100 ms deadline.
+This GIL contention also explains the poor performance of the load-shedding
+policies (Drop Oldest, Drop Newest, and Adaptive Decimation). These policies
+never intentionally sleep or pause ingestion, and so consequently the bridge
+threads continuously evaluate thresholds and manipulate the queues, monopolising
+the GIL and preventing the inference threads from acquiring the lock long enough
+to process the surviving frames.
 
-== Zero-Allocation (C++ vs Rust)
+== Zero-Allocation & Performance (C++ vs Rust)
 
 An implementation objective was to eliminate memory churn as a confounder when
 comparing the compiled runtime models. As demonstrated in
@@ -3142,12 +3134,10 @@ loads, easily satisfying the 100 ms latency deadline. Both also performed
 similarly at terminal saturation (`load` \7.0), with C++ processing \9.4% of
 frames within the 100 ms deadline, Rust processing \7.7% of frames within the
 deadline, and both languages converging to similar maximum tail latencies of
-\177.7 ms and \174.7 ms respectively. Because Python recorded maximum latencies
-far beyond this duration, these ceilings are not limits caused by the pipeline's
-buffer capacity, revealing that under extreme load, both compiled languages
-share a performance limit in how quickly they can drain a saturated queue, and
-the choice of compiled language has little impact on the performance of the
-pipeline when memory allocation is not a confounder.
+\177.7 ms and \174.7 ms respectively. In contrast, Python's maximum latencies
+were far higher, proving that these are not ceiling limits imposed by the
+pipeline's buffer capacity, but rather evidence that both compiled languages
+share a performance limit in how quickly they can drain a saturated queue.
 
 == Resident Set Size (RSS)
 
