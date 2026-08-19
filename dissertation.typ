@@ -2,7 +2,12 @@
 #import fletcher.shapes: cylinder, diamond, pill, rect
 
 #import "@preview/wordometer:0.1.5": word-count, total-words
-#show: word-count.with(exclude: (figure.caption, <no-wc>))
+#show: word-count.with(exclude: (
+  <no-wc>,
+  figure.caption,
+  raw.where(block: true),
+  table,
+))
 
 #import "template.typ": template, ct, todo, wc
 
