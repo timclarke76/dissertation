@@ -40,20 +40,21 @@
   abstract: [
     This dissertation presents a systems-engineering comparison of C++20, Rust
     \1.97.1, and CPython \3.10.12. A functionally identical tri-stream Human
-    Activity Recognition (HAR) pipeline was implemented in each language on an
-    NVIDIA Jetson Orin Nano, utilising a wait-free, zero-allocation
-    architecture. The implementations were evaluated under varying ingestion
-    rates, backpressure policies, and hardware power constraints to isolate
-    runtime latency, maximum throughput, and thermal degradation.
+    Activity Recognition pipeline was implemented in each language on an NVIDIA
+    Jetson Orin Nano, utilising a wait-free, zero-allocation architecture. The
+    implementations were evaluated under varying ingestion rates, backpressure
+    policies, and hardware power constraints to isolate runtime latency, maximum
+    throughput, and thermal degradation.
 
     The evaluation revealed that C++ and Rust achieve similar performance
-    results, sustaining ingestion rates up to \5.5 times the native sensor rate
-    with no dynamic memory allocation when using Exponential Backoff. However,
-    both compiled languages reached terminal saturation at \4.0 when using the
-    Bounded Queue policy due to lock contention. Python reached terminal
-    saturation at \4% of the native sensor rate. Statistical analysis ruled out
-    garbage collection as the cause of Python's poor performance, confirming
-    Global Interpreter Lock contention as the primary bottleneck.
+    results  using the Jetson's unconstrained power mode, sustaining ingestion
+    rates up to \5.5 times the native sensor rate with no dynamic memory
+    allocation when using Exponential Backoff. However, both compiled languages
+    reached terminal saturation at \4.0 when using the Bounded Queue policy due
+    to lock contention. Python reached terminal saturation at up to \4% of the
+    native sensor rate. Statistical analysis ruled out garbage collection as the
+    cause of Python's poor performance, indicating Global Interpreter Lock
+    contention as the primary bottleneck.
 
     Analysis of the backpressure policies revealed a trade-off: flow-control
     policies prevent data loss but suffer from latency deadline breaches at
@@ -62,10 +63,11 @@
     prevent saturation and retain temporal continuity, but at the expense of
     higher data loss even at moderate ingestion rates that the pipeline could
     otherwise sustain without data loss or deadline breaches. Furthermore, the
-    evaluation showed that deploying the pipeline under a constrained 7-Watt
-    power profile increases latency degradation due to limited computational
-    resources, confirming that the performance of Edge-AI pipelines is impacted
-    by the power constraints of the hardware.
+    evaluation showed that deploying the compiled implementations under a
+    constrained 7-Watt power profile increases latency degradation when using
+    flow-control policies due to limited computational resources, confirming
+    that the performance of Edge-AI pipelines is impacted by the power
+    constraints of the hardware.
 
     This study recommends Rust for real-time Edge-AI deployments. It matches the
     execution speed of C++ while providing compiler-enforced memory safety,
@@ -220,11 +222,11 @@ Edge-AI systems:
 
 The focus of this dissertation is on the interaction of three language runtime
 models (C++, Rust, and Python) with system latency and throughput, using
-standardised, idiomatic implementations of a tri-stream HAR pipeline on
-industry-standard Edge-AI hardware. The scope is limited to a standardised
-implementation representative of real-world multi-modal processing, with the
-experimental variables limited to the choice of language runtime model, the
-applied backpressure policy, and the hardware power profile.
+idiomatic implementations of a tri-stream HAR pipeline on industry-standard
+Edge-AI hardware. The scope is limited to an implementation representative of
+real-world multi-modal processing, with the experimental variables limited to
+the choice of language runtime model, the applied backpressure policy, and the
+hardware power profile.
 
 The pipeline architecture, deterministic load generator, and backpressure
 implementations are designed for portability across Linux environments. However,
@@ -240,10 +242,9 @@ Pre-recorded data is not used to avoid confounding the results with disk I/O
 bottlenecks, ensuring the data is available to the pipeline at a consistent
 rate. It is acknowledged that the choice of backpresssure policy would impact
 prediction accuracy and usefulness of the results, due to the dropping of data
-and temporal discontinuity. However, this dissertation is strictly concerned
-with performance measurements of latency, throughput, and memory efficiency at
-the system level, and not the accuracy of the HAR model itself.
-
+and temporal discontinuity. However, this dissertation is concerned with
+performance measurements of latency, throughput, and memory efficiency at the
+system level, and not the accuracy of the HAR model itself.
 
 == Dissertation Outline
 
@@ -437,7 +438,7 @@ that are executed in lockstep on a single device _Streaming Multiprocessor_.
     )
   ],
 
-  caption: [CUDA Architecture Overview showing the host (CPU) and device (GPU)
+  caption: [CUDA architecture overview showing the host (CPU) and device (GPU) \
     memory separation, and the asynchronous launch of kernel functions to the
     device.#v(1em)]
 ) <fig:cuda-arch>
@@ -541,8 +542,8 @@ practice. They found that all memory-safety bugs in the dataset, except one that
 was a compiler bug, were caused by developers using the `unsafe` keyword to
 bypass the compiler's memory safety checks. However, while Coblenz et al.
 @coblenz2023 found that developers generally understood the _concept_ of
-ownership, they struggled with the _semantics_ of references and borrowing. This
-introduces a trade-off between memory safety and developer cognitive load.
+ownership, they struggled with the _semantics_ of references and borrowing,
+introducing a trade-off between memory safety and developer cognitive load.
 
 == Backpressure Policies
 
@@ -657,17 +658,18 @@ installation, and was physically removed after the NVMe SSD was installed.
 == Software Stack
 
 The Jetson was already flashed with NVIDIA's JetPack \6.2 SDK @jetpack-6-2,
-which provides the uncapped `MAXN_SUPER` power profile that enables the highest
-number of CPU/GPU cores and maximum clock frequencies across the SoC. The
-software stack includes Jetson Linux 36.4.3 (featuring the Linux Kernel 5.15 and
-an Ubuntu \22.04-based root file system) and CUDA \12.6.10, cuDNN \9.3.0, and
-TensorRT \10.3.0 for AI inference and acceleration. The software stack versions
-were selected as the most recent stable releases at the time of development, and
-were used for all implementations to ensure a consistent baseline for
-comparison. The Jetson Linux operating system utilises the GNU C Library (glibc)
-memory allocator, which in turn is used by the installed C++ and Rust toolchains
-as they rely on the system allocator. This enables use of glibc-specific tools
-for analysis of memory fragmentation.
+which unlocks the "Super" performance tier by providing the uncapped
+`MAXN_SUPER` power profile, that enables the highest number of CPU/GPU cores and
+maximum clock frequencies across the SoC. The software stack includes Jetson
+Linux 36.4.3 (featuring the Linux Kernel 5.15 and an Ubuntu \22.04-based root
+file system) and CUDA \12.6.10, cuDNN \9.3.0, and TensorRT \10.3.0 for AI
+inference and acceleration. The software stack versions were selected as the
+most recent stable releases at the time of development, and were used for all
+implementations to ensure a consistent baseline for comparison. The Jetson Linux
+operating system utilises the GNU C Library (glibc) memory allocator, which in
+turn is used by the installed C++ and Rust toolchains as they rely on the system
+allocator. This enables use of glibc-specific tools for analysis of memory
+fragmentation.
 
 All implementations interact with the ONNX Runtime 1.24.0 to load and execute
 the AI model, which is responsible for the data transfer and inference
@@ -904,7 +906,7 @@ Five backpressure and load shedding policies were implemented to manage queue
 saturation when the consumer buffer is full:
 
 *Policies that attempt to preserve all data (Flow Control):*
-  - *Bounded queue:* Blocks the pipeline's bridge thread from ingesting new
+  - *Bounded Queue:* Blocks the pipeline's bridge thread from ingesting new
     frames until space becomes available in the consumer buffer.
   - *Exponential Backoff:* Waits a short time before retrying to insert the
     data, with the wait time increasing each time by a configurable factor until
@@ -1004,8 +1006,8 @@ least one consumer buffer reached capacity, ensuring the backpressure mechanism
 was continuously engaged across all policies. Because the languages differ in
 baseline performance, a separate, fixed load multiplier was determined for each
 language. This normalised the level of system stress, ensuring that all five
-backpressure policies within a given language were evaluated against an
-identical, language-appropriate rate of ingestion.
+backpressure policies within a given language were evaluated against a
+language-appropriate rate of ingestion.
 
 == False Sharing
 
@@ -1164,7 +1166,7 @@ being adjusted. The following six timestamps, as visualised in
     flows through the pipeline. #v(1em)]
 ) <fig:latency_timeline>
 
-To prevent Coordinated Omission as identified in @sec:coordinated-omission, the
+To prevent Coordinated Omission, as identified in @sec:coordinated-omission, the
 load generator is decoupled from the pipelines. By ensuring that it pushes to an
 unbounded ring buffer, it is never blocked when the system is stalled, thus
 guaranteeing that `generated_ts` allows queueing delays and tail-latency to be
@@ -1235,7 +1237,7 @@ structures (e.g. vectors or lists).
   ],
 
   caption: [Triple-buffering approach to cleanly capture the telemetry epochs \
-    without blocking the pipeline thread during I/O stalls.]
+    without blocking the pipeline thread during stalls.]
 ) <fig:triple-buffering>
 
 === Memory Churn (C++ and Rust)
@@ -1273,8 +1275,8 @@ duration of each pause.
 To prevent memory allocation within the callback function, a triple-buffering
 approach was used, similar to the latency measurements, where the callback
 function writes the GC pause durations to an active `Epoch` without blocking.
-The background telemetry thread then extracts the GC pause percentiles and
-maximums at the same time as the latency measurements, allowing correlation
+The background telemetry thread then extracts the total accumulated GC pause
+duration at the same time as the latency measurements, allowing correlation
 between GC pause durations and runtime model events.
 
 === Memory Fragmentation
@@ -1359,17 +1361,18 @@ threads after any pending frames were processed.
 
 === Late Fusion
 
-An MPSC pattern was used to drive the late fusion, where the inference threads
-all pushed their results to a single fusion thread for processing, and the
-fusion execution was tied to the \30 Hz RGB stream. Anchoring on the slowest,
-most computationally expensive stream prevented both redundant fusion
-executions, and the fusion thread from being bottlenecked by the faster IMU
-streams. Consequently, the IMU streams were downsampled using fixed window sizes
-to match the \30 Hz RGB stream (@fig:late-fusion), ensuring that the IMU
-inference was only executed and the results injected into the MPSC channel when
-the window was full. Zero-Order Hold was used to pair the RGB and IMU inference
-results, where the most recent IMU inference result was held until the next RGB
-inference result was available.
+A Multi-Producer Single-Consumer (MPSC) pattern was used to drive the late
+fusion, where the inference threads all pushed their results to a single fusion
+thread for processing, and the fusion execution was tied to the \30 Hz RGB
+stream. Anchoring on the slowest, most computationally expensive stream
+prevented both redundant fusion executions, and the fusion thread from being
+bottlenecked by the faster IMU streams. Consequently, the IMU streams were
+downsampled using fixed window sizes to match the \30 Hz RGB stream
+(@fig:late-fusion, overleaf), ensuring that the IMU inference was executed, and
+the results were injected into the MPSC channel, only when the window was full.
+Zero-Order Hold was used to pair the RGB and IMU inference results, where the
+most recent IMU inference result was held until the next RGB inference result
+was available.
 
 #figure(
   pad(top: 1.0em)[
@@ -1421,15 +1424,15 @@ hardware-level protection that cannot be disabled. If the fan fails to provide
 enough cooling, the device utilises reactive software thermal management (DVFS)
 that constantly polls the temperature and throttles the performance of the
 high-power components (e.g. CPU and GPU) when the device exceeds operating
-temperature threshold at 99#sym.degree\C (see @app:thermal-zones).
+temperature threshold at \99#sym.degree\C (see @app:thermal-zones).
 
 The Jetson was configured to use the unconstrained power mode (MAXN_SUPER) using
-`nvpmodel -m 0`, and maximum clock overrides were enabled using `jetson_clocks`.
-This allows the device to operate at its maximum performance. Kernel console
-logging was disabled (using `dmesg -n 1`) to prevent I/O interrupts from
-affecting the measurements. Temperature, power draw, and clock frequencies were
-recorded to a `.log` file using the `tegrastats` utility, and converted to a CSV
-file for analysis after the evaluation using `awk`.
+`nvpmodel -m 2` (see @app:power-profiles), and maximum clock overrides were
+enabled using `jetson_clocks`. This allows the device to operate at its maximum
+performance. Kernel console logging was disabled (using `dmesg -n 1`) to prevent
+I/O interrupts from affecting the measurements. Temperature, power draw, and
+clock frequencies were recorded to a `.log` file using the `tegrastats` utility,
+and converted to a CSV file for analysis after the evaluation using `awk`.
 
 All evaluations were conducted in an environment with an ambient room
 temperature ranging between \21.4#sym.degree\C and \26.2#sym.degree\C. Prior to
@@ -1517,9 +1520,9 @@ Python. It was utilised to determine: (1) the Non-commenting Lines Of Code
 (NLOC), quantifying how verbose each implementation is, and (2) the Cyclomatic
 Complexity Number (CCN) @mccabe1976, quantifying the number of linearly
 independent paths that exist in each implementation's source code. By measuring
-the NLOC and CCN of identical backpressure and concurrency implementations in
-C++, Rust, and Python, this analysis provides a partial insight into each
-runtime model's development lifecycle overhead.
+the NLOC and CCN of the functionally identical backpressure and concurrency
+implementations in C++, Rust, and Python, this analysis provides a partial
+insight into each runtime model's development lifecycle overhead.
 
 == Methodological Limitations
 
