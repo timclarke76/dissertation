@@ -1432,9 +1432,9 @@ recorded to a `.log` file using the `tegrastats` utility, and converted to a CSV
 file for analysis after the evaluation using `awk`.
 
 All evaluations were conducted in an environment with an ambient room
-temperature ranging between #ct[TODO]#sym.degree\C and #ct[TODO]#sym.degree\C.
-Prior to commencing the evaluation suite, the Jetson Orin Nano was rebooted and
-allowed to idle for ten minutes to stabalise. A target baseline temperature of
+temperature ranging between \21.4#sym.degree\C and \26.2#sym.degree\C. Prior to
+commencing the evaluation suite, the Jetson Orin Nano was rebooted and allowed
+to idle for ten minutes to stabalise. A target baseline temperature of
 \60#sym.degree\C was selected for all evaluations. Experimental testing
 determined that lower thresholds (e.g. \55#sym.degree\C) could not be reliably
 or rapidly achieved between pipeline executions due to residual heat and
