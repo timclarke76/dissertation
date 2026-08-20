@@ -841,14 +841,14 @@ full.
 
 Using Little's Law ($L = lambda W$) @little1961, the capacity of each consumer
 buffer was determined by multiplying the _target_ baseline throughput ($lambda$)
-by the maximum deadline ($W$) for processing an event. The target throughput is
-based on the _native_ generation rate of the physical sensors (i.e. a load
-multiplier of \1.0), allowing the pipelines to be tested under simulated system
-stress relative to the baseline speed of the physical sensors. As stated in
-@sec:problem-statement, a maximum deadline of \100 ms was selected based on Xue
-et al. @xue2025, resulting in a capacity of \3 for the RGB stream (\30 FPS),
-\160 for the accelerometer stream (\1.6 kHz), and \200 for the gyroscope stream
-(\2.0 kHz).
+by the maximum deadline ($W$) for processing an event (@fig:little-law). The
+target throughput is based on the _native_ generation rate of the physical
+sensors (i.e. a load multiplier of \1.0), allowing the pipelines to be tested
+under simulated system stress relative to the baseline speed of the physical
+sensors. As stated in @sec:problem-statement, a maximum deadline of \100 ms was
+selected based on Xue et al. @xue2025, resulting in a capacity of \3 for the RGB
+stream (\30 FPS), \160 for the accelerometer stream (\1.6 kHz), and \200 for the
+gyroscope stream (\2.0 kHz).
 
 #figure(
   pad(top: 1.5em)[
@@ -911,6 +911,8 @@ saturation when the consumer buffer is full:
   - *Exponential Backoff:* Waits a short time before retrying to insert the
     data, with the wait time increasing each time by a configurable factor until
     a maximum wait time is reached (after which the data is dropped).
+
+#colbreak()
 
 *Policies that intentionally drop data (Load Shedding):*
   - *Drop Oldest:* Drops the oldest data in the consumer buffer to make room for
@@ -1105,7 +1107,64 @@ functional equivalence across all three implementations.
 
 == Profiling and Metrics
 
-=== Latency
+=== Late Fusion
+
+A Multi-Producer Single-Consumer (MPSC) pattern was used to drive the late
+fusion, where the inference threads all pushed their results to a single fusion
+thread for processing, and the fusion execution was tied to the \30 Hz RGB
+stream. Anchoring on the slowest, most computationally expensive stream
+prevented both redundant fusion executions, and the fusion thread from being
+bottlenecked by the faster IMU streams. Consequently, the IMU streams were
+downsampled using fixed window sizes to match the \30 Hz RGB stream
+(@fig:late-fusion), ensuring that the IMU inference was executed, and the
+results were injected into the MPSC channel, only when the window was full.
+Zero-Order Hold was used to pair the RGB and IMU inference results, where the
+most recent IMU inference result was held until the next RGB inference result
+was available.
+
+#figure(
+  pad(top: 1.0em)[
+    #set text(size: 8pt)
+    #let n(x, y, t, w) = node((x,y), align(center)[#t], shape: rect, width: w,
+    height: 3em)
+    #let s(x, y, name, speed) = n(x, y, [*#name*\ $lambda = #speed$], 7.38em)
+    #let c(x, y, num) = n(x, y, [Capacity: *#num*], 7.06em)
+    #let w(x, y, num) = n(x, y, [Size: *#num*], 9.56em)
+    #diagram(
+      node-stroke: 0.5pt,
+      node-corner-radius: 2pt,
+      spacing: (4em, 1.5em),
+
+      node((0, 0), align(top + center)[*Data Streams* \ ($lambda$ Hz)],
+        shape: rect, fill: luma(240), width: 7.38em, height: 4.5em),
+
+      node((0, 0), shape: rect, fill: luma(240), width: 7.38em, height: 4.5em,
+        align(top + center)[*Data Streams* \ ($lambda$ Hz)]),
+      node((1, 0), shape: rect, fill: luma(240), width: 9.86em, height: 4.5em,
+        align(top + center)[*Inference Window* \ ($w = lambda div 30$) \ 
+          Anchor = 30 Hz]),
+
+      s(0, 1, [RGB], 30),
+      s(0, 2, [Accel], 1600),
+      s(0, 3, [Gyro], 2000),
+
+      w(1, 1, 1),
+      w(1, 2, 53),
+      w(1, 3, 66),
+
+      edge((0, 1), (1, 1), "-|>"),
+      edge((0, 2), (1, 2), "-|>"),
+      edge((0, 3), (1, 3), "-|>"),
+      
+      edge((0, 0), (0, 1), "-|>", stroke: (dash: "dashed")),
+    )
+  ],
+  caption: [Derivation of the inference window sizes for the IMU streams to
+    match the #box[30 Hz] RGB stream, using Zero-Order Hold to pair the
+    inference results. #v(0.5em)],
+) <fig:late-fusion>
+
+=== Latency Breakdown
 
 To measure latency of the pipelines, the `CLOCK_MONOTONIC` clock was used to
 capture high-resolution timestamps at key points as the frames flowed through
@@ -1125,11 +1184,10 @@ being adjusted. The following six timestamps, as visualised in
   the final output
 
 #figure(
-  placement: top,
+  placement: bottom,
   scope: "parent",
 
-  // pad(top: 1em, bottom: 0.5em)[
-  pad(bottom: 0.5em)[
+  [
     #let n(x, name, t) = node((x,0), name: name, t)
     #let e(p1, p2, t, s, ls) = edge(p1, p2, "|-|", align(center)[#t],
       shift: s, label-sep: 0.25em, label-side: ls)
@@ -1182,7 +1240,10 @@ processing time.
 
 These measurements provide the necessary granularity to measure each runtime
 model's latency, and to identify bottlenecks and trade-offs under load and
-backpressure.
+backpressure. Because the late-fusion execution is anchored to the 30 Hz RGB
+stream, the RGB telemetry log was used for end-to-end latency analysis. However,
+to determine system capacity, dropped and lapped frames are evaluated across all
+three streams.
 
 To retain temporal information about how latency changes over time and
 correlates with runtime model behaviour and backpressure events, a
@@ -1240,6 +1301,24 @@ structures (e.g. vectors or lists).
     without blocking the pipeline thread during stalls.]
 ) <fig:triple-buffering>
 
+=== Event Synchronisation
+
+To ensure that identical event streams were processed by each implementation,
+without introducing startup jitter or missing initial events, an atomic variable
+(`pipeline_stage`) was integrated into each shared memory buffer header. This
+variable was initialised to $0$ (`WAITING`) by the generator, and set to a value
+of $1$ (`READY`) by the pipeline bridges once they were fully initialised and
+ready to receive data. The load generator spin-waited until all three pipelines
+were ready before starting to push data.
+
+The generator updated the `pipeline_stage` variables to $2$ (`FINISHED`) as each
+event stream was completed. Each pipeline bridge processed all remaining valid
+frames from the shared memory buffer, and then used a _poison pill_ technique to
+signal the end of the stream. A special frame containing a maximum sequence
+number (`UINT64_MAX`, `u64::MAX`, or `(1 << 64) - 1`) was injected into the
+bounded queue, which initiated a graceful shutdown of the pipeline by all
+threads after any pending frames were processed.
+
 === Memory Churn (C++ and Rust)
 
 To measure the rate of memory churn in C++ and Rust (RQ3), the global memory
@@ -1287,12 +1366,6 @@ free memory is only available in small non-contiguous blocks. As shown in
 total free memory is sufficient, as contiguous blocks larger than the fragmented
 sizes are not available, leading to Out-Of-Memory (OOM) errors.
 
-To ensure a fair comparison, all three implementations use the Linux interface
-`/proc/self/statm` to capture the Resident Set Size (RSS) from the background
-telemetry thread. The RSS provides the total amount of memory currently
-allocated to the process, including fragmented memory and that allocated by
-third-party libraries (e.g. ONNX Runtime).
-
 #figure(
   align(center)[
     #let b(f, s) = box(width: 0.75em, height: 0.75em, fill: f,
@@ -1336,85 +1409,16 @@ third-party libraries (e.g. ONNX Runtime).
     RSS. #v(1em)],
 ) <fig:memory_fragmentation>
 
+To ensure a fair comparison, all three implementations use the Linux interface
+`/proc/self/statm` to capture the Resident Set Size (RSS) from the background
+telemetry thread. The RSS provides the total amount of memory currently
+allocated to the process, including fragmented memory and that allocated by
+third-party libraries (e.g. ONNX Runtime).
+
 In addition, the C++ and Rust implementations used `mallinfo2()` to capture the
 `fordblks` field, which provides the total size of memory allocated by the
 process that is currently free, providing insight into the amount of fragmented
 memory that is allocated but not currently in use.
-
-=== Event Synchronisation
-
-To ensure that identical event streams were processed by each implementation,
-without introducing startup jitter or missing initial events, an atomic variable
-(`pipeline_stage`) was integrated into each shared memory buffer header. This
-variable was initialised to $0$ (`WAITING`) by the generator, and set to a value
-of $1$ (`READY`) by the pipeline bridges once they were fully initialised and
-ready to receive data. The load generator spin-waited until all three pipelines
-were ready before starting to push data.
-
-The generator updated the `pipeline_stage` variables to $2$ (`FINISHED`) as each
-event stream was completed. Each pipeline bridge processed all remaining valid
-frames from the shared memory buffer, and then used a _poison pill_ technique to
-signal the end of the stream. A special frame containing a maximum sequence
-number (`UINT64_MAX`, `u64::MAX`, or `(1 << 64) - 1`) was injected into the
-bounded queue, which initiated a graceful shutdown of the pipeline by all
-threads after any pending frames were processed.
-
-=== Late Fusion
-
-A Multi-Producer Single-Consumer (MPSC) pattern was used to drive the late
-fusion, where the inference threads all pushed their results to a single fusion
-thread for processing, and the fusion execution was tied to the \30 Hz RGB
-stream. Anchoring on the slowest, most computationally expensive stream
-prevented both redundant fusion executions, and the fusion thread from being
-bottlenecked by the faster IMU streams. Consequently, the IMU streams were
-downsampled using fixed window sizes to match the \30 Hz RGB stream
-(@fig:late-fusion, overleaf), ensuring that the IMU inference was executed, and
-the results were injected into the MPSC channel, only when the window was full.
-Zero-Order Hold was used to pair the RGB and IMU inference results, where the
-most recent IMU inference result was held until the next RGB inference result
-was available.
-
-#figure(
-  pad(top: 1.0em)[
-    #set text(size: 8pt)
-    #let n(x, y, t, w) = node((x,y), align(center)[#t], shape: rect, width: w,
-    height: 3em)
-    #let s(x, y, name, speed) = n(x, y, [*#name*\ $lambda = #speed$], 7.38em)
-    #let c(x, y, num) = n(x, y, [Capacity: *#num*], 7.06em)
-    #let w(x, y, num) = n(x, y, [Size: *#num*], 9.56em)
-    #diagram(
-      node-stroke: 0.5pt,
-      node-corner-radius: 2pt,
-      spacing: (4em, 1.5em),
-
-      node((0, 0), align(top + center)[*Data Streams* \ ($lambda$ Hz)],
-        shape: rect, fill: luma(240), width: 7.38em, height: 4.5em),
-
-      node((0, 0), shape: rect, fill: luma(240), width: 7.38em, height: 4.5em,
-        align(top + center)[*Data Streams* \ ($lambda$ Hz)]),
-      node((1, 0), shape: rect, fill: luma(240), width: 9.86em, height: 4.5em,
-        align(top + center)[*Inference Window* \ ($w = lambda div 30$) \ 
-          Anchor = 30 Hz]),
-
-      s(0, 1, [RGB], 30),
-      s(0, 2, [Accel], 1600),
-      s(0, 3, [Gyro], 2000),
-
-      w(1, 1, 1),
-      w(1, 2, 53),
-      w(1, 3, 66),
-
-      edge((0, 1), (1, 1), "-|>"),
-      edge((0, 2), (1, 2), "-|>"),
-      edge((0, 3), (1, 3), "-|>"),
-      
-      edge((0, 0), (0, 1), "-|>", stroke: (dash: "dashed")),
-    )
-  ],
-  caption: [Derivation of the inference window sizes for the IMU streams to
-    match the #box[30 Hz] RGB stream, using Zero-Order Hold to pair the
-    inference results. #v(0.5em)],
-) <fig:late-fusion>
 
 === Power Modes and Cooling
 
