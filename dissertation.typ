@@ -2400,11 +2400,11 @@ and \33.9 ms, respectively, during steady-state.
 
 During the initialisation phase, Python exhibited a maximum latency of \1535.1
 ms. During the subsequent steady-state phase, the maximum latency increased to
-\2210.4 ms, and the latency range increased to \2164.6 ms. Python's
-"stop-the-world" GC events were confined to the first few seconds of the
-\60-second window. This was confirmed by a Spearman's rank correlation ($rho$)
-across the steady-state window, which produced an undefined result (`NaN`) due
-to no GC events occurring during that time.
+\2210.4 ms, with a range of \2164.6 ms. Python's "stop-the-world" GC events were
+confined to the first few seconds of the \60-second window. This was confirmed
+by a Spearman's rank correlation ($rho$) across the steady-state window, which
+produced an undefined result (`NaN`) due to no GC events occurring during that
+time.
 
 #figure(
   pad(top: 0.5em)[
@@ -2518,14 +2518,13 @@ between the runtime models.
 @fig:MAXN_SUPER-thermals-native shows all three implementations subject to the
 native stream rate (`load` \1.0) using the Exponential Backoff backpressure
 policy. Because this is only a fraction of the maximum capacity for C++ and
-Rust, both compiled languages processed the data and spent the majority of the
-epoch yielding. Consequently, neither triggered the cooling fan, with C++ and
-Rust stabilising at approximately \64.0°C and \60.5°C respectively. Conversely,
-because a `load` of \1.0 greatly exceeds Python's maximum sustainable
-throughput, its threads were forced into continuous spin-loops, constantly
-utilising the CPU and driving thermal accumulation until the fan was triggered
-at approximately \143 seconds allowing the temperature to stabilise at
-approximately \57.0°C.
+Rust, both compiled languages processed the data efficiently and spent the
+majority of the epoch yielding (utilising micro-architectural pause
+instructions). Consequently, neither triggered the cooling fan, with C++ and
+Rust stabilising at approximately \64.0#sym.degree\C and \60.5#sym.degree\C
+respectively. Conversely, Python triggered the cooling fan at approximately \143
+seconds, allowing the temperature to stabilise at approximately
+\57.0#sym.degree\C.
 
 #figure(
   pad(top: 1em)[
@@ -2541,11 +2540,9 @@ implementation at their respective maximum measured saturation points
 Python). At maximum throughput, C++ and Rust triggered the fan after \63 seconds
 and \72 seconds respectively. The temperatures then settled to approximately
 \72.0#sym.degree\C and \69.5#sym.degree\C respectively. Conversely, at the
-maximum sustainable `load` multiplier of \0.04, the fan did not trigger for
-Python until \104 seconds, and the temperature then settled to approximately
-\57.0#sym.degree\C. This suggests architectural bottlenecks in the Python
-implementation (such as the GIL) force the CPU to be under-utilised, resulting
-in slower heat generation despite the spin-loops.
+maximum sustainable `load` multiplier of \0.04, the fan triggered for Python
+after \104 seconds, and the temperature then settled to approximately
+\57.0#sym.degree\C.
 
 #figure(
   pad(top: 1em)[
@@ -2607,14 +2604,16 @@ impact on the overall latency of the pipeline.
 Severe latency degradation was recorded when the Jetson Orin Nano's power mode
 was restricted to \7 Watts (using `nvpmodel -m 3`). A Spearman's rank
 correlation was performed on both compiled implementations to determine if
-increasing CPU temperature also increased latency. A `load` multiplier of \5.5
-was used with the Exponential Backoff policy, as this was the maximum ingestion
-rate that both compiled languages were able to sustain without dropping frames.
+increasing CPU temperature also increased latency. Because Python did not
+experience latency degradation under the 7-Watt profile, it was excluded from
+this correlation. A `load` multiplier of \5.5 was used with the Exponential
+Backoff policy, as this was the maximum ingestion rate that both compiled
+languages were able to sustain without dropping frames.
 
 The calculated results showed no significant correlation for either C++ or Rust.
-$rho$ was very close to zero for both languages (\0.0123 and -\0.0099
+$rho$ was very close to zero for both languages (-\0.0134 and \0.0382
 respectively), indicating no relationship between CPU temperature and latency.
-This was further confirmed by the high proof scores ($p$) of \0.767 and \0.811
+This was further confirmed by the high proof scores ($p$) of \0.746 and \0.356
 respectively. Because the Jetson's fail-safe thermal management forcefully
 triggered the cooling fan at \74#sym.degree\C, DVFS throttling was prevented.
 Therefore, the results confirm that the performance degradation was a result of
