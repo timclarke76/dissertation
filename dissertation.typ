@@ -1260,11 +1260,6 @@ reset the `Epoch` and pushed it back to the first channel for reuse. A third
 active buffer, preventing any blocking of the pipeline thread if the telemetry
 thread is delayed (e.g. by I/O stalls).
 
-High Dynamic Range (HDR) Histograms @hdrhistogram were used to aggregate the
-latency distributions, preventing memory allocation from polluting the latency
-measurements that would occur if the measurements were stored in standard data
-structures (e.g. vectors or lists).
-
 #figure(
   pad(top: 1.5em)[
     #set text(size: 8pt)
@@ -1300,6 +1295,11 @@ structures (e.g. vectors or lists).
   caption: [Triple-buffering approach to cleanly capture the telemetry epochs \
     without blocking the pipeline thread during stalls.]
 ) <fig:triple-buffering>
+
+High Dynamic Range (HDR) Histograms @hdrhistogram were used to aggregate the
+latency distributions, preventing memory allocation from polluting the latency
+measurements that would occur if the measurements were stored in standard data
+structures (e.g. vectors or lists).
 
 === Event Synchronisation
 
@@ -2323,10 +2323,10 @@ load-shedding policies, the most efficient flow-control policy (Exponential
 Backoff) was contrasted against the two static load-shedding policies (Drop
 Oldest and Drop Newest). These policies both drop frames when the bounded queue
 is full, without trying to prevent it from filling to capacity by dynamically
-adjusting the flow-rate. Rust was the most efficient implementation, and so was
-selected for this comparison. A `load` multiplier of \2.5 was used as it is the
-lowest measured multiplier at which both load-shedding policies dropped frames
-and showed significant divergence during the evaluation period.
+adjusting the flow-rate. Rust was the most efficient implementation overall, and
+so was selected for this comparison. A `load` multiplier of \2.5 was used as it
+is the lowest measured multiplier at which both load-shedding policies dropped
+frames and showed significant divergence during the evaluation period.
 
 As shown in @fig:MAXN_SUPER-dropped-frames, the Exponential Backoff flow-control
 policy was able to fully absorb the latency jitter by taking advantage of the
@@ -2394,13 +2394,13 @@ illustrated in @fig:MAXN_SUPER-python-gc, captures the initialisation phase and
 the subsequent steady-state, while retaining visual clarity.
 
 C++ and Rust demonstrated stable maximum latencies below the 100 ms deadline
-during the initialisation phase (\18.8 ms and \31.6 ms, respectively) and the
-subsequent steady-state phase (\42.3 ms and \40.9 ms), with ranges of \37.6 ms
-and \32.1 ms, respectively, during steady-state.
+during the initialisation phase (\27.3 ms and \30.8 ms, respectively) and the
+subsequent steady-state phase (\40.5 ms and \40.0 ms), with ranges of \35.7 ms
+and \33.9 ms, respectively, during steady-state.
 
-During the initialisation phase, Python exhibited a maximum latency of \844.6
+During the initialisation phase, Python exhibited a maximum latency of \1535.1
 ms. During the subsequent steady-state phase, the maximum latency increased to
-\993.0 ms, and the latency range increased to \948.9 ms. Python's
+\2210.4 ms, and the latency range increased to \2164.6 ms. Python's
 "stop-the-world" GC events were confined to the first few seconds of the
 \60-second window. This was confirmed by a Spearman's rank correlation ($rho$)
 across the steady-state window, which produced an undefined result (`NaN`) due
@@ -2520,11 +2520,12 @@ native stream rate (`load` \1.0) using the Exponential Backoff backpressure
 policy. Because this is only a fraction of the maximum capacity for C++ and
 Rust, both compiled languages processed the data and spent the majority of the
 epoch yielding. Consequently, neither triggered the cooling fan, with C++ and
-Rust stabilising at approximately \64°C and \60°C respectively. Conversely,
+Rust stabilising at approximately \64.0°C and \60.5°C respectively. Conversely,
 because a `load` of \1.0 greatly exceeds Python's maximum sustainable
 throughput, its threads were forced into continuous spin-loops, constantly
 utilising the CPU and driving thermal accumulation until the fan was triggered
-at approximately \151 seconds.
+at approximately \143 seconds allowing the temperature to stabilise at
+approximately \57.0°C.
 
 #figure(
   pad(top: 1em)[
@@ -2539,10 +2540,10 @@ implementation at their respective maximum measured saturation points
 (Exponential Backoff, `load` \5.5 for the compiled languages, and \0.04 for
 Python). At maximum throughput, C++ and Rust triggered the fan after \63 seconds
 and \72 seconds respectively. The temperatures then settled to approximately
-\72#sym.degree\C and \69.5#sym.degree\C respectively. Conversely, at the maximum
-sustainable `load` multiplier of \0.04, the fan did not trigger for Python until
-\104 seconds, and the temperature then settled to approximately
-\57#sym.degree\C. This suggests architectural bottlenecks in the Python
+\72.0#sym.degree\C and \69.5#sym.degree\C respectively. Conversely, at the
+maximum sustainable `load` multiplier of \0.04, the fan did not trigger for
+Python until \104 seconds, and the temperature then settled to approximately
+\57.0#sym.degree\C. This suggests architectural bottlenecks in the Python
 implementation (such as the GIL) force the CPU to be under-utilised, resulting
 in slower heat generation despite the spin-loops.
 
