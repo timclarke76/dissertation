@@ -3230,6 +3230,38 @@ than \1%). While this small difference may also be attributed to the newer ONNX
 Runtime C-API utilised by Rust, the data indicates that Rust now achieves memory
 footprint parity with C++.
 
+== Impact of Hardware Power Constraints
+
+When running the evaluation using the constrained 7-Watt power mode, the
+compiled implementations suffered a reduction in performance when using the
+flow-control policies --- both compiled languages dropped from \4.0 to \2.0 for
+Bounded Queue, and from \5.5 to \2.5 for Exponential Backoff. Conversely, the
+maximum sustainable `load` multiplier for the load-shedding policies (Drop
+Oldest, Drop Newest, and Adaptive Decimation) remained the same for both
+compiled languages as for the MAXN_SUPER baseline, with C++ sustaining \1.0 for
+all three policies, and Rust sustaining \1.5 for Drop Oldest and Drop Newest,
+and \1.0 for Adaptive Decimation. This suggests that the flow-control policies
+benefit from more computational resources, whereas the load-shedding policies
+are bounded by the latency deadline and micro-jitter, and so do not benefit from
+the unconstrained MAXN_SUPER power profile.
+
+A small improvement was observed for all backpressure policies when running the
+Python implementation using the 7-Watt power profile. The maximum sustainable
+`load` multiplier for Bounded Queue increased from < \0.01 to \0.02, for
+Exponential Backoff from \0.04 to \0.06, and for all the load-shedding policies
+from < \0.01 to \0.01. This improvement in performance suggests that GIL
+thrashing occurs when more CPU cores are available. This happens when the GIL is
+released by one thread, and too many threads wake simultaneously to acquire it.
+When using MAXN_SUPER mode, four of the six cores are available to the pipeline.
+Consequently, when a thread's time slice ends and the GIL is released, the
+remaining three threads all compete for the GIL but only one can acquire it,
+forcing the other two to go back to sleep. This forces multiple context
+switches, the overhead of which consumes CPU-cycles that could otherwise be
+available to the pipeline. Conversely, when using the 7-Watt power profile, only
+two cores are available to the pipeline, and so when the GIL is released, only
+one thread wakes to acquire it, reducing the context-switching overhead and
+improving the pipeline's throughput.
+
 == Static Analysis
 
 Static code analysis was performed using the `lizard` complexity analyser to
