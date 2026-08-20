@@ -2962,9 +2962,9 @@ deadline to be breached.
     late-fusion load. #v(1em)],
 ) <fig:mpsc-bottleneck>
 
-Ultimately, this demonstrates that in Edge-AI pipelines, the synchronisation
-anchor forms the bottleneck that dictates the maximum capacity and stability of
-the system as a whole.
+This demonstrates that in Edge-AI pipelines, the synchronisation anchor forms
+the bottleneck that dictates the maximum capacity and stability of the system as
+a whole.
 
 == Flow Control vs. Load Shedding <sec:flow-control-vs-load-shedding>
 
@@ -2999,7 +2999,7 @@ Adaptive Decimation attempts to bridge the gap between the flow-control policies
 Oldest, Drop Newest). By dynamically downsampling the data stream at a linearly
 increasing rate as the bounded queue approaches full capacity (after entering a
 predefined threshold), the policy reduces pressure while preserving temporal
-continuity of the surviving frames. While this prevents sequential bursts of
+continuity of the surviving frames. Though this prevents sequential bursts of
 dropped frames characteristic of the Drop Oldest and Drop Newest policies, its
 mechanism to drop frames _before_ saturation is _potentially_ reached results in
 substantial data loss that is often unnecessary, particularly at ingestion rates
@@ -3024,8 +3024,8 @@ discrepancy requires further investigation, the evaluation results reveal that
 the heavier queue-modification logic of Drop Oldest does not negatively impact
 the pipeline's overall retention rate.
 
-Because Drop Oldest actively ejects stale frames in favour of the freshest data,
-it ensures that surviving frames maintain temporal relevance and adhere to the
+Because Drop Oldest ejects stale frames in favour of the freshest data, it
+ensures that surviving frames maintain temporal relevance and adhere to the
 latency deadline. Conversely, because Drop Newest preserves existing frames,
 those frames continue to age in the queue, often exceeding the latency deadline
 and becoming temporally irrelevant before they are processed. Alternatively,
@@ -3037,10 +3037,10 @@ pipeline can typically sustain.
 == Load-Shedding Overhead
 
 For the static load-shedding policies (Drop Oldest and Drop Newest), C++ was
-able to sustain a maximum `load` multiplier of \1.25, while Rust was able to
+able to sustain a maximum `load` multiplier of \1.0, while Rust was able to
 sustain a marginally higher `load` of \1.5. However, when using Adaptive
-Decimation, though C++ was still able to sustain \1.25, Rust's throughput
-dropped to \1.0.
+Decimation, though C++ was still able to sustain \1.0, Rust's throughput dropped
+to \1.0.
 
 The static load-shedding policies are very simple, and mainly rely on memory
 manipulation to check the buffer, and (when using Drop Oldest) to overwrite the
@@ -3050,13 +3050,12 @@ manipulation than C++.
 
 Conversely, Adaptive Decimation relies heavily on mathematical calculations as
 it linearly scales the decimation ratio based on the current queue depth, and
-performs modulo arithmetic. C++'s advantage when using this policy, compared to
-Rust, reveals that the former performs the arithmetic calculations more
-efficiently than the latter. This is likely because for division operations
-(including modulo), Rust inserts more machine instructions to check if the
-divisor is zero so that it can perform a controlled panic, while C++ is
-optimised to perform the division without any checks, leading to undefined
-behaviour if the divisor is zero.
+performs modulo arithmetic. Rust's proportional drop in performance reveals that
+it is less efficient at performing these calculations than C++. This is likely
+because for division operations (including modulo), Rust inserts more machine
+instructions to check if the divisor is zero so that it can perform a controlled
+panic, while C++ is optimised to perform the division without any checks,
+leading to undefined behaviour if the divisor is zero.
 
 == Mutex Contention <sec:mutex-contention>
 
@@ -3179,6 +3178,18 @@ threads continuously evaluate thresholds and manipulate the queues, monopolising
 the GIL and preventing the inference threads from acquiring the lock long enough
 to process the surviving frames.
 
+Furthermore, this GIL monopolisation also explains the thermal behaviour
+observed in @fig:MAXN_SUPER-thermals-saturated. At the lower, sustainable `load`
+of \0.04, Python generated heat faster than at the higher, native `load` of
+\1.0. This demonstrates that at unsustainable throughputs, the pipeline
+saturates almost instantly, forcing the bridge thread to apply the Exponential
+Backoff policy and repeatedly sleep, which reduces overall computational
+resource utilisation and slows heat generation. Conversely, at the lower,
+sustainable `load` of \0.04, the pipeline processes the incoming frames, and the
+bridge thread executes an empty `pass` spin-loop while waiting for new data.
+This continuous cycle of active execution and busy-waiting holds the GIL and
+constantly utilises the CPU, causing it to generate heat more rapidly.
+
 == Zero-Allocation & Performance (C++ vs Rust)
 
 An implementation objective was to eliminate memory churn as a confounder when
@@ -3209,13 +3220,15 @@ automated memory management, its memory overhead was only marginally higher
 the choice of runtime model has little impact on the memory footprint of the
 overall system.
 
-This finding contradicts the conclusions of Pereira et al. @pereira2017energy,
-which ranked Rust as seventh in memory efficiency, significantly trailing behind
-C++. However, that study was conducted when Rust utilised the `jemalloc`
-allocator. The results recorded for this dissertation reveal that following
-Rust's adoption of the standard system allocator by default (introduced in
-version 1.32.0), its memory footprint was slightly lower than that of C++ in
-this evaluation (by less than \1%).
+The finding contradicts the conclusions of Pereira et al. @pereira2017energy,
+which ranked Rust as seventh in memory efficiency, trailing behind C++. However,
+that study was conducted when Rust utilised the `jemalloc` allocator. The
+results recorded for this dissertation reveal that following Rust's adoption of
+the standard system allocator by default (introduced in version 1.32.0), its
+memory footprint was slightly lower than that of C++ in this evaluation (by less
+than \1%). While this small difference may also be attributed to the newer ONNX
+Runtime C-API utilised by Rust, the data indicates that Rust now achieves memory
+footprint parity with C++.
 
 == Static Analysis
 
