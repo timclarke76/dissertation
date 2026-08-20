@@ -2452,25 +2452,32 @@ that heap fragmentation during the steady state was negligible for both C++
 (\5.0 KiB) and Rust (\10.6 KiB). Coupled with RSS footprints of under \750 MiB,
 and steady-state dynamic allocation rates of \0.0 Bytes/second, this proves that
 both implementations were able to sustain the load without memory churn or
-fragmentation.
+significant fragmentation.
 
 #colbreak()
 
 == Impact of Hardware Power Constraints (7W Mode)
 
 A second evaluation was executed using the Jetson Orin Nano's 7-Watt power
-profile (`nvpmodel -m 3`) which disables two of the six CPU cores, caps the CPU
-frequency at \960 MHz, and restricts the GPU clock to a maximum of \408 MHz (see
-@app:power-profiles). This is in comparison to the unconstrained limits of the
-MAXN_SUPER power mode).
+profile (using `nvpmodel -m 3`) which disables two of the six CPU cores, caps
+the CPU frequency at \960 MHz, and restricts the GPU clock to a maximum of \408
+MHz (see @app:power-profiles). This is in comparison to the unconstrained limits
+of the MAXN_SUPER power mode.
 
-As shown in @fig:saturation_7w, this reduction in available resources reduced
-the maximum throughput across all implementations. Both C++ and Rust achieved a
-maximum sustained `load` multiplier of \2.5 using Exponential Backoff, and \1.0
-using the Bounded Queue and load-shedding policies. Python was absle to sustain
-a `load` multiplier of \0.03 for Exponential Backoff, and \0.01 for Bounded
-Queue and Drop Newest, but was unable to sustain a `load` multiplier of \0.01
-for Drop Oldest and Adaptive Decimation.
+As shown in @fig:saturation_7w, utilising the 7-Watt power mode reduced the
+maximum throughput for the compiled implementations when using flow-control
+policies. For both languages, the maximum sustained `load` multiplier for
+Bounded Queue fell from \4.0 to \2.0, and for Exponential Backoff, it fell from
+\5.5 to \2.5. The static load-shedding policies were unaffected, with C++ and
+Rust sustaining load multipliers of \1.0 and \1.5 respectively, identical to
+their unconstrained MAXN_SUPER performance. Similarly, both compiled languages
+were able to sustain a `load` multiplier of \1.0 for Adaptive Decimation ---
+also identical to their unconstrained performance.
+
+The Python implementation saw a small improvement in maximum throughput across
+all backpressure policies. Bounded Queue increased from < \0.01 to \0.02,
+Exponential Backoff increased from \0.04 to \0.06, and the remaining policies
+increased from < \0.01 to \0.01.
 
 #figure(
   pad(top: 1em)[
@@ -2482,11 +2489,11 @@ for Drop Oldest and Adaptive Decimation.
 
 Latency was also impacted when utilising the \7-Watt power profile. Using an
 Exponential Backoff policy with a `load` multiplier of \5.5 was the maximum
-ingestion rate that _both_ C++ and Rust were able to sustain in MAXN_SUPER mode
+ingestion rate that both C++ and Rust were able to sustain in MAXN_SUPER mode
 without dropping frames. However, as demonstrated in @fig:power_constraint_cdf,
 when the power was constrained to \7 Watts, the \99.9th percentile latency times
-of both implementations increased from maximums of \68.4 ms and \48.3 ms to
-\288.4 ms and \296.2 ms respectively, with every epoch breaching the \100 ms
+of both implementations increased from maximums of \57.3 ms and \51.0 ms to
+\285.2 ms and \300.9 ms respectively, with every epoch breaching the \100 ms
 deadline.
 
 #figure(
@@ -2517,7 +2524,7 @@ Rust stabilising at approximately \64°C and \60°C respectively. Conversely,
 because a `load` of \1.0 greatly exceeds Python's maximum sustainable
 throughput, its threads were forced into continuous spin-loops, constantly
 utilising the CPU and driving thermal accumulation until the fan was triggered
-at approximately \150 seconds.
+at approximately \151 seconds.
 
 #figure(
   pad(top: 1em)[
@@ -2597,11 +2604,11 @@ impact on the overall latency of the pipeline.
 == Impact of Hardware Power Constraints (7W Mode) <sec:power-constraints>
 
 Severe latency degradation was recorded when the Jetson Orin Nano's power mode
-was restricted to \7 Watts (`nvpmodel -m 3`). A Spearman's rank correlation was
-performed on both compiled implementations to determine if increasing CPU
-temperature also increased latency. A `load` multiplier of \5.5 was used with
-the Exponential Backoff policy, as this was the maximum ingestion rate that both
-compiled languages were able to sustain without dropping frames.
+was restricted to \7 Watts (using `nvpmodel -m 3`). A Spearman's rank
+correlation was performed on both compiled implementations to determine if
+increasing CPU temperature also increased latency. A `load` multiplier of \5.5
+was used with the Exponential Backoff policy, as this was the maximum ingestion
+rate that both compiled languages were able to sustain without dropping frames.
 
 The calculated results showed no significant correlation for either C++ or Rust.
 $rho$ was very close to zero for both languages (\0.0123 and -\0.0099
