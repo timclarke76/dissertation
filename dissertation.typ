@@ -1241,9 +1241,9 @@ processing time.
 These measurements provide the necessary granularity to measure each runtime
 model's latency, and to identify bottlenecks and trade-offs under load and
 backpressure. Because the late-fusion execution is anchored to the 30 Hz RGB
-stream, the RGB telemetry log was used for end-to-end latency analysis. However,
-to determine system capacity, dropped and lapped frames are evaluated across all
-three streams.
+stream, the RGB telemetry was used for end-to-end latency analysis, as the IMU
+frames must wait for late-fusion synchronisation. However, to determine system
+capacity, dropped and lapped frames are evaluated across all three streams.
 
 To retain temporal information about how latency changes over time and
 correlates with runtime model behaviour and backpressure events, a
@@ -2210,9 +2210,9 @@ With MAXN_SUPER mode enabled (@fig:MAXN_SUPER-baseline-performance), both C++
 and Rust were able to sustain ingestion without absolute saturation up to a
 `load` multiplier of \4.0 for the Bounded Queue policy, and \5.5 for Exponential
 Backoff. For the static load-shedding policies (Drop Oldest and Drop Newest),
-C++ was able to process the data streams at a load multiplier of \1.25, while
-Rust successfully processed them at \1.5. When using Adaptive Decimation, C++
-achieved \1.25, whereas Rust reached terminal saturation earlier at \1.0.
+C++ was able to process the data streams at a load multiplier of \1.0, while
+Rust successfully processed them at \1.5. When using Adaptive Decimation, both
+compiled languages reached terminal saturation at \1.0.
 
 Conversely, Python was only able to process the data streams at \4% (`load`
 multiplier of \0.04) when Exponential Backoff was used. Absolute saturation was
@@ -2226,12 +2226,14 @@ reached at < \0.01 for all other backpressure policies.
     backpressure policy. #v(2em)],
 ) <fig:MAXN_SUPER-baseline-performance>
 
-The \99.9th percentile latency distribution was analysed using the Exponential
-Backoff backpressure policy (@fig:MAXN_SUPER-cdf-5_5). This represents the
-maximum measured throughput sustained by both compiled languages without
-breaching the \100 ms latency deadline. Despite using the same flow-control
-policy, Python consistently breached the deadline (often with a latency several
-times greater than the 100 ms limit), with a maximum latency of \954.7 ms.
+A Cumulative Distribution Function (CDF) graph was used to analyse the \99.9th
+percentile latency of the RGB anchor stream when using the Exponential Backoff
+backpressure policy with a `load` multiplier of \5.5 (@fig:MAXN_SUPER-cdf-5_5).
+This represents the maximum measured throughput sustained by both compiled
+languages without breaching the \100 ms latency deadline. Both compiled
+languages had similar latency distributions. However, despite using the same
+flow-control policy, Python consistently breached the deadline with a maximum
+latency of \954.7 ms.
 
 #figure(
   pad(top: 1em)[
@@ -2318,8 +2320,8 @@ was also significantly slower than in the compiled languages.
 
 To compare the total number of dropped or lapped frames between flow-control and
 load-shedding policies, the most efficient flow-control policy (Exponential
-Backoff) was contrasted against the two most pure load-shedding policies: Drop
-Oldest and Drop Newest. These policies both drop frames when the bounded queue
+Backoff) was contrasted against the two static load-shedding policies (Drop
+Oldest and Drop Newest). These policies both drop frames when the bounded queue
 is full, without trying to prevent it from filling to capacity by dynamically
 adjusting the flow-rate. Rust was the most efficient implementation, and so was
 selected for this comparison. A `load` multiplier of \2.5 was used as it is the
@@ -2349,9 +2351,10 @@ While flow-control policies excel at preventing data loss when experiencing
 jitter, load-shedding policies sacrifice the data to meet the latency deadline.
 As shown in @fig:MAXN_SUPER-latency-comparison, the impact of retaining stale
 data to prevent loss forced the majority of epochs (\92.3%) to breach the \100
-ms latency deadline (up to \174.7 ms). Conversely, by dropping frames and
-preventing a growing backlog, the load-shedding policies guarantee that
-surviving frames are processed within the deadline.
+ms latency deadline (up to \174.7 ms) when the pipeline reached saturation at a
+`load` multiplier of \7.0. Conversely, by dropping frames and preventing a
+growing backlog, the load-shedding policies guarantee that surviving frames are
+processed within the deadline.
 
 #figure(
   pad(top: 0.5em)[
