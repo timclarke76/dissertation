@@ -1044,7 +1044,7 @@ enforced (once for the timestamp and once for the payload), ensuring cache
 isolation of the header is best engineering practice and prevents potential
 system degradation caused by future modifications to the implementation.
 
-== Memory Ordering
+== Memory Ordering <sec:memory-ordering>
 
 Traditional mutexes force a thread to yield to the system kernel. This
 introduces latency and context-switching jitter, which may cause the generator
@@ -1861,7 +1861,11 @@ the raw memory pointers in the compiled languages could be cast directly to the
 required structure with no overhead, Python transparently converts the raw bytes
 into native Python objects when accessing the fields of the `ctypes.Structure`
 @pythonCtypes. This adds CPU overhead that is not present in the compiled
-languages.
+languages. Furthermore, unlike the compiled languages, Python's `ctype`
+structures lack atomic types with explicit memory ordering. Therefore erecting
+the "fence" (see @sec:memory-ordering) using `acquire` memory ordering was not
+possible, and the data from the unbounded buffer was read without any guarantee
+of memory ordering.
 
 == Adaptive Decimation Backpressure Policy <sec:adaptive-decimation>
 
@@ -1878,7 +1882,8 @@ within the danger zone. If so, a decimation ratio value is calculated based on a
 linear scale between the minimum and maximum ratios, and the current depth of
 the queue within the danger zone. A counter is incremented for every frame, and
 frames are only pushed to the bounded queue when this counter is wholly
-divisible by the ratio. If the push is unsuccessful, the frame is dropped.
+divisible by the ratio. If the push is unsuccessful, the oldest frame is
+overwritten.
 
 #figure(
   pad(top: 0.5em)[
@@ -1931,14 +1936,14 @@ divisible by the ratio. If the push is unsuccessful, the frame is dropped.
 ) <fig:adaptive_decimation>
 
 When implementing this algorithm across the three language runtime models, a
-subtle, yet potentially catastrophic, difference was found between the
-statically typed languages (C++ and Rust) and the dynamically typed Python. When
-calculating the ratio, the statically typed languages naturally truncated the
-result of the division to an integer. However, in Python, standard division
-(`/`) returns a floating-point value, which caused virtually all frames to be
-incorrectly dropped when performing the modulo operation. This subtle difference
-highlighted the risk of dynamic typing, and resolving this required the addition
-of a second forward-slash character to apply the floor-division operator (`//`).
+difference was found between the statically typed languages (C++ and Rust) and
+the dynamically typed Python. When calculating the ratio, the statically typed
+languages naturally truncated the result of the division to an integer. However,
+in Python, standard division (`/`) returns a floating-point value, which caused
+virtually all frames to be incorrectly dropped when performing the modulo
+operation. This subtle difference highlighted the risk of dynamic typing, and
+resolving this required the addition of a second forward-slash character to
+apply the floor-division operator (`//`).
 
 == Wait-Free Ingestion
 
@@ -2001,10 +2006,10 @@ an MPSC channel, where multiple producers (the inference threads) push data into
 the channel to be pulled by one consumer (the late-fusion thread). The latter
 uses a Single-Producer Single-Consumer (SPSC) channel, where one producer (the
 late-fusion thread) pushes data into the channel, to be pulled by one consumer
-(the telemetry thread).
+(a telemetry thread).
 
 Rust provides a memory-safe bounded channel via `std::sync::mpsc`. However, C++
-required a third-party library (moodycamel::BlockingConcurrentQueue). Because
+required a third-party library (`moodycamel::BlockingConcurrentQueue`). Because
 this implementation is unbounded and dynamically allocates memory to grow, a
 `std::counting_semaphore` was utilised to enforce a maximum capacity, satisfying
 the zero-allocation pipeline requirement.
@@ -2081,8 +2086,10 @@ I/O latency or dynamic memory allocation.
   caption: [The C++ (top), Rust (middle), and Python (bottom) implementations of
     the zero-allocation telemetry thread buffer swap. The hot thread pushes the
     current epoch to the telemetry thread, and swaps in a clean epoch for the
-    next telemetry cycle.#v(4em)]
+    next telemetry cycle.#v(2em)]
 ) <lst:triple-buffering>
+
+== Memory Telemetry
 
 To measure Python's GC jitter, the GC callback hook was utilised, as shown in
 @lst:gc-callback. This allows the duration of "stop-the-world" events to be
@@ -2191,7 +2198,7 @@ memory ordering was used to prevent unnecessary stalls of the pipeline.
 To prevent cold-start initialisation from skewing the steady-state measurements,
 the first 10 seconds of all telemetry logs were excluded from the diagrams and
 analyses unless otherwise stated. Similarly, unless otherwise stated, all
-evaluations were performed in MAXN_SUPER power mode (`nvpmodel -m 2`).
+evaluations were performed in MAXN_SUPER power mode (using `nvpmodel -m 2`).
 
 == Baseline Performance (MAXN_SUPER) <sec:baseline-performance>
 
