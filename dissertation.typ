@@ -2854,10 +2854,10 @@ and `unregister` methods.
 == Asymmetrical Stream Saturation
 
 Analysis of the individual data streams of the compiled implementations revealed
-a significant difference in the maximum sustainable ingestion speed, with the
-RGB stream failing at a `load` multiplier of \7.0, and the Accelerometer and
-Gyroscope streams not dropping or lapping any frames at the maximum measured
-`load` multiplier of \20.0.
+a significant difference in the maximum sustainable ingestion speed when the
+Exponential Backoff policy was in use, with the RGB stream failing at a `load`
+multiplier of \7.0, and the Accelerometer and Gyroscope streams not dropping or
+lapping any frames at the maximum measured `load` multiplier of \20.0.
 
 Little's Law ($L = lambda W$) was used to enforce the \100 ms end-to-end latency
 deadline. Because the RGB stream's native speed is low at \30 Hz, its bounded
