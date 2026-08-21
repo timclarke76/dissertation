@@ -3510,7 +3510,7 @@ identified:
   Drop Newest would be more efficient and drop fewer frames, but the data showed
   the opposite. Future profiling work should investigate the cause of this
   discrepancy to determine why simply rejecting a new frame is outperformed by a
-  policy that must manage the buffer backlog.
+  policy that must manage the bounded buffer.
 ]
 #[
 #pagebreak()
