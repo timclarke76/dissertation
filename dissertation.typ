@@ -3258,7 +3258,7 @@ Consequently, when a thread's time slice ends and the GIL is released, the
 remaining three threads all compete for the GIL but only one can acquire it,
 forcing the other two to go back to sleep. This forces multiple context
 switches, the overhead of which consumes CPU-cycles that could otherwise be
-available to the pipeline. Conversely, when using the 7-Watt power profile, only
+available to the pipeline. Conversely, when using the 7-Watt power profile only
 two cores are available to the pipeline, and so when the GIL is released, only
 one thread wakes to acquire it, reducing the context-switching overhead and
 improving the pipeline's throughput.
