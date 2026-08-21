@@ -3344,16 +3344,18 @@ with no dropped or lapped frames. At peak throughput, the RGB synchronisation
 anchor adhered to the \100 ms latency deadline, and the IMU buffers absorbed
 delays while awaiting late-fusion synchronisation.
 
-A measured discrepancy between the C++ and Rust implementations' maximum
-sustainable ingestion rate existed only when using the Adaptive Decimation
-policy. Because this policy uses division and modulo arithmetic to downsample
-the data stream, it exposes a difference in how the compilers handle division
-operations. To ensure controlled panics in the event of a division-by-zero, Rust
-inserts additional machine instructions. Conversely, C++ is optimised to perform
-the division without these checks, gaining a small performance advantage at the
-risk of undefined behaviour. This small difference became a measurable
-discrepancy when using Adaptive Decimation, which performs division and modulo
-arithmetic thousands of times per second.
+A measured discrepancy between the compiled implementations was observed during
+load-shedding. While Rust sustained a higher maximum ingestion rate than C++ for
+the static Drop Oldest and Drop Newest policies, it lost this advantage when
+using Adaptive Decimation. Because Adaptive Decimation relies on division and
+modulo arithmetic to dynamically downsample the data stream, it exposes a
+difference in how the compilers handle division operations. To ensure controlled
+panics in the event of a division-by-zero, Rust inserts additional machine
+instructions. Conversely, C++ is optimised to perform the division without these
+checks, gaining a small performance advantage at the risk of undefined
+behaviour. This small difference became a measurable discrepancy when using
+Adaptive Decimation, which performs division and modulo arithmetic thousands of
+times per second.
 
 No garbage collection "stop-the-world" events occurred after the initial
 \10-second initialisation window in the Python implementation. However, due to
