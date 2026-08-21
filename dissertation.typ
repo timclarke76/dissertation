@@ -3489,13 +3489,14 @@ identified:
 */
 
 + *Heterogeneous Backpressure:* Asymmetrical saturation was identified on the
-  RGB stream, caused by the late-fusion synchronisation anchor. Future research
-  could evaluate the impact of using different backpressure policies on the
-  anchored RGB stream and the two flexible IMU streams. Applying a load-shedding
-  policy to the RGB stream could guarantee latency deadline adherence, while
-  applying a flow-control policy to the IMU streams could maximise data
-  preservation. Using a heterogeneous backpressure approach may offer a balance
-  between pipeline stability and prediction accuracy.
+  RGB stream when using Exponential Backoff, caused by the late-fusion
+  synchronisation anchor. Future research could evaluate the impact of using
+  different backpressure policies on the anchored RGB stream and the two
+  flexible IMU streams. Applying a load-shedding policy to the RGB stream could
+  guarantee latency deadline adherence, while applying a flow-control policy to
+  the IMU streams could maximise data preservation. Using a heterogeneous
+  backpressure approach may offer a balance between pipeline stability and
+  prediction accuracy.
 
 + *Load-Shedding Efficiency Discrepancy:* Unexpectedly, the Drop Oldest policy
   dropped fewer frames than Drop Newest. Drop Oldest executes more instructions
