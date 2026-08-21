@@ -2639,8 +2639,8 @@ these headers are copied into every Translation Unit (TU) that references them,
 forcing the compiler to repeatedly parse the same templates across multiple TUs.
 
 Conversely, Rust's compiler does not rely on source file inclusion, and instead
-parses each crate only once (regardless of how many modules reference it),
-preventing an accumulation of unnecessary parsing overhead. Furthermore the
+parses each source file only once (regardless of how many times it is imported),
+preventing an accumulation of unnecessary parsing overhead. Furthermore, the
 cargo build tool caches a project dependency graph to avoid re-parsing or
 re-compiling unchanged files.
 
@@ -2649,13 +2649,6 @@ has no compilation overhead, thus reducing friction during initial prototyping.
 However, errors that the other languages would catch at compile time are only
 discovered at runtime in Python, risking reduced system stability within the
 production environment.
-
-It is worth noting that while Rust's memory management philosophy might be
-considered to sit somewhere between the developer-responsibility paradigm of C++
-and the garbage-collected paradigm of Python, Rust developers benefit from fast
-compilation times, and the only paradigm under evaluation that guarantees memory
-safety before runtime. This is a significant advantage when developing and
-maintaining large, complex systems.
 
 == Error Handling
 
@@ -2734,10 +2727,11 @@ for (const auto& cfg : configs) {
 Similarly, pattern matching in C++ required the use of `std::visit`, which
 introduced syntactic complexity that made the code difficult to read. The code
 formatter struggled to parse the code coherently, requiring
-`// clang-format off` directives to maintain legibility. This demonstrates that
-the complexity of C++'s legacy architecture and backward compatibility can deter
-the adoption of attempts to introduce modern approaches to software development,
-forcing developers to revert to a more traditional style of programming.
+`// clang-format off` directives to disable the formatter and maintain
+legibility. This demonstrates that the complexity of C++'s legacy architecture
+and backward compatibility can deter the adoption of attempts to introduce
+modern approaches to software development, forcing developers to revert to a
+more traditional style of programming.
 
 While features such as dynamic typing and automated memory management are often
 believed to reduce cognitive load, this evaluation revealed that they can
@@ -2749,9 +2743,9 @@ operator (`/`) implicitly casts the result to a `float`, causing the subsequent
 modulo operation to silently fail, resulting in virtually all frames being
 dropped. Instead, to truncate the division result, the floor-division operator
 (`//`) was required. This demonstrates that while features such as dynamic
-typing _can_ reduce developer friction and boilerplate code, they shift the
-burden of semantic validation to runtime, increasing debugging overhead in
-complex systems.
+typing may reduce developer friction and boilerplate code, they shift the burden
+of semantic validation to runtime, increasing debugging overhead in complex
+systems.
 
 == Ecosystem Maturity and Deployment
 
@@ -2892,7 +2886,9 @@ pushes to the MPSC channel on a \1:1 ratio, it blocks immediately. Unable to pop
 from its shallow \3-frame bounded queue, the RGB stream saturates almost
 immediately (see @fig:mpsc-bottleneck). This triggers the active backpressure
 policy, resulting in dropped or lapped frames, and/or causing the latency
-deadline to be breached.
+deadline to be breached, demonstrating that in Edge-AI pipelines the
+synchronisation anchor dictates the maximum capacity and stability of the system
+as a whole.
 
 #figure(
   pad(top: 1em)[
@@ -2957,23 +2953,20 @@ deadline to be breached.
     )
   ],
   caption: [Visualisation of the MPSC late-fusion anchor bottleneck. The RGB
-    stream's 3-frame capacity offers virtually no buffer elasticity, causing
-    immediate upstream saturation when the MPSC channel blocks under heavy
-    late-fusion load. #v(1em)],
+    stream's \
+    3-frame capacity offers virtually no buffer elasticity, causing immediate
+    upstream \
+    saturation when the MPSC channel blocks under heavy late-fusion load.
+    #v(1em)],
 ) <fig:mpsc-bottleneck>
-
-This demonstrates that in Edge-AI pipelines, the synchronisation anchor forms
-the bottleneck that dictates the maximum capacity and stability of the system as
-a whole.
 
 == Flow Control vs. Load Shedding <sec:flow-control-vs-load-shedding>
 
 When choosing a backpressure policy, the data collected in this evaluation
 reveals a trade-off between temporal continuity and data preservation. Analysis
-of the number of dropped or lapped frames (see @sec:baseline-performance and
-@fig:MAXN_SUPER-dropped-frames) showed that the flow-control policies (Bounded
-Queue, Exponential Backoff) successfully preserved data frames at far higher
-ingestion rates than any of the policies that shed data (Drop Oldest, Drop
+of the number of dropped or lapped frames showed that the flow-control policies
+(Bounded Queue, Exponential Backoff) successfully preserved data frames at far
+higher ingestion rates than the policies that shed data (Drop Oldest, Drop
 Newest, Adaptive Decimation).
 
 While the compiled pipelines are fast enough on average to process the incoming
@@ -3037,10 +3030,10 @@ pipeline can typically sustain.
 == Load-Shedding Overhead
 
 For the static load-shedding policies (Drop Oldest and Drop Newest), C++ was
-able to sustain a maximum `load` multiplier of \1.0, while Rust was able to
-sustain a marginally higher `load` of \1.5. However, when using Adaptive
-Decimation, though C++ was still able to sustain \1.0, Rust's throughput dropped
-to \1.0.
+able to sustain a maximum `load` multiplier of \1.0 when using the unconstrained
+power mode, while Rust was able to sustain a marginally higher `load` of \1.5.
+However, when using Adaptive Decimation, though C++ was still able to sustain
+\1.0, Rust's throughput dropped to \1.0.
 
 The static load-shedding policies are very simple, and mainly rely on memory
 manipulation to check the buffer, and (when using Drop Oldest) to overwrite the
@@ -3124,7 +3117,7 @@ By forcing the bridge thread into a timed sleep when the queue is full,
 Exponential Backoff prevents the contention of the queue's mutex, increasing the
 inference thread's opportunity to remove a frame from the queue and make space
 for the bridge. Consequently, both C++ and Rust were able to achieve a higher
-maximum sustainable `load` multiplier of 5.5 for this flow-control policy.
+ingestion rate for this flow-control policy.
 
 == The Python GIL and Concurrency
 
