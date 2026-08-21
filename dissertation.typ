@@ -2885,9 +2885,7 @@ pushes to the MPSC channel on a \1:1 ratio, it blocks immediately. Unable to pop
 from its shallow \3-frame bounded queue, the RGB stream saturates almost
 immediately (see @fig:mpsc-bottleneck). This triggers the active backpressure
 policy, resulting in dropped or lapped frames, and/or causing the latency
-deadline to be breached, demonstrating that in Edge-AI pipelines the
-synchronisation anchor dictates the maximum capacity and stability of the system
-as a whole.
+deadline to be breached.
 
 #figure(
   pad(top: 1em)[
@@ -3011,9 +3009,8 @@ far below the pipeline's maximum sustainable throughput.
 
 At terminal saturation (e.g. `load` \7.0), the advantages are reversed. Because
 flow-control policies do not drop frames, the unbounded circular buffer fills to
-maximum capacity. This pushes tail latencies beyond the deadline (see
-@fig:MAXN_SUPER-cdf-7_0) and potentially beyond the temporal capacity of the
-unbounded buffer. In contrast, by aggressively dropping frames, the
+maximum capacity, pushing tail latencies beyond the deadline (see
+@fig:MAXN_SUPER-cdf-7_0). In contrast, by aggressively dropping frames, the
 load-shedding policies are able to adhere to the latency deadline even under
 unyielding load, proving that at higher rates of ingestion data preservation
 must be sacrificed to guarantee deadline adherence
@@ -3063,10 +3060,10 @@ leading to undefined behaviour if the divisor is zero.
 
 == Mutex Contention <sec:mutex-contention>
 
-It is notable that in the baseline performance (@sec:baseline-performance),
-while both C++ and Rust achieved a maximum sustained `load` of \5.5 using
-Exponential Backoff, both compiled implementations were only able to achieve a
-maximum load of \4.0 when using the Bounded Queue policy.
+In the baseline performance (@sec:baseline-performance), while both C++ and Rust
+achieved a maximum sustained `load` of \5.5 using Exponential Backoff, both
+compiled implementations were only able to achieve a maximum load of \4.0 when
+using the Bounded Queue policy.
 
 When using Bounded Queue, a saturated queue forces the bridge thread into a
 tight spin-loop, continuously acquiring and releasing the queue's mutex to check
@@ -3133,12 +3130,12 @@ ingestion rate for this flow-control policy.
 == The Python GIL and Concurrency
 
 The data gathered in this report reveals poor performance when utilising CPython
-\3.10.12 for a multi-threaded, real-time Edge-AI pipeline. As demonstrated in
-the unconstrained baseline performance results (@sec:baseline-performance),
-Python was only able to sustain a `load` multiplier of \0.04 (i.e. \4% of the
-native sensor speed) when using the Exponential Backoff backpressure policy, and
-reached saturation point even at `load` multipliers of < \0.01 for all other
-policies, severely lagging behind the performance of the compiled languages.
+\3.10.12 using the unconstrained MAXN_SUPER power mode (see
+@sec:baseline-performance), Python was only able to sustain a `load` multiplier
+of \0.04 (i.e. \4% of the native sensor speed) when using the Exponential
+Backoff backpressure policy, and reached saturation point even at `load`
+multipliers of < \0.01 for all other policies, severely lagging behind the
+performance of the compiled languages.
 
 Automated memory management via the GC was initially suspected to be the cause
 of this extreme latency. However, the GC overhead analysis graph
@@ -3301,17 +3298,17 @@ rights, reducing developer friction but shifting validation to runtime.
 ) <tab:static-analysis>
 
 Interestingly, C++ had the lowest average CCN, while Rust had the highest. This
-reflects the well-known limitation of using CCN to compare different programming
-paradigms. Rather than indicating that the C++ logic is simpler, this is due to
-C++'s verbosity. The average CCN is calculated by dividing the total complexity
-by the number of functions. Because C++ requires many trivial methods not
-necessary in the other languages, these reduce the average CCN result. For
-example, while a simple destructor to release memory in C++ increases the
-function count and thus reduces the average CCN, the same destructor is not
-required in Rust or Python (because of the automated resource management and
-garbage collection). Consequently, the average CCN for Rust and Python is
-artificially inflated by their lower function counts, despite the logical
-complexity of the overall code being lower.
+is a limitation of using CCN to compare different programming paradigms. Rather
+than indicating that the C++ logic is simpler, this is due to C++'s verbosity.
+The average CCN is calculated by dividing the total complexity by the number of
+functions. Because C++ requires many trivial methods not necessary in the other
+languages, these reduce the average CCN result. For example, while a simple
+destructor to release memory in C++ increases the function count and thus
+reduces the average CCN, the same destructor is not required in Rust or Python
+(because of the automated resource management and garbage collection).
+Consequently, the average CCN for Rust and Python is artificially inflated by
+their lower function counts, despite the logical complexity of the overall code
+being lower.
 
 While the boilerplate code skews the average CCN, examining the individual
 function metrics reveals the similarity between all three implementations. The
@@ -3474,13 +3471,14 @@ identified:
   can achieve parity with compiled languages in real-time Edge-AI pipelines.
 
 + *Fanless Platforms:* The active cooling of the Jetson Orin Nano Developer Kit
-  automatically starts the cooling fan when the temperature reaches
-  \74#sym.degree\C, preventing the system from reaching its \99#sym.degree\C
-  DVFS throttling threshold. Future work should evaluate these pipelines when
-  deployed to fanless, passively cooled platforms. Forcing the hardware to reach
-  thermal limits would provide visibility into how the implementations interact
-  with dynamic thermal throttling when under sustained load.
+  automatically starts the fan when the temperature reaches \74#sym.degree\C,
+  preventing the system from reaching its \99#sym.degree\C DVFS threshold.
+  Future work should evaluate these pipelines when deployed to passively cooled
+  platforms. Forcing the hardware to reach thermal limits would provide
+  visibility into how the implementations interact with dynamic thermal
+  throttling when under sustained load.
 
+/*
 + *Backpressure Policies and Accuracy:* Future work should evaluate the impact
   of different backpressure policies on the accuracy of the HAR predictions.
   While this dissertation has evaluated latency and throughput using different
@@ -3488,6 +3486,7 @@ identified:
   strictly as test harnesses. Future research may quantify the exact trade-off
   between the different backpressure policies and the prediction accuracy of the
   overall HAR system.
+*/
 
 + *Heterogeneous Backpressure:* Asymmetrical saturation was identified on the
   RGB stream, caused by the late-fusion synchronisation anchor. Future research
