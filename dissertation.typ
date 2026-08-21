@@ -3318,10 +3318,11 @@ This dissertation presents an analysis of three functionally identical HAR
 AI-Edge pipelines implemented in C++20, Rust \1.97.1, and CPython \3.10.12, and
 deployed to a resource-constrained NVIDIA Jetson Orin Nano platform. Empirical
 data was collected by executing the evaluation at increasingly high ingestion
-rates, and using various backpressure policies and power constraints. The
-collected data provided insight into the impact of manual memory management,
-compiler-enforced memory safety, and automated garbage collection on the
-real-time latency, throughput, and system stability.
+rates under various backpressure policies and power constraints. The collected
+data provided insight into how different memory management paradigms (manual,
+compiler-enforced, and automated), concurrency models, and backpressure policies
+interact to impact real-time performance, data preservation, and system
+stability.
 
 == Addressing the Research Questions
 
@@ -3330,35 +3331,40 @@ real-time latency, throughput, and system stability.
 *RQ1: Runtime Performance* \ The empirical data gathered during the evaluation
 revealed near-parity between the C++ and Rust implementations
 (@sec:baseline-performance). Both pipelines were implemented with
-zero-allocation, and comfortably adhered to the \100 ms latency deadline with no
-dropped or lapped frames up to a `load` multiplier of \5.5, depending on the
-backpressure policy in use.
+zero-allocation and sustained ingestion rates up to a `load` multiplier of \5.5
+with no dropped or lapped frames. At peak throughput, the RGB synchronisation
+anchor adhered to the \100 ms latency deadline, and the IMU buffers absorbed
+delays while awaiting late-fusion synchronisation.
+
+A measured discrepancy between the C++ and Rust implementations' maximum
+sustainable ingestion rate existed only when using the Adaptive Decimation
+policy. Because this policy uses division and modulo arithmetic to downsample
+the data stream, it exposes a difference in how the compilers handle division
+operations. To ensure controlled panics in the event of a division-by-zero, Rust
+inserts additional machine instructions. Conversely, C++ is optimised to perform
+the division without these checks, gaining a small performance advantage at the
+risk of undefined behaviour. This small difference became a measurable
+discrepancy when using Adaptive Decimation, which performs division and modulo
+arithmetic thousands of times per second.
 
 No garbage collection "stop-the-world" events occurred after the initial
 \10-second initialisation window in the Python implementation. However, due to
 contention with the automated memory management, a second shared memory buffer
-was required. In addition, the Python implementation only achieved a maximum
-sustainable `load` multiplier of \0.04 (i.e. \4% of the native sensor speed).
+was required. Ultimately, the Python implementation only achieved a maximum
+sustainable `load` multiplier of \0.06 (i.e. \6% of the native sensor speed)
+across both evaluated power profiles.
 
-Furthermore, analysis of the RSS (@fig:MAXN_SUPER-memory-profiling) revealed
-that all three implementations were within \60 MiB of each other (approximately
-\740--800 MiB). This reveals that in Edge-AI deployments, the memory
+Furthermore, analysis of the RSS (@fig:MAXN_SUPER-memory-profiling) shows that
+all three implementations were within \~\50 MiB of each other (approximately
+\745.6--\793.8 MiB). This reveals that in Edge-AI deployments, the memory
 requirements are predominantly determined by shared AI dependencies (ONNX
-Runtime, CUDA, TensorRT), rather than the language runtime models themselves.
-
-A measured discrepancy between the C++ and Rust implementations' maximum
-sustainable `load` multipliers existed only when using Bounded Queue. This
-backpressure policy uses a spin-loop and checks the bounded queue for space
-during every iteration, for which the queue's mutex must be acquired and
-released. As discussed in @sec:resident-set-size, Rust \1.62.0 stopped relying
-on the same pthreads library as C++ to implement its mutex, and replaced it with
-a lightweight, faster alternative that directly uses Linux futex system calls
-(@sec:mutex-contention).
+Runtime, CUDA, and TensorRT), rather than the language runtime models
+themselves.
 
 #v(0.5em)
 
-*RQ2: Backpressure Interaction* \ The evaluation of backpressure policies
-(@sec:flow-control-vs-load-shedding) revealed a notable trade-off between data
+*RQ2: Backpressure Interaction* \ The discussion of backpressure policies
+(@sec:flow-control-vs-load-shedding) identified a notable trade-off between data
 loss, temporal continuity, and deadline adherence. The flow-control policies
 successfully mitigated micro-jitter by using the capacity of the unbounded
 buffers, allowing the number of unprocessed frames to temporarily increase under
@@ -3368,14 +3374,14 @@ unprocessed frames to accumulate pushed the tail latency up and breached the
 
 Conversely, the load-shedding policies dropped frames even at moderate loads,
 sacrificing data preservation and temporal continuity for deadline adherence. By
-_only_ dropping stale frames in favour of fresh data, Drop Oldest proved most
-effective at adhering to the latency deadline even under heavy loads.
+dropping stale frames in favour of fresh data, Drop Oldest proved most effective
+at adhering to the latency deadline even under heavy loads.
 
 If temporal continuity is a priority for the pipeline, Adaptive Decimation drops
 every $n$-th frame in an attempt to prevent total saturation, but does so at the
-expense of significantly more dropped frames even during brief periods of
-moderate load or micro-jitter that the pipeline would be otherwise able to
-sustain without any loss of data.
+expense of more dropped frames even during brief periods of moderate load or
+micro-jitter that the pipeline would be otherwise able to sustain without data
+loss.
 
 By isolating the saturation points of the individual streams
 (@fig:MAXN_SUPER-stream-saturation), it was shown that synchronisation anchors
@@ -3390,15 +3396,17 @@ runtime behaviour. Performing a Kruskal-Wallis H-test confirmed that performance
 was related to the runtime models, and not random system noise. When using
 Exponential Backoff, Dunn's post-hoc pairwise comparison with a Bonferroni
 correction (@tab:dunns-test) revealed that there was no significant difference
-between C++ and Rust, but that Python was significantly slower.
+between C++ and Rust, but that the Python implementation was slower due to the
+runtime model itself.
 
 Spearman's rank correlation revealed that there was no relationship between CPU
 temperature and latency. Because the Jetson Orin Nano's thermal management
 triggered the cooling fan at \74#sym.degree\C, DVFS throttling did not occur.
-This confirmed that performance degradation when using the constrained 7-Watt
-power mode (@sec:power-constraints), instead of the unconstrained MAXN_SUPER
-mode, was a result of reduced computational resources (i.e. a reduced number of
-CPU cores and lower clock frequencies), rather than DVFS throttling.
+The analysis results confirmed that performance degradation of the compiled
+implementations when using the constrained 7-Watt power mode
+(@sec:power-constraints), instead of the unconstrained MAXN_SUPER mode, was a
+result of reduced computational resources (i.e. a reduced number of CPU cores
+and lower clock frequencies).
 
 An undefined result (`NaN`) was returned when calculating Spearman's rank
 correlation ($rho$) for the impact of Python's GC pauses on latency, confirming
@@ -3417,24 +3425,23 @@ of C++, while swapping developer discipline and vigilance for compiler-enforced
 memory safety, reducing intermittent memory-safety bugs and the long-term
 maintenance overhead of complex concurrent systems.
 
-CPython's reduced Lines of Code (LoC) and eradication of compile-time overhead
-may make it suitable for initial pipeline prototyping. However, contrary to
-common assumption, its automatic memory management may increase developer
-friction when employed for systems-engineering tasks in a multi-threaded
-architecture. In addition, it demonstrated concurrency limitations for
-high-speed ingestion systems. This is due to both the GIL, which restricts the
-number of threads actively executing Python bytecode to just one, and the
-absence of a CPU micro-architectural hint to yield resources without yielding to
-the OS kernel.
+CPython's reduced NLOC and eradication of compile-time overhead may make it
+suitable for initial pipeline prototyping. However, contrary to common
+assumption, its automatic memory management may increase developer friction when
+employed for systems-engineering tasks in a multi-threaded architecture. In
+addition, it demonstrated concurrency limitations for high-speed ingestion
+systems. This is due to both the GIL, which restricts the number of threads
+actively executing Python bytecode to just one, and the absence of a CPU
+micro-architectural hint to yield resources without yielding to the OS kernel.
 
 When selecting a backpressure policy for a high-speed pipeline, the architect
-must choose based on a trade-off between data preservation, temporal relevance,
-and temporal continuity. Flow-control policies (Bounded Queue, Exponential
-Backoff) should be considered if the preservation of data is the priority and
-computational resources are sufficient for the expected maximum load. However,
-if temporal relevance is the priority, the Drop Oldest load-shedding policy
-ejects stale frames in favour of fresh data when the data ingestion rate exceeds
-the pipeline's ability to process data within the latency deadline. Finally, if
+must decide between data preservation, temporal relevance, and temporal
+continuity. Flow-control policies (Bounded Queue and Exponential Backoff) should
+be considered if the preservation of data is the priority and computational
+resources are sufficient for the expected maximum load. However, if temporal
+relevance is the priority, the Drop Oldest load-shedding policy ejects stale
+frames in favour of fresh data when the data ingestion rate exceeds the
+pipeline's ability to process data within the latency deadline. Finally, if
 temporal continuity is the priority, Adaptive Decimation proactively drops every
 $n$-th frame before saturation is reached, at the expense of a significantly
 higher drop rate as the data ingestion rate approaches the pipeline's maximum
@@ -3475,21 +3482,19 @@ identified:
   RGB stream, caused by the late-fusion synchronisation anchor. Future research
   could evaluate the impact of using different backpressure policies on the
   anchored RGB stream and the two flexible IMU streams. Applying a load-shedding
-  policy (e.g. Drop Oldest) to the RGB stream could guarantee latency deadline
-  adherence, while applying a flow-control policy (e.g. Exponential Backoff) to
-  the IMU streams could maximise data preservation. Using a heterogeneous
-  backpressure approach may offer a balance between pipeline stability and the
-  accuracy of the AI predictions.
+  policy to the RGB stream could guarantee latency deadline adherence, while
+  applying a flow-control policy to the IMU streams could maximise data
+  preservation. Using a heterogeneous backpressure approach may offer a balance
+  between pipeline stability and prediction accuracy.
 
-+ *Load-Shedding Efficiency Discrepancy:* An unexpected result was observed
-  wherein the Drop Oldest policy dropped fewer frames than the Drop Newest
-  policy. Drop Oldest must execute more instructions to overwrite the oldest
-  frame while holding the queue's mutex lock, whereas Drop Newest simply rejects
-  incoming frames. It was therefore expected that Drop Newest would be more
-  efficient and drop fewer frames, but the data showed the opposite. Future
-  profiling work should investigate the cause of this discrepancy to determine
-  why simply rejecting a new frame is outperformed by a policy that must
-  actively manage the buffer backlog.
++ *Load-Shedding Efficiency Discrepancy:* Unexpectedly, the Drop Oldest policy
+  dropped fewer frames than Drop Newest. Drop Oldest executes more instructions
+  to overwrite the oldest frame while holding the queue's mutex lock, whereas
+  Drop Newest simply rejects incoming frames. It was therefore expected that
+  Drop Newest would be more efficient and drop fewer frames, but the data showed
+  the opposite. Future profiling work should investigate the cause of this
+  discrepancy to determine why simply rejecting a new frame is outperformed by a
+  policy that must manage the buffer backlog.
 ]
 #[
 #pagebreak()
