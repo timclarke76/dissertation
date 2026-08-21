@@ -2267,10 +2267,9 @@ epochs breached the deadline with a maximum latency of \177.7 ms, compared to
 
 == Individual Stream Saturation
 
-Using the Exponential Backoff policy, the individual sensor streams were
-analysed to determine the maximum `load` multiplier that each stream could
-sustain without dropping frames. Both compiled implementations achieved a
-maximum `load` of \5.5 (@sec:baseline-performance).
+Asymmetrical stream saturation was observed when the Exponential Backoff policy
+was used, under which both compiled implementations achieved a maximum `load` of
+\5.5 (@sec:baseline-performance).
 
 As demonstrated in @fig:MAXN_SUPER-stream-saturation, this throughput limitation
 is isolated to the RGB stream. While the pipelines began to drop frames from the
@@ -2960,6 +2959,18 @@ as a whole.
     #v(1em)],
 ) <fig:mpsc-bottleneck>
 
+Because each backpressure policy has different mechanics, this asymmetry only
+occurs when the Exponential Backoff policy is used. All three of the
+load-shedding policies drop frames as soon as the bounded buffer is full,
+without utilising the elasticity of the 1-second temporal window of the
+unbounded buffer. Therefore, the elasticity of the inference temporal window
+does not affect the maximum sustainable throughput of the pipeline. Conversely,
+the Bounded Queue policy does utilise the unbounded buffer's elasticity, but
+because it constantly attempts to push frames into the bounded queue in a tight
+spin-loop, it causes contention on the queue's mutex lock, preventing the
+inference threads from pulling frames which would create the space that the
+bridge thread is waiting for.
+
 == Flow Control vs. Load Shedding <sec:flow-control-vs-load-shedding>
 
 When choosing a backpressure policy, the data collected in this evaluation
@@ -3383,10 +3394,10 @@ expense of more dropped frames even during brief periods of moderate load or
 micro-jitter that the pipeline would be otherwise able to sustain without data
 loss.
 
-By isolating the saturation points of the individual streams
-(@fig:MAXN_SUPER-stream-saturation), it was shown that synchronisation anchors
-(such as the RGB frames during late-fusion) bottleneck upstream processing,
-dictating the pipeline's overall capacity.
+By isolating the saturation points of the individual streams under the
+Exponential Backoff policy (@fig:MAXN_SUPER-stream-saturation), it was shown
+that synchronisation anchors (such as the RGB frames during late-fusion)
+bottleneck upstream processing, dictating the pipeline's overall capacity.
 
 #v(0.5em)
 
