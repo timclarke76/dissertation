@@ -57,7 +57,7 @@ else
 fi
 
 python_loads=($(seq 0.01 0.01 0.07) 1.00 5.5)
-compiled_loads=(0.04 0.05 $(seq 1.0 0.25 2.5) $(seq 4.0 1.5 10.0) $(seq 12.5 2.5 20.0))
+compiled_loads=(0.04 0.05 $(seq 1.0 0.5 2.5) $(seq 4.0 1.5 10.0) $(seq 12.5 2.5 20.0))
 declare -A LANGUAGES=(
     ["python"]="python_loads"
     ["cpp"]="compiled_loads"
