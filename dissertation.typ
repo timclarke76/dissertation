@@ -3374,8 +3374,8 @@ themselves.
 #v(0.5em)
 
 *RQ2: Backpressure Interaction* \ The discussion of backpressure policies
-(@sec:flow-control-vs-load-shedding) identified a notable trade-off between data
-loss, temporal continuity, and deadline adherence. The flow-control policies
+(@sec:flow-control-vs-load-shedding) identified a trade-off between data loss,
+temporal continuity, and deadline adherence. The flow-control policies
 successfully mitigated micro-jitter by using the capacity of the unbounded
 buffers, allowing the number of unprocessed frames to temporarily increase under
 moderate load, guaranteeing no data loss. However, as load increased, allowing
