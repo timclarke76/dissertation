@@ -3431,7 +3431,10 @@ multi-threaded, real-time pipelines deployed to Edge-AI platforms such as the
 Jetson Orin Nano. It offers the zero-allocation performance and execution speed
 of C++, while swapping developer discipline and vigilance for compiler-enforced
 memory safety, reducing intermittent memory-safety bugs and the long-term
-maintenance overhead of complex concurrent systems.
+maintenance overhead of complex concurrent systems. However, the "zerover"
+pre-release states of some Rust crates, and conflicting online documentation,
+may increase the learning curve for developers unfamiliar with the language and
+its ecosystem.
 
 CPython's reduced NLOC and eradication of compile-time overhead may make it
 suitable for initial pipeline prototyping. However, contrary to common
