@@ -3529,18 +3529,22 @@ identified:
 The following files and scripts are publicly available for review:
 - Deterministic load generator:
   - `code/generator/`
+
 - Complete source code for the three pipeline implementations:
   - `code/pipeline-cpp/` (C++20)
   - `code/pipeline-py/` (CPython \3.10.12)
   - `code/pipeline-rust/` (Rust \1.97.1)
+
 - Docker deployment environment:
   - `Dockerfile`
+
 - Shell scripts used to deploy the suite and evaluate the results:
   - `compile_trt.py` and `torch/generate.py` (compile the ONNX models)
   - `deploy.sh` (deploys the evaluation suite to the Jetson Orin Nano)
   - `run.sh` (executes the evaluation suite on the Jetson Orin Nano)
   - `pull_results.sh` (downloads the results to the host machine)
   - `log2csv.sh` (creates `.csv` files from the raw `.log` files)
+
 - Jupyter Notebook to analyse the results and generate the figures used in this
   report:
   - `results/analysis.ipynb`
