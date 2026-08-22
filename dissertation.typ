@@ -41,7 +41,7 @@
     This dissertation presents a systems-engineering comparison of C++20, Rust
     \1.97.1, and CPython \3.10.12. A functionally identical tri-stream Human
     Activity Recognition pipeline was implemented in each language on an NVIDIA
-    Jetson Orin Nano, utilising a wait-free, zero-allocation architecture. The
+    Jetson Orin Nano, utilising a zero-allocation architecture. The
     implementations were evaluated under varying ingestion rates, backpressure
     policies, and hardware power constraints to isolate runtime latency, maximum
     throughput, and thermal degradation.
