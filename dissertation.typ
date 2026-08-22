@@ -3398,6 +3398,23 @@ Exponential Backoff policy (@fig:MAXN_SUPER-stream-saturation), it was shown
 that synchronisation anchors (such as the RGB frames during late-fusion)
 bottleneck upstream processing, dictating the pipeline's overall capacity.
 
+The choice of backpressure policy significantly impacted the concurrency
+overhead. Exponential Backoff yielded to the kernel when the bounded queue was
+full, allowing other threads to drain the queue and make space for the bridge
+thread. However, the remaining policies all rely on continuous loops without
+yielding, and cause severe mutex contention (@sec:mutex-contention). In
+particular, Bounded Queue acquires the bounded buffer's mutex in a tight
+spin-loop while waiting for space to become available. This creates contention
+with the inference thread as it attempts to acquire the same mutex to drain the
+queue, resulting in resource starvation that acts as a livelock. Due to the GIL
+preventing multiple threads from executing Python bytecode simultaneously, this
+concurrent contention of mutex locks was particularly catastrophic for the
+Python implementation.
+
+Because the pipelines use pre-allocated memory, the zero-allocation design
+prevented the backpressure policies from causing dynamic memory churn or GC
+pauses during steady-state processing.
+
 #v(0.5em)
 
 *RQ3: Dynamic Profiling vs. Runtime Behaviour* \ Statistical analysis, using
