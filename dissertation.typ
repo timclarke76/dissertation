@@ -3659,7 +3659,7 @@ Jupyter Lab can be started from the `results/` directory using the command
 machine. The `analysis.ipynb` notebook can then be opened to analyse the results
 and generate the figures used in this report.
 
-*Source Code Repository:* `https://github.com/timclarke76/dissertation` \
+*Source Code Repository:* #link("https://github.com/timclarke76/dissertation") \
 *Release Tag:* `v1.0.0-submission`
 
 #v(2em)
