@@ -3547,6 +3547,52 @@ identified:
   the opposite. Future profiling work should investigate the cause of this
   discrepancy to determine why simply rejecting a new frame is outperformed by a
   policy that must manage the bounded buffer.
+
+= Critical Appraisal
+
+Reflecting on this project, the most successful decisions were the
+implementation of the deterministic load generator and the zero-allocation
+telemetry threads. If I were to do a similar project in the future, I would
+retain the same architecture. The load generator decoupled the pipeline
+implementations from the physical sensors and allowed the exact same test data
+to be used for every evaluation. The telemetry threads avoided the use of
+third-party profiling tools, which would have become a confounder, and by
+utilising the HDR Histogram library, the telemetry threads were able to capture
+the required behaviours for an in-depth analysis.
+
+The project did suffer from two deviations from the original plan. Due to
+hardware attrition (the fragile MIPI CSI-2 ZIF connector), it was not possible
+to test the pipelines using data from physical sensors. However, as the
+methodology was to use the deterministic load generator for the evaluation
+suite, this proved to be a bigger personal setback than a technical one.
+
+The second deviation was that the original plan was to evaluate the impact of
+DVFS thermal throttling on pipeline performance. This failed because the
+Jetson's hardware-level fail-safe engaged the cooling fan at \74#sym.degree\C,
+preventing the device from reaching the \99#sym.degree\C thermal throttling
+threshold. If I were to do this project again, I would use a passively cooled,
+fanless platform to guarantee the engagement of thermal throttling.
+
+For those wishing to undertake similar projects, my main advice is not to make
+assumptions about the programming languages. Prior to starting this
+dissertation, I had industry experience with C/C++ and some experience with
+Python. I only had passing familiarity with Rust, and felt intimidated by the
+reputation of its ownership and borrowing model. However, during the project, I
+quickly found myself using the Rust source code as a reference to remind myself
+of implementation details. And though I had expected the Python implementation
+to be the easiest, there were times that I found myself fighting its garbage
+collector and dynamic typing, despite their reputation for making programming
+easier.
+
+The most useful lesson that I took from this project was the insight into
+performance bottlenecks. Python's GC is often blamed for performance issues, and
+it was the immediate assumption that I made when I first saw the evaluation
+results. However, after analysing the data and doing some research, I discovered
+that the performance was mostly impacted by livelocks, the GIL, and that too
+many CPU cores actually have a detrimental effect on Python's performance.
+Furthermore, I learned that small performance optimisations, such as C++'s
+division optimisation, can have a measurable impact when an operation is
+performed thousands of times per second.
 ]
 #[
 #pagebreak()
