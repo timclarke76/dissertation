@@ -33,6 +33,7 @@
 
 #show: template.with(
   title: [AC52010 - MSc Project],
+  // title: [#total-words words],
   assignment: [A Comparative Analysis of Memory Management, Concurrency, and
     Performance in Edge-AI],
   abstractTitle: [A Comparative Analysis of Memory Management, Concurrency, and
@@ -3613,7 +3614,7 @@ machine. The `analysis.ipynb` notebook can then be opened to analyse the results
 and generate the figures used in this report.
 
 *Source Code Repository:* `https://github.com/timclarke76/dissertation` \
-*Release Tag:* `v1.0.0-final`
+*Release Tag:* `v1.0.0-submission`
 
 #v(2em)
 
