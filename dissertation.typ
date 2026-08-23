@@ -3676,6 +3676,44 @@ Number (CCN) for every function across the three pipeline implementations.
 #text(size: 7pt)[
   #raw(read("terminal/lizard/python.txt"), block: true, lang: "text")
 ]
+]
+#[
+
+#colbreak()
+#set heading(numbering: none)
+= AI Usage
+
+Google Gemini @gemini was used as an assistive tool in the preparation of this
+report in the following ways:
+
+- *Hardware Configuration:* to provide guidance on how to configure the Jetson
+  Orin Nano, including initial setup, power mode configuration, thermal
+  management, and NVIDIA utilities such as `nvpmodel` and `tegrastats`.
+
+- *Model Generation:* to generate the Python PyTorch scripts required to export
+  the dummy ONNX models used in the evaluation.
+
+- *Software Engineering:* to provide reference examples for idiomatic code, and
+  to aid in debugging issues across C++, Rust, and Python.
+
+- *Data Analysis:* to provide guidance on how to resolve some analysis
+  requirements in the Jupyter Notebook.
+
+- *Explanations:* to provide simplified explanations of some advanced topics
+  (e.g. cache-line contention and the GIL) to aid the author's understanding of
+  the concepts.
+
+- *Draft Review and Feedback:* to review written drafts for clarity and flow.
+  This included adopting occasional words and phrases to improve the technical
+  explanations.
+
+All AI-assisted code, configurations, and explanations were reviewed, validated,
+and fully understood. All prose was initially drafted by the author, and may
+have been subsequently reviewed by the AI. While some words and phrases were
+adopted to refine the text, the system architecture, data, arguments, and
+conclusions are the author's original intellectual work.
+
+#colbreak()
 
 #columns(2, gutter: 16pt)[
 #set par(justify: false)
