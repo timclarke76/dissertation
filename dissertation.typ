@@ -50,11 +50,12 @@
     results  using the Jetson's unconstrained power mode, sustaining ingestion
     rates up to \5.5 times the native sensor rate with no dynamic memory
     allocation when using Exponential Backoff. However, both compiled languages
-    reached terminal saturation at \4.0 when using the Bounded Queue policy due
-    to lock contention. Python reached terminal saturation at up to \4% of the
-    native sensor rate. Statistical analysis ruled out garbage collection as the
-    cause of Python's poor performance, indicating Global Interpreter Lock
-    contention as the primary bottleneck.
+    were unable to sustain ingestion rates above \4.0 when using the Bounded
+    Queue policy due to lock contention. In unconstrained mode, Python reached
+    terminal saturation at \4% of the native rate, though this slightly improved
+    to \6% under the \7-Watt profile. Statistical analysis ruled out garbage
+    collection as the cause of Python's poor performance, indicating Global
+    Interpreter Lock contention as the primary bottleneck.
 
     Analysis of the backpressure policies revealed a trade-off: flow-control
     policies prevent data loss but suffer from latency deadline breaches at
@@ -148,8 +149,6 @@ on the trade-offs among C++20 (with GCC \15.2.0), Rust (\1.97.1), and Python
 (HAR) pipeline on industry-standard Edge-AI hardware. It focuses on three
 variables: (\1) language runtime models, (\2) backpressure policies under
 various ingestion rates, and (\3) hardware power constraints.
-
-#colbreak()
 
 == Research Questions and Objectives
 
@@ -912,8 +911,6 @@ saturation when the consumer buffer is full:
     data, with the wait time increasing each time by a configurable factor until
     a maximum wait time is reached (after which the data is dropped).
 
-#colbreak()
-
 *Policies that intentionally drop data (Load Shedding):*
   - *Drop Oldest:* Drops the oldest data in the consumer buffer to make room for
     new data.
@@ -1281,7 +1278,7 @@ thread is delayed (e.g. by I/O stalls).
       r(1, 0, <reader>, [Telemetry Thread\ (Reader)]),
 
       c(0, 1, <active>, [Active\ Epoch Buffer]),
-      c(1.05, 1.05, <idle>, [Idle & Idle\ Epoch Buffers]),
+      c(1.04, 1.05, <idle>, [Idle & Inactive\ Epoch Buffers]),
       c(1, 1, <inactive>, [Idle & Inactive\ Epoch Buffers]),
 
       e(<writer>, <active>, [Record Metrics\ (Wait-Free)], center),
@@ -3360,12 +3357,12 @@ times per second.
 No garbage collection "stop-the-world" events occurred after the initial
 \10-second initialisation window in the Python implementation. However, due to
 contention with the automated memory management, a second shared memory buffer
-was required. Ultimately, the Python implementation only achieved a maximum
-sustainable `load` multiplier of \0.06 (i.e. \6% of the native sensor speed)
-across both evaluated power profiles.
+was required. The Python implementation only achieved a maximum sustainable
+`load` multiplier of \0.06 (i.e. \6% of the native sensor speed) when using the
+constrained 7-Watt power mode.
 
-Furthermore, analysis of the RSS (@fig:MAXN_SUPER-memory-profiling) shows that
-all three implementations were within \~\50 MiB of each other (approximately
+Analysis of the RSS (@fig:MAXN_SUPER-memory-profiling) shows that all three
+implementations were within \~\50 MiB of each other (approximately
 \745.6--\793.8 MiB). This reveals that in Edge-AI deployments, the memory
 requirements are predominantly determined by shared AI dependencies (ONNX
 Runtime, CUDA, and TensorRT), rather than the language runtime models
@@ -3408,8 +3405,8 @@ spin-loop while waiting for space to become available. This creates contention
 with the inference thread as it attempts to acquire the same mutex to drain the
 queue, resulting in resource starvation that acts as a livelock. Due to the GIL
 preventing multiple threads from executing Python bytecode simultaneously, this
-concurrent contention of mutex locks was particularly catastrophic for the
-Python implementation.
+concurrent contention of mutex locks was particularly severe for the Python
+implementation.
 
 Because the pipelines use pre-allocated memory, the zero-allocation design
 prevented the backpressure policies from causing dynamic memory churn or GC
@@ -3562,7 +3559,7 @@ identified:
   #v(0.6em)
 ]
 
-= Reproducibility and Results Access
+= Online Access and Reproducibility
 
 The following files and scripts are publicly available for review:
 - Deterministic load generator:
@@ -3623,8 +3620,15 @@ and generate the figures used in this report.
 Due to the volume of the telemetry logs, the raw `.csv` and `.log` files are
 hosted on Google Drive. They can be accessed and downloaded via the following
 link:
+/*
 - #link("https://drive.google.com/drive/folders/" +
   "1NRS4mHbByl7csg2hZrl5qmz9KwnonhUC")
+*/
+
+#text(size: 8.75pt)[
+  #link("https://dmail-my.sharepoint.com/:f:/g/personal/2712139_dundee_ac_uk/" +
+  "IgBd2GmOn1j3R6u7qx_Kip9uAQz75AvBoju15ezPvlkyxaE?e=4cGkgX")
+]
 
 #colbreak()
 
