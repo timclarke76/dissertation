@@ -1,0 +1,20 @@
+[project]
+name = "results"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Tim Clarke",email = "timothyclarke@gmail.com7"}
+]
+requires-python = ">=3.14"
+dependencies = [
+    "jupyter (>=1.1.1,<2.0.0)",
+    "pandas (>=3.0.5,<4.0.0)",
+    "matplotlib (>=3.11.1,<4.0.0)",
+    "scipy (>=1.18.0,<2.0.0)",
+    "scikit-posthocs (>=0.14.0,<0.15.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

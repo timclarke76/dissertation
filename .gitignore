@@ -1,3 +1,6 @@
 dissertation.pdf
-code/results/
+code/results/.ipynb_checkpoints/
+code/results/.venv/
+code/results/07-watt/
+code/results/MAXN_SUPER/
 code/torch/models/
