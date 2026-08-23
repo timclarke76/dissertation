@@ -3477,6 +3477,27 @@ $n$-th frame before saturation is reached, at the expense of a significantly
 higher drop rate as the data ingestion rate approaches the pipeline's maximum
 sustainable throughput.
 
+== Security, Ethical, and Professional Considerations
+
+System security can be compromised by memory-safety bugs, such as out-of-bounds
+and use-after-free vulnerabilities, which can be intermittent and difficult to
+replicate in testing. By evaluating the manual memory management of C++, the
+compiler-enforced memory safety of Rust, and the automated memory management of
+Python, this dissertation addresses the professional need to reduce the
+deployment of vulnerable code to production environments.
+
+Processing sensitive data (such as video) locally on Edge-AI devices addresses
+social and ethical privacy concerns. Pipelines such as the one presented in this
+dissertation eliminate the requirement to transmit data to remote cloud servers.
+This prevents network interception, and the legal risks associated with data
+breaches and the mishandling of personal information.
+
+Edge-AI hardware places resource constraints on deployments, such as available
+power and thermal dissipation limits. By evaluating runtime models under a
+constrained 7-Watt power profile, and analysing the impact of thermal
+accumulation on performance, this dissertation provides guidance for the
+professional implementation of resource-efficient pipelines.
+
 == Future Work
 
 While this dissertation evaluated the interaction between runtime models and
