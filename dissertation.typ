@@ -3588,10 +3588,10 @@ Running `deploy.sh` from the directory containing the script, with the Jetson
 Orin Nano connected to the host machine via USB, will deploy the evaluation
 suite using the `Dockerfile` to create a reproducible environment.
 
-After connecting to the Jetson Orin Nano via SSH, the evaluation suite can be
-executed using the `run.sh` script in the `~/dissertation` directory. The script
-will balance the hardware temperatures, execute the evaluation suite, and run
-`tegrastats`:
+After logging directly into the Jetson Orin Nano, or connecting to it via SSH,
+the evaluation suite can be executed using the `run.sh` script in the
+`~/dissertation` directory. The script will balance the hardware temperatures,
+execute the evaluation suite, and run `tegrastats`:
 - `run.sh 2` will execute the evaluation suite in MAXN_SUPER mode
 - `run.sh 3` will execute the evaluation suite in constrained 7-Watt mode
 
@@ -3618,13 +3618,13 @@ and generate the figures used in this report.
 #v(2em)
 
 Due to the volume of the telemetry logs, the raw `.csv` and `.log` files are
-hosted on Google Drive. They can be accessed and downloaded via the following
+hosted on on the cloud. They can be accessed and downloaded via the following
 link:
+
 /*
 - #link("https://drive.google.com/drive/folders/" +
   "1NRS4mHbByl7csg2hZrl5qmz9KwnonhUC")
 */
-
 #text(size: 8.75pt)[
   #link("https://dmail-my.sharepoint.com/:f:/g/personal/2712139_dundee_ac_uk/" +
   "IgBd2GmOn1j3R6u7qx_Kip9uAQz75AvBoju15ezPvlkyxaE?e=4cGkgX")
