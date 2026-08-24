@@ -1644,13 +1644,13 @@ Each spawned thread chain begins at the *bridge thread*, which spin-waits on an
 unbounded shared memory (`/dev/shm`) ring buffer populated by an external
 process, defining the Inter-Process Communication (IPC) boundary. The bridge
 thread attempts to add ingested frames into a bounded queue, applying the
-configured backpressure policy (e.g. Adaptive Decimation, Drop Oldest) if the
-queue is full. The *inference thread* pulls frames from the bounded queue to
-create temporal event windows, execute the ONNX model, and push the result to
-the MPSC channel. The *late-fusion thread* consumes from the MPSC channel and
-anchors execution of its own ONNX model to the 30 Hz RGB stream, before finally
-passing the frames to the individual *telemetry threads* for persistence of the
-telemetry metrics.
+configured backpressure policy (e.g. Adaptive Decimation, Drop Oldest) as
+necessary according to the policy in use. The *inference thread* pulls frames
+from the bounded queue to create temporal event windows, execute the ONNX model,
+and push the result to the MPSC channel. The *late-fusion thread* consumes from
+the MPSC channel and anchors execution of its own ONNX model to the 30 Hz RGB
+stream, before finally passing the frames to the individual *telemetry threads*
+for persistence of the telemetry metrics.
 
 #figure(
   pad(top: 0em)[
