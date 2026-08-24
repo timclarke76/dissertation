@@ -31,6 +31,67 @@
 #let light_grey = luma(250)
 #let charcoal = rgb("#2D3748")
 
+#set page(margin: (x: 1.5cm, y: 2cm))
+#figure[#image("img/uod.png", width: 50%)]
+
+#v(7em)
+
+#align(center)[
+  #text(size: 16pt)[
+    A Comparative Analysis of Memory Management, \
+    Concurrency, and Performance in Edge-AI
+    #v(3em)
+    *Timothy Clarke*
+    #v(3em)
+    Supervised by Dr. Vladimir Janjic
+    #v(5em)
+  ]
+  A dissertation submitted for the Degree of Master of Science \
+  MSc in *Advanced Computer Science*
+  #v(5em)
+  School of Science and Engineering \
+  University of Dundee
+  #v(5em)
+  24#super[th] August 2026
+]
+
+#pagebreak()
+#pagebreak()
+#text(size: 16pt)[*Declaration*]
+
+I declare that the special study described in this dissertation has been carried
+out and the dissertation composed by me, and that the dissertation has not been
+accepted in fulfilment of the requirements of any other degree or professional
+qualification.
+
+#v(5em)
+
+*Signed:* Timothy Clarke
+
+#v(2em)
+
+*Date:* 24#super[th] August 2026
+
+#pagebreak()
+#text(size: 16pt)[*Certificate*]
+
+I certify that Timothy Clarke has satisfied the conditions of the Ordinance and
+Regulations and is qualified to submit this dissertation in application for the
+degree of Master of Science.
+
+#v(5em)
+
+*Signed:*
+
+#v(2em)
+
+*Date:*
+
+#pagebreak()
+#outline(title: [Table of Contents], depth: 2)
+#pagebreak()
+#counter(page).update(1)
+
 #show: template.with(
   title: [AC52010 - MSc Project],
   // title: [#total-words words],
