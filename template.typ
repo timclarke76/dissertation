@@ -96,11 +96,11 @@
     #v(0.5em)
 
     *Timothy Clarke* \
+    School of Science and Engineering \
     University of Dundee \
-    United Kingdom \
     2712139\@dundee.ac.uk
     #v(0.5em)
-    *Abstract*
+    *Abstract / Executive Summary*
   ]
   #pad(x: 2em)[
     #abstract
